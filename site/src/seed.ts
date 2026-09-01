@@ -108,6 +108,17 @@ export const initialWorkspace: WorkspaceState = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.2.0',
+    date: '2 September 2026',
+    title: 'Accountable tool interfaces',
+    summary: 'A compact catalog now makes Telepathy’s planned tool boundaries visible without turning tools into teammates.',
+    changes: [
+      'Added Prime, Build, Steward, Research, and Relationships with their intended routes and honest planned status.',
+      'Made required human ownership and the shared Job and artifact acceptance boundary explicit.',
+      'Kept every intended subdomain visibly marked as not live.',
+    ],
+  },
+  {
     version: '0.1.0',
     date: '2 September 2026',
     title: 'Internal alpha workspace',

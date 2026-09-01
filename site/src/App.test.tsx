@@ -167,6 +167,55 @@ describe('Telepathy workspace', () => {
     expect(screen.getByRole('button', { name: 'Use light theme' })).toBeInTheDocument()
   })
 
+  it('presents planned interfaces as focused tools behind explicit human gates', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Interfaces' }))
+
+    expect(screen.getByRole('heading', { name: 'Interfaces' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Interfaces' })).toHaveAttribute('aria-current', 'page')
+    await waitFor(() => expect(screen.getByRole('main')).toHaveFocus())
+    expect(screen.getByText('Focused tools, not teammates')).toBeInTheDocument()
+    expect(screen.getByText(/do not join People or author Now posts/)).toBeInTheDocument()
+    expect(screen.getByText(/Humans retain intent, review, acceptance, publication, and external sending/)).toBeInTheDocument()
+
+    const catalog = screen.getByRole('list', { name: 'Planned meta-agent interfaces' })
+    const expectedInterfaces = [
+      ['Prime', 'Project steward', 'prime.telepathy.intuitxn.com', '/agents/prime'],
+      ['Build', 'Builder', 'build.telepathy.intuitxn.com', '/agents/build'],
+      ['Steward', 'Release keeper', 'steward.telepathy.intuitxn.com', '/agents/steward'],
+      ['Research', 'Research scout', 'research.telepathy.intuitxn.com', '/agents/research'],
+      ['Relationships', 'Relationship desk', 'relationships.telepathy.intuitxn.com', '/agents/relationships'],
+    ]
+
+    expect(within(catalog).getAllByRole('article')).toHaveLength(5)
+    for (const [name, label, host, path] of expectedInterfaces) {
+      expect(within(catalog).getByRole('heading', { name })).toBeInTheDocument()
+      expect(within(catalog).getByText(label)).toBeInTheDocument()
+      expect(within(catalog).getByText(host)).toBeInTheDocument()
+      expect(within(catalog).getByText(path)).toBeInTheDocument()
+    }
+    expect(within(catalog).getAllByText('Planned')).toHaveLength(5)
+    expect(within(catalog).getAllByText('Not live')).toHaveLength(5)
+    expect(within(catalog).getAllByText('Required')).toHaveLength(5)
+    expect(within(catalog).getAllByText('Unassigned')).toHaveLength(5)
+    expect(within(catalog).queryAllByRole('link')).toHaveLength(0)
+
+    expect(screen.getByRole('heading', { name: 'Tools prepare. Humans accept.' })).toBeInTheDocument()
+    expect(screen.getByText(/only a human may accept the work and close the Job/)).toBeInTheDocument()
+    expect(screen.getByText(/No interface may activate its own Job/)).toBeInTheDocument()
+
+    const interfaceView = screen.getByRole('heading', { name: 'Interfaces' }).closest('section')
+    expect(interfaceView).not.toBeNull()
+    expect(within(interfaceView!).queryByRole('textbox')).not.toBeInTheDocument()
+    expect(within(interfaceView!).queryByRole('button', { name: /chat|send|launch|run|open/i })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Now' }))
+    expect(screen.getByRole('heading', { name: 'Now' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Now' })).toHaveAttribute('aria-current', 'page')
+  })
+
   it('renders user-entered markup as plain text', async () => {
     const user = userEvent.setup()
     const { container } = render(<App />)

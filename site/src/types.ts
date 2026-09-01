@@ -4,7 +4,7 @@ export type PersonId = (typeof personIds)[number]
 export const postKinds = ['update', 'decision', 'question', 'announcement'] as const
 export type PostKind = (typeof postKinds)[number]
 export type Theme = 'light' | 'dark'
-export type ViewName = 'now' | 'people' | 'changelog'
+export type ViewName = 'now' | 'people' | 'interfaces' | 'changelog'
 
 export interface Reply {
   id: string

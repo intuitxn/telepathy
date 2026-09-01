@@ -33,6 +33,14 @@ export function PeopleIcon(props: IconProps) {
   )
 }
 
+export function InterfacesIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M5 5.5h4v4H5v-4ZM15 5.5h4v4h-4v-4ZM10 14.5h4v4h-4v-4ZM9 7.5h6M7 9.5v2.2c0 1.6 1.3 2.8 2.8 2.8h.2M17 9.5v2.2c0 1.6-1.3 2.8-2.8 2.8H14" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.6" />
+    </IconBase>
+  )
+}
+
 export function ChangelogIcon(props: IconProps) {
   return (
     <IconBase {...props}>

@@ -8,6 +8,7 @@ import {
 } from './workspace'
 import {
   ChangelogIcon,
+  InterfacesIcon,
   MoonIcon,
   NowIcon,
   PeopleIcon,
@@ -17,10 +18,12 @@ import {
 import { NowView } from './views/NowView'
 import { PeopleView } from './views/PeopleView'
 import { ChangelogView } from './views/ChangelogView'
+import { InterfacesView } from './views/InterfacesView'
 
 const navItems: { id: ViewName; label: string; icon: typeof NowIcon }[] = [
   { id: 'now', label: 'Now', icon: NowIcon },
   { id: 'people', label: 'People', icon: PeopleIcon },
+  { id: 'interfaces', label: 'Interfaces', icon: InterfacesIcon },
   { id: 'changelog', label: 'Changelog', icon: ChangelogIcon },
 ]
 
@@ -198,6 +201,7 @@ export default function App() {
                 posts={workspace.posts}
               />
             )}
+            {view === 'interfaces' && <InterfacesView />}
             {view === 'changelog' && <ChangelogView />}
           </div>
         </main>
