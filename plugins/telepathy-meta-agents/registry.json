@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "interfaces": [
+    {
+      "id": "prime",
+      "name": "Prime",
+      "label": "Project steward",
+      "purpose": "Turn human intent into a reviewable Job proposal.",
+      "host": "prime.telepathy.intuitxn.com",
+      "path": "/agents/prime",
+      "status": "planned",
+      "inputs": ["human_request", "accepted_project_context"],
+      "outputs": ["job_proposal"],
+      "authority": {
+        "allow": ["read_accepted_context", "propose_job"],
+        "deny": ["activate_job", "author_human_post", "accept_artifact", "send_external"]
+      }
+    },
+    {
+      "id": "build",
+      "name": "Build",
+      "label": "Builder",
+      "purpose": "Produce a tested candidate artifact from an accepted Job.",
+      "host": "build.telepathy.intuitxn.com",
+      "path": "/agents/build",
+      "status": "planned",
+      "inputs": ["accepted_job"],
+      "outputs": ["candidate_artifact", "verification_evidence"],
+      "authority": {
+        "allow": ["link_agent_manager_run", "produce_candidate", "report_verification"],
+        "deny": ["accept_artifact", "merge_without_review", "resolve_job", "send_external"]
+      }
+    },
+    {
+      "id": "steward",
+      "name": "Steward",
+      "label": "Release keeper",
+      "purpose": "Project accepted work into receipts, changelog, Git, and knowledge views.",
+      "host": "steward.telepathy.intuitxn.com",
+      "path": "/agents/steward",
+      "status": "planned",
+      "inputs": ["accepted_artifact", "human_decision"],
+      "outputs": ["resolution_receipt", "activity_record", "knowledge_projection"],
+      "authority": {
+        "allow": ["read_accepted_context", "project_accepted_event", "prepare_changelog"],
+        "deny": ["author_human_post", "accept_artifact", "change_ledger_history", "send_external"]
+      }
+    },
+    {
+      "id": "research",
+      "name": "Research",
+      "label": "Research scout",
+      "purpose": "Prepare evidence-backed research artifacts for human review.",
+      "host": "research.telepathy.intuitxn.com",
+      "path": "/agents/research",
+      "status": "planned",
+      "inputs": ["research_question", "source_policy"],
+      "outputs": ["candidate_dossier", "source_map"],
+      "authority": {
+        "allow": ["retrieve_sources", "prepare_candidate", "report_uncertainty"],
+        "deny": ["accept_artifact", "state_unverified_claim_as_fact", "send_external"]
+      }
+    },
+    {
+      "id": "relationships",
+      "name": "Relationships",
+      "label": "Relationship desk",
+      "purpose": "Prepare reviewed external-conversation drafts from approved context.",
+      "host": "relationships.telepathy.intuitxn.com",
+      "path": "/agents/relationships",
+      "status": "planned",
+      "inputs": ["approved_context", "recipient_identity", "communication_goal"],
+      "outputs": ["candidate_message", "evidence_links"],
+      "authority": {
+        "allow": ["prepare_candidate", "cite_approved_context"],
+        "deny": ["send_external", "record_unverified_delivery", "expose_private_context"]
+      }
+    }
+  ]
+}

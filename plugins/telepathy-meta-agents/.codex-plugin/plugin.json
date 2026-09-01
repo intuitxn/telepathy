@@ -1,0 +1,27 @@
+{
+  "name": "telepathy-meta-agents",
+  "version": "0.1.0",
+  "description": "Human-reviewed meta-agent interfaces for Telepathy Jobs, artifacts, and accepted activity projections.",
+  "author": {
+    "name": "Intuitxn",
+    "url": "https://github.com/intuitxn"
+  },
+  "homepage": "https://github.com/intuitxn/telepathy",
+  "repository": "https://github.com/intuitxn/telepathy",
+  "license": "UNLICENSED",
+  "keywords": ["telepathy", "meta-agent", "human-review", "artifacts"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Telepathy Meta Agents",
+    "shortDescription": "Turn human intent into reviewed outcomes.",
+    "longDescription": "Operate Telepathy's focused meta-agent interfaces while preserving visible human ownership, exact artifact revisions, and review before publication.",
+    "developerName": "Intuitxn",
+    "category": "Productivity",
+    "capabilities": ["Human review", "Artifact provenance", "Git projection"],
+    "defaultPrompt": [
+      "Turn this request into a reviewed Telepathy Job.",
+      "Prepare a candidate artifact with verification evidence.",
+      "Project this accepted outcome into the activity log."
+    ]
+  }
+}

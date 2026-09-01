@@ -1,0 +1,4 @@
+interface:
+  display_name: "Operate Telepathy Meta Agent"
+  short_description: "Route human intent through a meta-agent"
+  default_prompt: "Use $operate-telepathy-meta-agent to turn this human request into a reviewed Telepathy outcome."

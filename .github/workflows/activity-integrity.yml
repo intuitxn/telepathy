@@ -1,0 +1,33 @@
+name: Validate accepted activity
+
+on:
+  pull_request:
+    paths:
+      - "activity/**"
+      - "plugins/telepathy-meta-agents/**"
+      - ".github/workflows/activity-integrity.yml"
+  push:
+    branches: [main]
+    paths:
+      - "activity/**"
+      - "plugins/telepathy-meta-agents/**"
+      - ".github/workflows/activity-integrity.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Validate registry and accepted activity
+        run: node plugins/telepathy-meta-agents/scripts/validate.mjs

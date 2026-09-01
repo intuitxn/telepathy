@@ -1,0 +1,20 @@
+{
+  "name": "personal",
+  "interface": {
+    "displayName": "Intuitxn Telepathy"
+  },
+  "plugins": [
+    {
+      "name": "telepathy-meta-agents",
+      "source": {
+        "source": "local",
+        "path": "./plugins/telepathy-meta-agents"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
