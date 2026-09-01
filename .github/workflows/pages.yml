@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "site/**"
+      - "plugins/telepathy-meta-agents/registry.json"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 

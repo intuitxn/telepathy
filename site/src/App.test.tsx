@@ -203,7 +203,8 @@ describe('Telepathy workspace', () => {
     expect(within(catalog).queryAllByRole('link')).toHaveLength(0)
 
     expect(screen.getByRole('heading', { name: 'Tools prepare. Humans accept.' })).toBeInTheDocument()
-    expect(screen.getByText(/only a human may accept the work and close the Job/)).toBeInTheDocument()
+    expect(screen.getByText(/catalog is not connected to interface execution yet/)).toBeInTheDocument()
+    expect(screen.getByText(/while only a human may accept the work and close the Job/)).toBeInTheDocument()
     expect(screen.getByText(/No interface may activate its own Job/)).toBeInTheDocument()
 
     const interfaceView = screen.getByRole('heading', { name: 'Interfaces' }).closest('section')

@@ -71,7 +71,7 @@ export function InterfacesView() {
           <span className="eyebrow">Shared Job / artifact boundary</span>
           <h2 id="job-boundary-title">Tools prepare. Humans accept.</h2>
           <p>
-            Every interface works through the same review boundary. A tool may prepare a proposal or candidate; only a human may accept the work and close the Job.
+            This catalog is not connected to interface execution yet. The intended policy is one shared review boundary: a tool may prepare a proposal or candidate, while only a human may accept the work and close the Job.
           </p>
         </header>
 
