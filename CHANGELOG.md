@@ -23,7 +23,7 @@ All notable Telepathy product changes are recorded here. Planned work stays in t
 ### Known limits
 
 - The website persists data in one browser and has no authenticated shared backend or cross-device delivery.
-- Om and Kush have pending organization invitations and are not yet repository collaborators.
+- Om is an active Intuitxn member and Kush's organization invitation remains pending; both currently have read-only repository permission rather than contributor access.
 - The intended custom domain and meta-agent subdomains are not live until authoritative DNS, managed HTTPS, access control, and host routing pass verification.
 - The harness is local and unauthenticated; it must not be exposed as a production service.
 

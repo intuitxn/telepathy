@@ -11,7 +11,7 @@ When you join:
 3. share what you are working on, what changed recently, and what you need from us;
 4. reply to one teammate or close one open question.
 
-This first release is deliberately an internal alpha. The interaction model works, but shared accounts and server persistence are the next production gate. Your Intuitxn GitHub invitations are already pending; after you accept them, we will set repository access explicitly and complete onboarding together.
+This first release is deliberately an internal alpha. The interaction model works, but shared accounts and server persistence are the next production gate. Om is already an active Intuitxn member; Kush's organization invitation is still pending. Both currently have read-only repository access, so we will set contributor access explicitly and complete onboarding together.
 
 Product: https://intuitxn.github.io/telepathy/
 
