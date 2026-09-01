@@ -2,6 +2,8 @@
 
 Telepathy is Intuitxn's shared human context layer.
 
+**Live internal-alpha preview:** <https://intuitxn.github.io/telepathy/>
+
 It gives Shubham, Om, and Kush one place to publish decisions, updates, questions, asks, and accepted outcomes. People remain the visible authors and owners. Agent Manager, worker agents, routing, summarization, and artifact processing operate beneath that surface.
 
 ## Product rule
@@ -18,6 +20,8 @@ The first product has four visible objects:
 ## Current release boundary
 
 The first website is an internal alpha. It demonstrates the complete interaction model and persists activity in one browser. It is not yet a secure multi-user production workspace.
+
+The preview also includes an **Interfaces** catalog for Prime, Build, Steward, Research, and Relationships. These are planned focused tools over shared Job and artifact machinery—not people, feed authors, or live agent endpoints.
 
 Not yet shipped:
 

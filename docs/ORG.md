@@ -5,6 +5,7 @@
 - Public source repository: [`intuitxn/telepathy`](https://github.com/intuitxn/telepathy)
 - Private planning Project: [`intuitxn / Telepathy`](https://github.com/orgs/intuitxn/projects/1)
 - Internal alpha milestone: [`Internal alpha`](https://github.com/intuitxn/telepathy/milestone/1)
+- Verified GitHub Pages preview: [`intuitxn.github.io/telepathy`](https://intuitxn.github.io/telepathy/)
 - Intended root product: `telepathy.intuitxn.com`
 
 GitHub Projects Classic is deprecated and is not part of this system.
@@ -26,3 +27,5 @@ One application and one backend should resolve focused interfaces from the host.
 Project navigation remains path-based at `/projects/:project` so project slugs cannot collide with agent hosts.
 
 The subdomains are not live merely because they appear in this map. Each requires authoritative DNS, managed HTTPS, access control, and verified host routing.
+
+The GitHub Pages URL is the only verified public preview. It is not evidence of production authentication, shared persistence, notification delivery, custom-domain routing, or live meta-agent endpoints.

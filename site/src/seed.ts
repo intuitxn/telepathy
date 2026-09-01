@@ -108,26 +108,16 @@ export const initialWorkspace: WorkspaceState = {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: '0.2.0',
-    date: '2 September 2026',
-    title: 'Accountable tool interfaces',
-    summary: 'A compact catalog now makes Telepathy’s planned tool boundaries visible without turning tools into teammates.',
-    changes: [
-      'Added Prime, Build, Steward, Research, and Relationships with their intended routes and honest planned status.',
-      'Made required human ownership and the shared Job and artifact acceptance boundary explicit.',
-      'Kept every intended subdomain visibly marked as not live.',
-    ],
-  },
-  {
-    version: '0.1.0',
+    version: '0.1.0-alpha.1',
     date: '2 September 2026',
     title: 'Internal alpha workspace',
-    summary: 'The first browser-local Telepathy product surface is ready for evaluation.',
+    summary: 'The first browser-local human workspace and accountable tool catalog are ready for evaluation.',
     changes: [
-      'Added Now with updates, decisions, questions, and announcements.',
-      'Added replies, per-person acknowledgements, and durable question answers.',
+      'Added Now with updates, decisions, questions, announcements, replies, acknowledgements, and durable answers.',
       'Added People with local onboarding status for Shubham, Om, and Kush.',
-      'Added a clearly labelled demo identity switch and persistent light/dark preferences.',
+      'Added Prime, Build, Steward, Research, and Relationships with their intended routes and honest planned status.',
+      'Made required human ownership and the shared Job and artifact acceptance boundary explicit.',
+      'Kept browser-only persistence and every intended subdomain visibly marked as not live.',
     ],
   },
 ]

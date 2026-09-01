@@ -13,6 +13,6 @@ When you join:
 
 This first release is deliberately an internal alpha. The interaction model works, but shared accounts and server persistence are the next production gate. Your Intuitxn GitHub invitations are already pending; after you accept them, we will set repository access explicitly and complete onboarding together.
 
-Product: `TELEPATHY_URL`
+Product: https://intuitxn.github.io/telepathy/
 
 Project: https://github.com/orgs/intuitxn/projects/1
