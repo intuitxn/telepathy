@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+*.log
+workspaces/
+harness/ledger.jsonl
+harness/state/*
+!harness/state/world.seed.json
+harness/artifacts/*
+!harness/artifacts/.gitkeep

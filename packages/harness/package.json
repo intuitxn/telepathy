@@ -1,0 +1,35 @@
+{
+  "name": "@intuitxn/telepathy-harness",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Localhost-only execution harness and append-only Job ledger for Telepathy.",
+  "exports": {
+    "./jobs": "./harness/jobs.ts",
+    "./ledger": "./harness/ledger.ts",
+    "./reservations": "./harness/reservations.ts",
+    "./socket": "./harness/socket.ts"
+  },
+  "scripts": {
+    "start": "tsx harness/socket.ts",
+    "dev": "tsx --watch harness/socket.ts",
+    "test": "tsx harness/test.ts",
+    "test:verbose": "tsx harness/test.ts --verbose",
+    "typecheck": "tsc --noEmit",
+    "ledger:read": "tsx harness/ledger.ts read",
+    "ledger:append": "tsx harness/ledger.ts append"
+  },
+  "dependencies": {
+    "chokidar": "^4.0.1",
+    "ws": "^8.17.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "@types/ws": "^8.5.13",
+    "tsx": "^4.19.1",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

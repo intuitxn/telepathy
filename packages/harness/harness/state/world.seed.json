@@ -1,0 +1,15 @@
+{
+  "version": 0,
+  "updatedAt": "1970-01-01T00:00:00.000Z",
+  "ledgerSeq": 0,
+  "reservations": {},
+  "tasks": {},
+  "artifacts": {},
+  "jobs": {},
+  "hosts": {
+    "harness": "127.0.0.1:8787",
+    "tailscale": null,
+    "previewBase": "http://localhost:3000/preview"
+  },
+  "note": "Deterministic source seed. Live world.json is derived from the append-only ledger and is not committed."
+}
