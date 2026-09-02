@@ -1,0 +1,27 @@
+{
+  "name": "@telepathy/opencode-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Telepathy harness as a real opencode plugin. Humans are the visible authors; the agent composes posts/replies/acknowledgements/resolutions over Buzz, drafts by default, and keeps agent traffic underneath.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@opencode-ai/plugin": "1.18.15"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "typescript": "^5.7.2"
+  },
+  "peerDependencies": {
+    "zod": "^4.1.8"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

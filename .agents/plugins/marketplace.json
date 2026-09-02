@@ -5,10 +5,10 @@
   },
   "plugins": [
     {
-      "name": "telepathy-meta-agents",
+      "name": "telepathy",
       "source": {
         "source": "local",
-        "path": "./plugins/telepathy-meta-agents"
+        "path": "./plugins/telepathy"
       },
       "policy": {
         "installation": "AVAILABLE",

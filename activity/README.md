@@ -14,8 +14,4 @@ One accepted event gets one immutable file. The source event ID is its idempoten
 
 Each file includes human initiator, owner, reviewer, exact artifact revision, verification evidence, limitations, and next action. OpenKnowledge, Obsidian, and Sites may render or curate this projection without becoming independent Job state stores.
 
-Validate the tree from the repository root:
-
-```bash
-node plugins/telepathy-meta-agents/scripts/validate.mjs
-```
+This tree is plain, Git-synced markdown; the source of truth is the accepted revision (a merged commit) and the Buzz thread it was resolved in.
