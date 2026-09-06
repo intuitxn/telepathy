@@ -5,6 +5,7 @@
 ### Added
 
 - Harness boundary document (`HARNESS.md`) — accepted via the first end-to-end desk job (owner Shubham, runtime Codex).
+- Relay setup reference (`docs/RELAY_SETUP.md`) — written by the first relay-sourced job (requested from the Buzz telepathy channel, accepted by Shubham).
 - Declarative meta-agent registry (`plugins/telepathy-meta-agents/registry.json`) — the site's Interfaces catalog now renders from it; all site tests pass.
 - Agent map (`docs/AGENT_MAP.md`) and living harness state (`docs/HARNESS_STATE.md`) with a dated lesson log that Steward maintains.
 - Desk `accept` command — completes the Job lifecycle on the ledger (Review -> Resolved) with a named human reviewer and timestamp.

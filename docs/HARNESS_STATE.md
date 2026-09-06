@@ -34,7 +34,7 @@ optional `context` (repo-relative paths, sha256-snapshotted).
 | Site alpha + registry catalog | Working — builds, 15 tests pass |
 | Desk + plugin tests | Working — 4 desk + 2 plugin tests pass |
 | Buzz relay writes | Verified 2026-09-06 — channels, projects, workflow, canvases, notes, members all accepted |
-| Live intake (poll/watch) | Working — real Buzz message -> desk job `154ba928` (first relay-sourced job) |
+| Live intake (poll/watch) | Working — real Buzz message -> desk job `154ba928`, accepted by Shubham, landed as `docs/RELAY_SETUP.md` |
 | Persistent runner | Undecided — local `npm run desk -- watch` or a server over SSH |
 
 ## Open gaps
