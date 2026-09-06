@@ -1,0 +1,17 @@
+.git
+.gitignore
+.archive
+.dockerignore
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+.DS_Store
+.env
+.env.*
+*.md
+docs
+plugins
+activity
+.github
+.opencode
+.agents

@@ -1,0 +1,29 @@
+name: Deploy to Mac mini
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "Dockerfile"
+      - "nginx.conf"
+      - "docker-compose.yml"
+      - ".github/workflows/deploy-macmini.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: telepathy-macmini
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Build and restart the nginx container
+        run: docker compose up -d --build --remove-orphans
+
+      - name: Prune dangling images
+        run: docker image prune -f

@@ -1,0 +1,10 @@
+services:
+  telepathy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: telepathy:latest
+    container_name: telepathy
+    restart: unless-stopped
+    ports:
+      - "8080:80"
