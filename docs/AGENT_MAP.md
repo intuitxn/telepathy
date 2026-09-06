@@ -32,6 +32,14 @@ One Buzz project per code repository, each bound to its home channel:
 Program details live in [`programs/*.md`](../programs/). Create the relay objects with
 `scripts/setup-programs.sh` (needs `BUZZ_PRIVATE_KEY` in the environment).
 
+## Agent activity model
+
+All agent activity happens as threads inside the program channels. One desk runtime
+handles intake, execution, and projection. Agent updates are thread replies, not new
+channels or personas. Pollen, Fizz, and Honey are optional Desktop helpers; they are
+not required for the loop. Humans accept a candidate by replying `accept` in the job
+thread.
+
 ## Telepathy agents — JTBD interfaces
 
 | Agent | JTBD stage | May | Must not | Runtime |
