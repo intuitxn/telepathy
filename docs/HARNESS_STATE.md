@@ -40,7 +40,7 @@ optional `context` (repo-relative paths, sha256-snapshotted).
 ## Open gaps
 
 1. Decide where the watch loop runs; secrets live in that environment only (the desktop keychain holds the identity).
-2. Push the telepathy code to the announced relay repo (needs a commit first — see attribution note).
+2. (resolved) Code pushed to the relay repo — `main` at `2780de7`, repo bound to the telepathy channel.
 3. The telepathy channel's roster lost its owner role during the relay's earlier state; writes work, so this is cosmetic for now.
 4. Jobs `200afc61`/`01a249cb` remain `needs_attention` evidence for the opencode2 model-unavailable finding.
 
@@ -55,3 +55,7 @@ Lessons are dated, specific, and written only after a human accepts the outcome.
   reference, not a bare model string. Fixed in `runtime/desk/src/jobs.js`.
 - **2026-09-06 (accepted by Shubham)** — The Job lifecycle was missing its final transition.
   Added `desk accept` (Review -> Resolved) with a named reviewer and timestamp; covered by a test.
+- **2026-09-06 (accepted by Shubham)** — Relay git push works with the official helper from Buzz Desktop
+  (`/Applications/Buzz.app/Contents/MacOS/git-credential-nostr`) plus `credential.useHttpPath=true` and
+  `nostr.keyfile`. `buzz repos bind` fails with a timestamp error on old announcements — publish the
+  bind event yourself (kind 30617 with a `buzz-channel` tag) via `POST /events`.
