@@ -99,13 +99,14 @@ export async function landJob(db, id, reviewer) {
     const src = join(job.worktree, f);
     if (existsSync(src)) { mkdirSync(dirname(join(repository, f)), { recursive: true }); copyFileSync(src, join(repository, f)); }
   }
-  await checked('git', ['add', '-A'], { cwd: repository });
+  await checked('git', ['add', '-A', '--', ...files], { cwd: repository });
   const message = `land ${job.id}: ${job.request.split('\n')[0].slice(0, 80)} — accepted by ${reviewer}`;
   const commitOut = await checked('git', ['commit', '-m', message], { cwd: repository, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } });
   const commit = commitOut.split(' ')[1];
+  const branch = await checked('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: repository });
   const pushed = [];
   for (const remote of ['origin', 'buzz']) {
-    try { await checked('git', ['push', remote, 'main'], { cwd: repository, timeout: 90000, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } }); pushed.push(remote); } catch {}
+    try { await checked('git', ['push', remote, branch], { cwd: repository, timeout: 90000, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } }); pushed.push(remote); } catch {}
   }
   const accepted = acceptJob(db, id, reviewer);
   return { ...accepted, landedFiles: files, commit, pushed };
