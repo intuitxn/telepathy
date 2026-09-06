@@ -1,0 +1,29 @@
+name: jtbd
+description: Job To Be Done loop for Intuitxn programs — request, execute, accept, resolve
+trigger:
+  type: manual
+  on: message_posted
+steps:
+  - id: request
+    title: Job request
+    description: A human posts the job with what changed, why it matters, acceptance criteria, and owner.
+    action: request_approval
+    from: owner
+    message: "Job requested: {title}. Approve to queue it for the desk engine?"
+  - id: execute
+    title: Execute in a worktree
+    description: Desk claims the job, runs Codex in a detached worktree, and posts candidate + evidence + exact revision.
+    action: send_message
+    text: "Desk executing: {title}. Candidate and evidence will follow in this thread."
+  - id: accept
+    title: Human acceptance
+    description: A named human accepts the exact revision or redirects the job.
+    action: request_approval
+    from: owner
+    message: "Candidate ready for {title}. Accept the exact revision or redirect?"
+  - id: resolve
+    title: Resolve and project
+    description: Steward drafts the resolution, changelog entry, and HARNESS_STATE lesson; a human approves the send.
+    action: request_approval
+    from: owner
+    message: "Resolve {title}? Steward will draft the resolution, changelog, and lesson for your review."

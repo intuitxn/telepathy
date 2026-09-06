@@ -131,6 +131,11 @@ export function runBuzz(
         /* non-JSON output is fine for some commands */
       }
 
+      const isWrite = ["send", "add"].includes(args[1] ?? "");
+      if (code === 0 && isWrite && (!json || (json as { accepted?: boolean }).accepted !== true)) {
+        resolve({ ok: false, exitCode: code, stdout, stderr, json, error: "Relay did not confirm delivery (accepted: true).", category: "other" });
+        return;
+      }
       if (code === 0) {
         resolve({ ok: true, exitCode: code, stdout, stderr, json });
         return;

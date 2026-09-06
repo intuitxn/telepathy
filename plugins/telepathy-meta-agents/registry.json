@@ -1,0 +1,127 @@
+{
+  "interfaces": [
+    {
+      "id": "prime",
+      "name": "Prime",
+      "label": "Project steward",
+      "purpose": "Turn human intent into a reviewable job proposal with owner, reviewer, scope, and acceptance criteria.",
+      "host": "prime.telepathy.intuitxn.com",
+      "path": "/agents/prime",
+      "status": "planned",
+      "agentFile": ".opencode/agents/prime.md",
+      "runtime": "desk",
+      "jtbd": [
+        "propose",
+        "scope"
+      ],
+      "may": [
+        "Read accepted context",
+        "Draft a job proposal as a decision or question"
+      ],
+      "mustNot": [
+        "Execute or activate work",
+        "Publish without human review",
+        "Accept artifacts",
+        "Resolve jobs"
+      ]
+    },
+    {
+      "id": "build",
+      "name": "Build",
+      "label": "Builder",
+      "purpose": "Produce a tested candidate artifact from an accepted job, with verification evidence and an exact revision.",
+      "host": "build.telepathy.intuitxn.com",
+      "path": "/agents/build",
+      "status": "planned",
+      "agentFile": ".opencode/agents/build.md",
+      "runtime": "desk",
+      "jtbd": [
+        "implement",
+        "verify"
+      ],
+      "may": [
+        "Implement in the owning repository worktree",
+        "Run verification and record evidence",
+        "Draft an artifact review request"
+      ],
+      "mustNot": [
+        "Accept own work",
+        "Merge, resolve, or publish",
+        "Send externally"
+      ]
+    },
+    {
+      "id": "steward",
+      "name": "Steward",
+      "label": "Release keeper",
+      "purpose": "Project accepted work into resolutions, receipts, changelog entries, and human-readable activity.",
+      "host": "steward.telepathy.intuitxn.com",
+      "path": "/agents/steward",
+      "status": "planned",
+      "agentFile": ".opencode/agents/steward.md",
+      "runtime": "desk",
+      "jtbd": [
+        "resolve",
+        "project",
+        "learn"
+      ],
+      "may": [
+        "Read accepted artifacts",
+        "Draft resolutions with written outcomes",
+        "Prepare changelog and activity projections",
+        "Draft HARNESS_STATE.md lesson entries and prompt updates from repeat patterns"
+      ],
+      "mustNot": [
+        "Author or publish posts",
+        "Change accepted history",
+        "Send externally"
+      ]
+    },
+    {
+      "id": "research",
+      "name": "Research",
+      "label": "Research scout",
+      "purpose": "Prepare evidence-backed research artifacts with a source map and stated uncertainty.",
+      "host": "research.telepathy.intuitxn.com",
+      "path": "/agents/research",
+      "status": "planned",
+      "agentFile": ".opencode/agents/research.md",
+      "runtime": "desk",
+      "jtbd": [
+        "research"
+      ],
+      "may": [
+        "Retrieve and cite sources",
+        "Draft candidate dossiers with source maps"
+      ],
+      "mustNot": [
+        "State unverified claims as fact",
+        "Publish or send",
+        "Present own summary as human conclusion"
+      ]
+    },
+    {
+      "id": "relationships",
+      "name": "Relationships",
+      "label": "Relationship desk",
+      "purpose": "Prepare reviewed external-conversation drafts from context approved for that purpose.",
+      "host": "relationships.telepathy.intuitxn.com",
+      "path": "/agents/relationships",
+      "status": "planned",
+      "agentFile": ".opencode/agents/relationships.md",
+      "runtime": "desk",
+      "jtbd": [
+        "draft-external"
+      ],
+      "may": [
+        "Draft external messages from approved context",
+        "Note recipient, evidence, and privacy boundary"
+      ],
+      "mustNot": [
+        "Send externally",
+        "Record sent without verified delivery",
+        "Expose unapproved context"
+      ]
+    }
+  ]
+}

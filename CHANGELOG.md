@@ -1,5 +1,25 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Harness boundary document (`HARNESS.md`) — accepted via the first end-to-end desk job (owner Shubham, runtime Codex).
+- Declarative meta-agent registry (`plugins/telepathy-meta-agents/registry.json`) — the site's Interfaces catalog now renders from it; all site tests pass.
+- Agent map (`docs/AGENT_MAP.md`) and living harness state (`docs/HARNESS_STATE.md`) with a dated lesson log that Steward maintains.
+- Desk `accept` command — completes the Job lifecycle on the ledger (Review -> Resolved) with a named human reviewer and timestamp.
+
+### Changed
+
+- Agent charters (`.opencode/agents/`) now describe the real harness: desk engine, Codex/openCode runtimes, state stores, boundary rules, and the learning loop.
+- Runtime config prompts (`setup.js`, v2 pilot) aligned with the harness.
+- Execution runtime decision: Codex is the default worker; openCode v2 remains for interactive planning only (its free zen models returned `ModelUnavailable` in a live job test).
+
+### Fixed
+
+- Desk openCode runtime now passes a `provider/model` reference to the session API instead of a bare model string.
+
+
 All notable Telepathy product changes are recorded here. Planned work stays in the GitHub Project and is not listed as shipped.
 
 ## [0.1.0-alpha.1] - 2026-09-02

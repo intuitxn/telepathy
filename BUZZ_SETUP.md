@@ -1,73 +1,123 @@
-# Buzz setup — make Telepathy live and share agents across the team
+# Set up intuitxn
 
-Everything below is gated on one owner action, then it is a short sequence of
-commands. Buzz is the source of truth; opencode2 runs the agents; git holds the
-repo (which is how agents ship to everyone).
+The team reads the forum, asks for work, and reviews artifacts. OpenCode and Codex run beneath that workflow.
 
-## 0. One owner action (unblocks everything)
+## 1. Prepare this machine
 
-The relay `https://intuitxn.communities.buzz.xyz` is membership-gated. Add the
-Telepathy agent identity to the intuitxn community in Buzz Desktop:
+Use Node 22.13 or newer. From this repository:
 
-```
-agent pubkey: 051722e8fd76e5c5b508c3f84e0d6ba2398b95d4692be43cfd56b4d238ee068f
-```
-
-Until this happens every `buzz` write returns `403 relay_membership_required`.
-This is correct — it is the team's private space, and provisioning is a human gate.
-
-## 1. Load the plugin
-
-```bash
-cd telepathy
-npm --prefix plugins/telepathy install
-opencode2 plugin add file:./plugins/telepathy     # installs locally
-# or rely on the repo's opencode.json ("plugin": ["./plugins/telepathy/src/index.ts"])
+```sh
+npm ci
+npm run setup
+npm run doctor
 ```
 
-## 2. Create the shared channels (once)
+Setup builds the v2 plugin and creates private local settings without replacing existing settings. Versions are pinned in the lockfile. On this Mac, setup has already run.
 
-```bash
-buzz channels create --name telepathy --type stream --visibility open
-buzz channels create --name intuitxn-general --type forum --visibility open
+```sh
+npm run opencode
 ```
 
-## 3. Share the agents — add the team and the agent as members
+Use `/connect` and `/models` in OpenCode to choose a provider and model. Codex uses its own login (`codex login`). The doctor lists catalog availability; it does not make a model request or prove a provider account is usable.
 
-Resolve each member's pubkey (`buzz users get --pubkey <hex>` or from Desktop),
-then add them to the shared channels so everyone sees the same agents:
+## 2. Give the team one place to start
 
-```bash
-buzz channels add-member --channel <channel-uuid> --pubkey <shubham-pubkey>
-buzz channels add-member --channel <channel-uuid> --pubkey <om-pubkey>
-buzz channels add-member --channel <channel-uuid> --pubkey <kush-pubkey>
-buzz channels add-member --channel <channel-uuid> --pubkey 051722e8fd76e5c5b508c3f84e0d6ba2398b95d4692be43cfd56b4d238ee068f
+Read [Start here](forum/START_HERE.md) and [Writing as intuitxn](forum/WRITING.md). They are ready to copy into forum posts and pin in Buzz. Git holds the editable source; the forum holds the readable team copy.
+
+To prepare a post without publishing it:
+
+```sh
+npm run desk -- queue CHANNEL_UUID forum/START_HERE.md
 ```
 
-The repo itself is the shareable agent surface: `.opencode/agents/` (main +
-5 meta-agents) and `plugins/telepathy/` ship with git, so anyone who clones and
-runs opencode2 in the repo gets the same agents — no per-user install.
+The command returns the exact content, destination and digest. After reviewing them:
 
-## 4. Verify end-to-end
-
-```bash
-cd telepathy/plugins/telepathy
-set -a; . ./.env; set +a
-buzz channels list                      # agent can see the shared channels
-buzz messages send --channel <uuid> --content - <<'EOF'
-## Update: Telepathy is live
-what changed / why it matters / what we need from you
-EOF
+```sh
+npm run desk -- send OUTBOX_ID DIGEST
 ```
 
-Then ask opencode2's `@telepathy` agent to post — it drafts, and the human
-approves the send through opencode's permission prompt.
+Sending needs the authorized Buzz identity in the service environment. The CLI uses `BUZZ_PRIVATE_KEY`, `BUZZ_RELAY_URL`, and, when required by the managed runtime, `BUZZ_AUTH_TAG`. Do not paste keys into chat or put them in repository files. The intuitxn relay is `https://intuitxn.communities.buzz.xyz`. Start the OpenCode service from the configured environment; an already-running service retains its earlier environment.
 
-## 5. Server + subdomain (making it live for the team)
+No live Buzz connection is configured in this shell. Once connected, `npm run doctor` checks visible channels through that identity. Membership and identity creation remain with Buzz; setup does not manufacture them.
 
-- Run opencode2 on the server over SSH (the shared-session runtime you mentioned).
-- `BUZZ_PRIVATE_KEY` + `BUZZ_RELAY_URL` live in the server's env, not in the repo.
-- Point `telepathy.intuitxn.com` at the deployed `site/` (GitHub Pages already
-  serves the internal alpha at intuitxn.github.io/telepathy).
-- Sessions shared via opencode2 `session.share` so one workspace is visible to
-  Shubham, Om, and Kush.
+## 3. Make company writing
+
+```sh
+npm run desk -- new report "Report title"
+```
+
+Replace `report` with `announcement`, `blog`, `proposal`, or `writing`. The command returns a Markdown file. Edit it directly or ask your agent to prepare it from selected sources.
+
+```sh
+npm run desk -- review ARTIFACT_ID "Reviewer name"
+npm run desk -- export ARTIFACT_ID
+```
+
+Review records the exact content hash. Export refuses a changed draft and produces a Markdown file plus a receipt in `.local/exports/`. Nothing is uploaded. To prepare a reviewed artifact for Buzz, use `npm run desk -- queue-artifact CHANNEL_UUID ARTIFACT_ID`, then review and send its outbox item. Publish to the selected website or other destination only when the exact content and destination are authorized.
+
+## 4. Build an application
+
+Save a job as JSON, using an absolute repository path:
+
+```json
+{
+  "runtime": "codex",
+  "repository": "/absolute/path/to/application",
+  "owner": "Accountable person",
+  "request": "Build the requested feature using the linked requirements.",
+  "acceptance": "Describe the concrete behavior and checks that must pass.",
+  "context": ["docs/requirements.md"]
+}
+```
+
+Add the repository to `.local/config.json` under `repositories`, then:
+
+```sh
+npm run desk -- job request.json
+npm run desk -- run JOB_ID
+```
+
+Each job starts from committed HEAD in a separate Git worktree. Uncommitted edits in the original checkout are not copied. Selected context files are explicitly copied into the job brief with hashes. The result, changes and runtime session stay in `.local/jobs/`. New files remain in that worktree; `changes.patch` covers tracked modifications, and the stored Git status lists untracked files. Human review follows runtime completion.
+
+For OpenCode jobs, set `runtime` to `opencode` and set `model` in `.local/config.json` to an available `{ "providerID": "...", "id": "..." }`. Jobs use the `intuitxn-build` profile. Actions needing approval can be handled in the OpenCode interface connected to the same service. They are not auto-approved. Jobs time out after 15 minutes by default and are left for inspection.
+
+## 5. Import work from Buzz
+
+In `.local/config.json`, fill in `channels` and `authorizedPubkeys`. Intake begins at the setup timestamp (`since`); change it deliberately to import older requests. Send an accepted request in this explicit form:
+
+```text
+/intuitxn {"request":"Build the reports index","acceptance":"Only reviewed reports appear and mobile checks pass","repository":0,"runtime":"codex"}
+```
+
+`repository` is the zero-based entry in the configured repository list. Ordinary conversation never starts a job. Imported requests are queued for the operator to run:
+
+```sh
+npm run desk -- poll
+npm run desk -- watch
+```
+
+The watcher polls at the configured interval; Ctrl+C stops it. It does not automatically execute jobs or publish responses. After reviewing a job result, prepare a concise reply in the original thread:
+
+```sh
+npm run desk -- reply CHANNEL_UUID ORIGINAL_EVENT_ID outcome.md
+```
+
+Review and send that outbox item using the same digest flow. Delivery records require `accepted: true` and an event ID. An uncertain send cannot be repeated automatically. Inspect relay history and the saved receipt before taking further action.
+
+## One shared server
+
+Clone this repository on the chosen host and run the same setup. Use a dedicated OS account and keep `.local/` on persistent storage. The desktop and terminal should connect to that account's authenticated OpenCode service through private access; do not expose the runtime directly to the public internet. The Buzz relay remains hosted separately. Model providers remain external unless you separately configure local inference.
+
+This local job ledger is the execution authority for the pilot. It is not synced to Agent Manager. A future Agent Manager adapter must reuse these job IDs and replace this authority, not create a second queue.
+
+`npm run desk -- stop` stops this workspace's OpenCode service. No boot-time daemon, remote deployment, or public publishing destination is configured by setup.
+
+## Recovery and limits
+
+- A claimed job cannot run a second time. After a crash, inspect its saved session and worktree; a `running` or `needs_attention` job needs operator reconciliation. Automatic session recovery is not implemented.
+- Never retry a session whose submission or delivery is uncertain without checking the existing runtime state.
+- The watcher rereads overlapping timestamps and deduplicates source IDs. A saturated page fails without advancing its cursor. Live relay pagination still needs verification with the configured community.
+- Back up the SQLite database with SQLite's backup facilities, or stop writers before copying the database and its WAL files. Back up job worktrees and draft folders too.
+- Local operator commands are trusted. The pilot does not provide multi-user login, role enforcement, or isolation from a malicious repository. Do not expose the CLI through an unauthenticated web endpoint.
+
+Sources: [v2 plugins](https://opencode.ai/v2/docs/build/plugins/), [client](https://opencode.ai/v2/docs/build/client/), [instructions](https://opencode.ai/v2/docs/instructions/). The old `session.share` approach is unavailable in v2; team access comes from the application and authenticated server access.

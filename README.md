@@ -2,6 +2,8 @@
 
 Telepathy is Intuitxn's shared human context layer.
 
+**Working setup:** `npm ci && npm run setup`, then `npm run doctor`. Read the [setup guide](./BUZZ_SETUP.md), [forum start page](./forum/START_HERE.md), and [company writing guide](./forum/WRITING.md). The local Desk supports durable jobs, reviewed writing and explicit Buzz delivery alongside the website alpha.
+
 **Live internal-alpha preview:** <https://intuitxn.github.io/telepathy/>
 
 It gives Shubham, Om, and Kush one place to publish decisions, updates, questions, asks, and accepted outcomes. People remain the visible authors and owners. Agent Manager, worker agents, routing, summarization, and artifact processing operate beneath that surface.

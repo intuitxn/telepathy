@@ -20,8 +20,8 @@ opencode2 and ship with this repo.
 
 ## Rule that holds the whole thing together
 
-Humans are the visible authors. Every write tool in the `@telepathy/opencode-plugin`
-drafts by default, and publishing requires explicit human approval (opencode's
+Humans own the outcomes; actual signing identity remains visible. Every write tool in the `@telepathy/opencode-plugin`
+uses separate draft and `_send` tools, and publishing requires explicit human approval (opencode's
 permission gate). The meta-agents compose; the human decides.
 
 ## Authority (enforced by the agent charter + the plugin's permission gate)
@@ -35,5 +35,5 @@ permission gate). The meta-agents compose; the human decides.
 | `@relationships` | draft external messages from approved context | send, record unverified delivery |
 
 Buzz is the source of truth (channels, threads, canvas). Git commits are accepted
-revisions. Agent Manager owns execution. The plugin (`plugins/telepathy/`) exposes
+revisions. The local Desk ledger owns pilot jobs; Agent Manager integration is not configured. The plugin (`plugins/telepathy/`) exposes
 these as `telepathy_*` tools.

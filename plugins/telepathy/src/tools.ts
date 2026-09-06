@@ -9,10 +9,11 @@
  * asked. Humans remain the visible authors; agent traffic stays underneath.
  */
 
-import { tool } from "@opencode-ai/plugin";
+import { z } from "zod";
+import { tool } from "./tool.js";
 import { runBuzz, resolveChannel } from "./buzz.js";
 
-const z = tool.schema;
+
 
 const POST_TYPES = ["update", "decision", "question", "announcement"] as const;
 const HEADINGS: Record<(typeof POST_TYPES)[number], string> = {
@@ -83,7 +84,9 @@ export const telepathyPost = tool({
     draft: z.boolean().optional().describe("Default true: return the draft for review. false sends it."),
   },
   async execute(args) {
-    const resolved = await resolveChannel(args.channel);
+    const resolved = args.draft !== false
+      ? { ok: true as const, channelId: args.channel }
+      : await resolveChannel(args.channel);
     if (!resolved.ok) return { title: "telepathy_post", output: resolved.error, metadata: { ok: false } };
 
     const content = composePost(args.type, args.title, args.body, args.mention ?? []);
@@ -121,7 +124,9 @@ export const telepathyReply = tool({
     draft: z.boolean().optional().describe("Default true: return the draft. false sends it."),
   },
   async execute(args) {
-    const resolved = await resolveChannel(args.channel);
+    const resolved = args.draft !== false
+      ? { ok: true as const, channelId: args.channel }
+      : await resolveChannel(args.channel);
     if (!resolved.ok) return { title: "telepathy_reply", output: resolved.error, metadata: { ok: false } };
 
     if (args.draft !== false) {
@@ -150,10 +155,12 @@ export const telepathyAcknowledge = tool({
     "Acknowledge a post with an emoji reaction so the author knows the context landed, without adding feed noise. Use instead of a reply when no answer is required.",
   args: {
     event: z.string().describe("Event ID of the post to acknowledge"),
+    draft: z.boolean().optional(),
     emoji: z.string().optional().describe("Emoji to react with (default ✅)"),
   },
   async execute(args) {
     const emoji = args.emoji ?? "✅";
+    if (args.draft !== false) return { title: "Draft acknowledgement", output: `React ${emoji} to ${args.event}`, metadata: { ok: true, draft: true } };
     const r = await runBuzz(["reactions", "add", "--event", args.event, "--emoji", emoji]);
     if (!r.ok) {
       return { title: "telepathy_acknowledge", output: r.error ?? r.stderr, metadata: { ok: false } };
@@ -178,7 +185,9 @@ export const telepathyResolve = tool({
     draft: z.boolean().optional().describe("Default true: return the draft. false sends it."),
   },
   async execute(args) {
-    const resolved = await resolveChannel(args.channel);
+    const resolved = args.draft !== false
+      ? { ok: true as const, channelId: args.channel }
+      : await resolveChannel(args.channel);
     if (!resolved.ok) return { title: "telepathy_resolve", output: resolved.error, metadata: { ok: false } };
 
     const outcome = args.outcome === "completed" ? "Resolved — completed" : "Resolved — no change";
@@ -218,7 +227,9 @@ export const telepathyArtifact = tool({
     draft: z.boolean().optional().describe("Default true: return the draft. false sends it."),
   },
   async execute(args) {
-    const resolved = await resolveChannel(args.channel);
+    const resolved = args.draft !== false
+      ? { ok: true as const, channelId: args.channel }
+      : await resolveChannel(args.channel);
     if (!resolved.ok) return { title: "telepathy_artifact", output: resolved.error, metadata: { ok: false } };
 
     const urlLine = args.url ? `\n\nLink: ${args.url}` : "";

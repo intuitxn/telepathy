@@ -1,0 +1,14 @@
+{
+  "name": "intuitxn-workspace", "private": true, "type": "module",
+  "engines": { "node": ">=22.13.0" },
+  "workspaces": ["runtime/desk", "plugins/telepathy"],
+  "scripts": {
+    "setup": "node runtime/desk/src/setup.js",
+    "doctor": "node runtime/desk/src/cli.js doctor",
+    "desk": "node runtime/desk/src/cli.js",
+    "opencode": "node runtime/desk/src/cli.js opencode",
+    "test": "node --test runtime/desk/test/*.test.js && npm run test --workspace=@telepathy/opencode-plugin",
+    "check": "npm run check --workspace=@telepathy/opencode-plugin && npm test"
+  },
+  "dependencies": { "@opencode-ai/cli": "0.0.0-beta-19192", "@opencode-ai/client": "0.0.0-beta-19192" }
+}

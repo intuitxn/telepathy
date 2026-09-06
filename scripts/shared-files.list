@@ -1,0 +1,7 @@
+product|Telepathy product contract|telepathy|PRODUCT.md
+sop|Telepathy team SOP|telepathy|SOP.md
+changelog|Telepathy changelog|telepathy|CHANGELOG.md
+agent-map|Intuitxn agent map|telepathy|docs/AGENT_MAP.md
+harness-state|Harness state and lesson log|telepathy|docs/HARNESS_STATE.md
+meta-agent-registry|Meta-agent catalog|telepathy|plugins/telepathy-meta-agents/registry.json
+program-telepathy|Program: Telepathy|telepathy|programs/telepathy.md

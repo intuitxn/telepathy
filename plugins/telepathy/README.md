@@ -1,64 +1,15 @@
-# Telepathy — opencode plugin
+# Telepathy plugin for OpenCode v2
 
-Telepathy is Intuitxn's shared human context layer. This is its harness, written as a
-**real opencode plugin** (`@opencode-ai/plugin`), not a parallel server.
+Pinned to OpenCode beta 19192. Run `npm ci && npm run setup` at the repository root. The root `index.ts` is the directory entrypoint used by the installed v2 loader; it re-exports the compiled implementation.
 
-Reference: [Meta-Harness](https://yoonholee.com/meta-harness/) — the harness is the runtime
-surface around the agent: the tools it can call and the context it runs in. That surface is
-here, and nowhere else.
+The plugin registers 11 tools:
 
-## Principle
+- `telepathy_channels`: read available Buzz channels.
+- `telepathy_post`, `telepathy_reply`, `telepathy_acknowledge`, `telepathy_resolve`, `telepathy_artifact`: prepare drafts locally, even without credentials. `draft:false` does not publish through these tools.
+- The corresponding `_send` tools publish the reviewed action through the `telepathy_publish` permission. The v2 permission hook requires a human decision; explicit configured denials remain final.
 
-> Truth lives in the hosts. This plugin only extends them.
+Drafting and publishing are separate. Actual Buzz signing identity stays attributable to the configured agent; human ownership or approval is not a claim that the person signed the event.
 
-| Host | Owns |
-|---|---|
-| **Buzz** | channels, threads, canvas — the human-visible surface |
-| **Agent Manager** | sessions, tasks, reservations — execution |
-| **git** | accepted revisions — an "accepted artifact" is a merged commit |
+Publication shells out to the Buzz CLI. Inject credentials in the service environment. Successful writes require the relay's `accepted:true` response. The Desk CLI adds durable outbox receipts and prevents automatic retries; direct plugin sends are interactive and do not have the Desk outbox's deduplication contract.
 
-There is no custom socket, ledger, job state machine, or reservation store. The tools shell
-out to the `buzz` CLI and draft by default so a human reviews before anything is published.
-
-## Tools
-
-| Tool | Human product object | Buzz backing |
-|---|---|---|
-| `telepathy_channels` | (navigation) | `buzz channels list` |
-| `telepathy_post` | Post — update / decision / question / announcement | `buzz messages send` |
-| `telepathy_reply` | Reply | `buzz messages send --reply-to` |
-| `telepathy_acknowledge` | Acknowledgement | `buzz reactions add` |
-| `telepathy_resolve` | Resolution (completed / no_change) | `buzz messages send --reply-to` |
-| `telepathy_artifact` | Candidate artifact + review request | `buzz messages send` |
-
-Every write tool is **draft-first**: it returns the composed content for review unless
-`draft: false` is passed. Humans remain the visible authors; agent transcripts, prompts, and
-tool calls never surface.
-
-## Configuration
-
-The plugin shells out to the Buzz CLI, which reads these environment variables:
-
-```bash
-BUZZ_PRIVATE_KEY=…        # required (hex or nsec) — never commit this
-BUZZ_RELAY_URL=…          # optional, default http://localhost:3000
-```
-
-If `BUZZ_PRIVATE_KEY` is unset the tools fail with a clear guidance message instead of a raw
-auth error.
-
-## Load in opencode
-
-Reference the plugin in your opencode config, e.g. `opencode.json`:
-
-```json
-{ "plugin": ["./plugins/telepathy/src/index.ts"] }
-```
-
-## Develop
-
-```bash
-npm install
-npm run check   # tsc --noEmit
-npm run build   # tsc → dist/
-```
+`npm run check` at the root checks types and runs the local behavior tests. See [setup](../../BUZZ_SETUP.md) for forum publishing, artifact review and job execution.
