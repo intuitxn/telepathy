@@ -11,6 +11,9 @@
  */
 
 import { spawn } from "node:child_process";
+import { readFileSync, existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 export type BuzzErrorCategory =
   | "input"
@@ -32,6 +35,32 @@ export type BuzzResult = {
 
 const BUZZ_BIN = process.env.BUZZ_BIN ?? "buzz";
 const DEFAULT_RELAY = "http://localhost:3000";
+
+// Auto-load the plugin's .env (BUZZ_PRIVATE_KEY / BUZZ_RELAY_URL) so the
+// harness works without the operator exporting them before launching opencode.
+const ENV_PATH = join(dirname(fileURLToPath(import.meta.url)), "..", ".env");
+
+function loadEnvFile(): void {
+  if (process.env.__TELEPATHY_ENV_LOADED) return;
+  process.env.__TELEPATHY_ENV_LOADED = "1";
+  try {
+    if (!existsSync(ENV_PATH)) return;
+    const raw = readFileSync(ENV_PATH, "utf-8");
+    for (const line of raw.split("\n")) {
+      const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
+      if (!m) continue;
+      const key = m[1];
+      const rawValue = m[2];
+      if (key === undefined || rawValue === undefined) continue;
+      let value = rawValue.trim();
+      if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1);
+      if (!(key in process.env)) process.env[key] = value;
+    }
+  } catch {
+    // .env is optional; process env wins when present.
+  }
+}
+loadEnvFile();
 
 function categoryFromExit(code: number): BuzzErrorCategory {
   switch (code) {
