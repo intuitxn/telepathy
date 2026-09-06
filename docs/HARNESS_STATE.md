@@ -35,11 +35,11 @@ optional `context` (repo-relative paths, sha256-snapshotted).
 | Desk + plugin tests | Working — 4 desk + 2 plugin tests pass |
 | Buzz relay writes | Verified 2026-09-06 — channels, projects, workflow, canvases, notes, members all accepted |
 | Live intake (poll/watch) | Working — real Buzz message -> desk job `154ba928`, accepted by Shubham, landed as `docs/RELAY_SETUP.md` |
-| Persistent runner | Undecided — local `npm run desk -- watch` or a server over SSH |
+| Persistent runner | Running — launchd `com.intuitxn.telepathy-desk-watch` polls the relay every 15s (logs in `.buzz/WORK_LOGS/desk-watch*.log`) |
 
 ## Open gaps
 
-1. Decide where the watch loop runs; secrets live in that environment only (the desktop keychain holds the identity).
+1. (resolved) Watch loop runs as a launchd user agent on this Mac; identity comes from the Buzz environment export.
 2. (resolved) Code pushed to the relay repo — `main` at `2780de7`, repo bound to the telepathy channel.
 3. The telepathy channel's roster lost its owner role during the relay's earlier state; writes work, so this is cosmetic for now.
 4. Jobs `200afc61`/`01a249cb` remain `needs_attention` evidence for the opencode2 model-unavailable finding.
