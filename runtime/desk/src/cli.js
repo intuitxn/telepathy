@@ -82,7 +82,7 @@ async function main() {
       do {
         const { jobs, events } = await poll(db, cfg);
         print(jobs);
-        for (const job of jobs) {
+        for (const job of jobs.filter(j => j.state === 'queued')) {
           const owner = cfg.reviewerNames?.[job.owner] ?? job.owner.slice(0, 8);
           await notify(db, { channel: job.channel, replyTo: job.sourceEvent, text: `## Update: job queued\n\nJob \`${job.id}\`\nRequest: ${job.request.split('\n')[0].slice(0, 160)}\nOwner: ${owner}\nAcceptance: ${job.acceptance.slice(0, 200)}` });
           if (cfg.autoRun) {
