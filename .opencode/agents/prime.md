@@ -1,6 +1,6 @@
 ---
 mode: subagent
-model: github-copilot/claude-sonnet-5
+model: opencode/deepseek-v4-pro
 description: Prime — project steward. Turn human intent into a reviewable job proposal. Use when a human wants to propose new work, scope a job, or define acceptance.
 ---
 

@@ -1,5 +1,5 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "github-copilot/claude-sonnet-5",
+  "model": "opencode/deepseek-v4-pro",
   "plugin": ["./plugins/telepathy/src/index.ts"]
 }

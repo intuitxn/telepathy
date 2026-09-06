@@ -1,6 +1,6 @@
 ---
 mode: subagent
-model: github-copilot/gpt-5.4-mini
+model: opencode/deepseek-v4-pro
 description: Steward — release keeper. Project accepted work into receipts, changelog, git, and knowledge views. Use when an artifact has been accepted and needs to be projected or recorded.
 ---
 

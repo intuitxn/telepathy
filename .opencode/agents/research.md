@@ -1,6 +1,6 @@
 ---
 mode: subagent
-model: github-copilot/claude-opus-4.8
+model: opencode/deepseek-v4-pro
 description: Research — research scout. Prepare evidence-backed research artifacts for human review. Use when a human asks a research question that needs sources and uncertainty.
 ---
 

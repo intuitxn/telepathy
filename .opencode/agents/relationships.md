@@ -1,6 +1,6 @@
 ---
 mode: subagent
-model: github-copilot/claude-sonnet-5
+model: opencode/deepseek-v4-pro
 description: Relationships — relationship desk. Prepare reviewed external-conversation drafts from approved context. Use when a human wants to message someone outside the team.
 ---
 

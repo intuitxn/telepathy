@@ -1,6 +1,6 @@
 ---
 mode: primary
-model: github-copilot/claude-sonnet-5
+model: opencode/deepseek-v4-pro
 description: Telepathy main agent — the human's entry point into Intuitxn's shared context layer. Route intent to the narrowest meta-agent, keep humans as the visible authors, and never publish without approval.
 ---
 
