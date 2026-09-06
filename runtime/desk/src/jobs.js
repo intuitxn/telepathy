@@ -1,5 +1,5 @@
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { mkdirSync, readFileSync, writeFileSync, existsSync, rmSync, copyFileSync } from 'node:fs';
+import { join, resolve, dirname } from 'node:path';
 import { get, put, home, now, hash, confined } from './core.js';
 import { checked, execute } from './process.js';
 import { connect } from './runtime.js';
@@ -83,4 +83,30 @@ export function acceptJob(db, id, reviewer) {
   if (result.changes !== 1) throw Error('Job must be in needs_review before acceptance; inspect it first');
   const job = get(db, 'jobs', id);
   return put(db, 'jobs', { ...job, reviewer: reviewer.trim(), acceptedAt: now() });
+}
+
+export async function landJob(db, id, reviewer) {
+  const job = get(db, 'jobs', id);
+  if (job.state !== 'needs_review') throw Error('Job must be in needs_review to land');
+  const repository = resolve(job.repository);
+  if (!job.worktree || !existsSync(job.worktree)) throw Error('Worktree missing; cannot land');
+  const raw = await execute('git', ['status', '--porcelain'], { cwd: job.worktree });
+  if (raw.code !== 0) throw Error('git status failed in worktree');
+  const files = raw.stdout.split('\n').filter(Boolean).map(line => line.slice(3));
+  if (!files.length) throw Error('No changes to land');
+  for (const f of files) { const src = join(job.worktree, f); if (!existsSync(src)) rmSync(join(repository, f), { force: true }); }
+  for (const f of files) {
+    const src = join(job.worktree, f);
+    if (existsSync(src)) { mkdirSync(dirname(join(repository, f)), { recursive: true }); copyFileSync(src, join(repository, f)); }
+  }
+  await checked('git', ['add', '-A'], { cwd: repository });
+  const message = `land ${job.id}: ${job.request.split('\n')[0].slice(0, 80)} — accepted by ${reviewer}`;
+  const commitOut = await checked('git', ['commit', '-m', message], { cwd: repository, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } });
+  const commit = commitOut.split(' ')[1];
+  const pushed = [];
+  for (const remote of ['origin', 'buzz']) {
+    try { await checked('git', ['push', remote, 'main'], { cwd: repository, timeout: 90000, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } }); pushed.push(remote); } catch {}
+  }
+  const accepted = acceptJob(db, id, reviewer);
+  return { ...accepted, landedFiles: files, commit, pushed };
 }

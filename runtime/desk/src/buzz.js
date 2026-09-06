@@ -1,5 +1,5 @@
 import { execute } from './process.js';
-import { get, put, hash, now, newJob } from './core.js';
+import { get, put, list, hash, now, newJob } from './core.js';
 export async function buzz(args, input) {
   if (!process.env.BUZZ_PRIVATE_KEY) throw Error('Buzz is not connected. Launch from the managed Buzz runtime, or configure the service identity in its environment.');
   const result = await execute(process.env.BUZZ_BIN || 'buzz', args, { input, timeout: 30000 });
@@ -48,7 +48,7 @@ export function ingest(db, cfg, channel, events) {
   return jobs;
 }
 export async function poll(db, cfg, transport = buzz) {
-  const imported = [];
+  const imported = []; const allEvents = [];
   for (const channel of cfg.channels) {
     const stamp = db.prepare('SELECT stamp FROM cursors WHERE channel=?').get(channel)?.stamp ?? cfg.since;
     let events; let limit = 100;
@@ -61,9 +61,34 @@ export async function poll(db, cfg, transport = buzz) {
     }
     // Re-read the overlap on every poll; the unique source constraint deduplicates it.
     imported.push(...ingest(db, cfg, channel, events));
+    allEvents.push(...events);
     const stamps = events.map(e => e.created_at).filter(Number.isFinite);
     const latest = Math.max(stamp, ...stamps);
     db.prepare('INSERT INTO cursors VALUES (?,?) ON CONFLICT(channel) DO UPDATE SET stamp=excluded.stamp').run(channel, latest);
   }
-  return imported;
+  return { jobs: imported, events: allEvents };
+}
+
+export function acceptEvents(db, cfg, events) {
+  const open = list(db, 'jobs').filter(j => j.state === 'needs_review');
+  const found = [];
+  for (const event of events) {
+    if (!cfg.authorizedPubkeys.includes(event.pubkey)) continue;
+    if (typeof event.content !== 'string') continue;
+    if (!/^accept\b/i.test(event.content.trim())) continue;
+    const root = event.tags?.find(t => t[0] === 'e' && (t[3] === 'root' || t[3] === 'reply'))?.[1];
+    if (!root) continue;
+    const job = open.find(j => j.threadRoot === root || j.sourceEvent === root);
+    if (!job) continue;
+    const reviewer = cfg.reviewerNames?.[event.pubkey] ?? event.pubkey.slice(0, 8);
+    found.push({ jobId: job.id, reviewer, eventId: event.id, channel: job.channel });
+  }
+  return found;
+}
+
+export async function notify(db, { channel, replyTo, text }, transport = buzz) {
+  const message = queueMessage(db, { channel, replyTo, forum: true, text });
+  if (message.state === 'sent') return message;
+  try { return await sendMessage(db, message.id, message.digest, transport); }
+  catch { return message; } // stays draft; reconciled later
 }

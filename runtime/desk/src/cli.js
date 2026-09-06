@@ -3,8 +3,8 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { home, ROOT, config, store, get, list, createArtifact, approveArtifact, exportArtifact, newJob } from './core.js';
-import { queueMessage, sendMessage, poll, buzz } from './buzz.js';
-import { runJob, acceptJob } from './jobs.js';
+import { queueMessage, sendMessage, poll, acceptEvents, notify, buzz } from './buzz.js';
+import { runJob, acceptJob, landJob } from './jobs.js';
 import { connect, cliPath, runtimeEnv } from './runtime.js';
 import { checked } from './process.js';
 const [command = 'help', ...args] = process.argv.slice(2);
@@ -80,7 +80,28 @@ async function main() {
       const cfg = config();
       if (!cfg.channels.length || !cfg.authorizedPubkeys.length) throw Error('Add intake channels and authorized pubkeys to .local/config.json first.');
       do {
-        print(await poll(db, cfg));
+        const { jobs, events } = await poll(db, cfg);
+        print(jobs);
+        for (const job of jobs) {
+          const owner = cfg.reviewerNames?.[job.owner] ?? job.owner.slice(0, 8);
+          await notify(db, { channel: job.channel, replyTo: job.sourceEvent, text: `## Update: job queued\n\nJob \`${job.id}\`\nRequest: ${job.request.split('\n')[0].slice(0, 160)}\nOwner: ${owner}\nAcceptance: ${job.acceptance.slice(0, 200)}` });
+          if (cfg.autoRun) {
+            try {
+              const result = await runJob(db, job.id, cfg);
+              await notify(db, { channel: job.channel, replyTo: job.sourceEvent, text: `## Update: candidate ready\n\nJob \`${job.id}\`\nFiles: ${result.status || '(none)'}\nBase: ${result.base}\n\nReply \`accept\` in this thread to land it (copy the changes, commit, push origin and buzz).` });
+            } catch (error) {
+              await notify(db, { channel: job.channel, replyTo: job.sourceEvent, text: `## Update: needs attention\n\nJob \`${job.id}\` failed: ${String(error.message).slice(0, 300)}` });
+            }
+          }
+        }
+        for (const acc of acceptEvents(db, cfg, events)) {
+          try {
+            const landed = await landJob(db, acc.jobId, acc.reviewer);
+            await notify(db, { channel: acc.channel, replyTo: acc.eventId, text: `## Resolution: landed\n\nJob \`${landed.id}\` accepted by ${landed.reviewer}\nCommit \`${landed.commit}\` pushed to ${landed.pushed.join(', ') || 'no remotes'}\nFiles: ${landed.landedFiles.join(', ')}` });
+          } catch (error) {
+            await notify(db, { channel: acc.channel, replyTo: acc.eventId, text: `## Resolution: could not land\n\nJob \`${acc.jobId}\`: ${String(error.message).slice(0, 300)}` });
+          }
+        }
         if (command === 'watch') await new Promise(resolve => setTimeout(resolve, Math.max(5, cfg.pollSeconds) * 1000));
       } while (command === 'watch');
       return;
