@@ -35,7 +35,8 @@ optional `context` (repo-relative paths, sha256-snapshotted).
 | Desk + plugin tests | Working — 4 desk + 2 plugin tests pass |
 | Buzz relay writes | Verified 2026-09-06 — channels, projects, workflow, canvases, notes, members all accepted |
 | Live intake (poll/watch) | Working — real Buzz message -> desk job `154ba928`, accepted by Shubham, landed as `docs/RELAY_SETUP.md` |
-| Persistent runner | Running — launchd `com.intuitxn.telepathy-desk-watch` polls the relay every 15s (logs in `.buzz/WORK_LOGS/desk-watch*.log`) |
+| Persistent runner | Running — launchd `com.intuitxn.telepathy-desk-watch` polls every 15s; auto-runs queued jobs; chat `accept` lands them |
+| Autonomous loop | Live — job `5046e555` went Buzz message -> queue -> Codex -> candidate reply -> chat accept -> commit `05afab1` -> pushed origin+buzz -> resolution reply, all unattended |
 
 ## Open gaps
 

@@ -9,6 +9,7 @@
 - Declarative meta-agent registry (`plugins/telepathy-meta-agents/registry.json`) — the site's Interfaces catalog now renders from it; all site tests pass.
 - Agent map (`docs/AGENT_MAP.md`) and living harness state (`docs/HARNESS_STATE.md`) with a dated lesson log that Steward maintains.
 - Desk `accept` command — completes the Job lifecycle on the ledger (Review -> Resolved) with a named human reviewer and timestamp.
+- Autonomous loop: the watch service queues jobs, runs them, replies with candidates in-thread, and a chat `accept` lands the change (commit, push origin + relay repo, resolution reply). First unattended run: job `5046e555`, commit `05afab1`.
 
 ### Changed
 
