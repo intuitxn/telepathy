@@ -1,4 +1,5 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "model": "github-copilot/claude-sonnet-5",
   "plugin": ["./plugins/telepathy/src/index.ts"]
 }

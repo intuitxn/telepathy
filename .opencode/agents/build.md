@@ -1,5 +1,6 @@
 ---
 mode: subagent
+model: github-copilot/gpt-5.3-codex
 description: Build — builder. Produce a tested candidate artifact from an accepted job. Use when an accepted job needs implementation with verification evidence.
 ---
 
