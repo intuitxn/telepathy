@@ -10,7 +10,7 @@ Setup verified on 2026-09-06, as recorded in the supplied relay setup report.
 | sansara | `ecf97ed6-34d5-439a-967b-abe9bdd37e41` |
 | iktara | `78fedf61-f8e2-43df-9413-37d98d6a430a` |
 | intuitxn-general | `e81a4ea1-af2f-4488-83c6-eb66ce7ea5df` |
-| changelog | `0e910e3d-2040-431a-ba28-ab531596d3c5` |
+| changelog | `f739c450-3461-46cc-88a1-f70ac5cfcaa0` (recreated 2026-09-08 after the relay lost the original) |
 | shared-files | `174fceae-85e5-4bd4-8959-71a8ce8a2c8e` |
 
 Shubham, Om, Kush, and the telepathy bot are members of all six channels.
