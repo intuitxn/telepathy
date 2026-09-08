@@ -17,3 +17,7 @@ dist/
 
 # private runtime state and drafts
 .local
+
+# Python runtime caches
+__pycache__/
+*.pyc
