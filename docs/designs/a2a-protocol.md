@@ -377,5 +377,5 @@ Verify: smoke-profile member node can run M6 delegation but its changelog/direct
 2. Scoped `OPENAI_API_KEY` env-injection for seatbelted codex — untested (no scoped key available); auth.json supports the field, sandbox-exec passes env, so it should work.
 3. Buzz `set-presence` requires the WSS path (bundled skill says HTTP is broken) — untested against WSS.
 4. Persona-pack schema for `buzz pack` — command surface verified, pack file format not inspected **[guess]**.
-5. `authorizedPubkeys` in the live desk config is currently `[]`, so the desk watcher's intake is effectively off today despite the healthy loop in HARNESS_STATE (config drift to reconcile before M6/M7 testing).
+5. Desk watcher config note: the live watcher config (`~/.local/share/telepathy-host/shared/config.json`) has 3 authorized pubkeys, 4 watched channels, and `autoRun: true` (re-verified 2026-09-08 15:45 local). An earlier probe read a stale checkout copy that showed an empty list — ignore that reading.
 6. `opencode acp` port/mdns flags configure the internal server only; the ACP stream is stdio — hence the explicit bridge in M5 rather than "point ACP at the relay".
