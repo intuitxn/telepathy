@@ -26,7 +26,7 @@ One Buzz project per code repository, each bound to its home channel:
 | `sansara` | sansara | `sansara` (stream) | Agent portal / world runtime |
 | `iktara` | iktara | `iktara` (stream) | Personal reflection app |
 | — | — | `intuitxn-general` (forum) | Cross-program communication |
-| — | — | `changelog` (stream) | Steward posts one dated changelog entry per change (draft -> human approve) |
+| — | — | `changelog` (stream) | Ledger posts one dated changelog entry per change (draft -> human approve) |
 | — | — | `shared-files` (stream) | Canonical shared files mirrored from the repo; canvas is the index; NIP-23 notes per file |
 
 Program details live in [`programs/*.md`](../programs/). Create the relay objects with
@@ -45,11 +45,11 @@ thread.
 | Agent | JTBD stage | May | Must not | Runtime |
 |---|---|---|---|---|
 | `@telepathy` (primary) | route | Route intent to the narrowest agent | Publish without approval; invent interfaces | opencode2 / desk |
-| `@prime` | propose, scope | Draft a job proposal (owner, reviewer, acceptance) | Execute, activate, publish, accept, resolve | desk |
-| `@build` | implement, verify | Implement in worktree, record verification evidence, draft artifact review | Accept own work, merge, resolve, publish | desk (codex or opencode2) |
-| `@steward` | resolve, project | Draft resolutions, changelog, activity projections | Author posts, change accepted history, send | desk |
-| `@research` | research | Retrieve sources, draft dossiers with source maps | Assert unverified claims, publish | desk |
-| `@relationships` | draft-external | Draft external messages from approved context | Send, record sent without delivery evidence | desk |
+| `@atlas` | propose, scope | Draft a job proposal (owner, reviewer, acceptance) | Execute, activate, publish, accept, resolve | desk |
+| `@forge` | implement, verify | Implement in worktree, record verification evidence, draft artifact review | Accept own work, merge, resolve, publish | desk (codex or opencode2) |
+| `@ledger` | resolve, project | Draft resolutions, changelog, activity projections | Author posts, change accepted history, send | desk |
+| `@scout` | research | Retrieve sources, draft dossiers with source maps | Assert unverified claims, publish | desk |
+| `@diplomat` | draft-external | Draft external messages from approved context | Send, record sent without delivery evidence | desk |
 
 Boundary rule (enforced by charters + permission gates): **tools prepare, humans accept.**
 No interface may activate its own Job, accept its own artifact, resolve a Job, or speak as a person.
@@ -60,9 +60,9 @@ Names as registered in the Buzz Nest (`~/.buzz/AGENTS.md`). Personas are owned i
 
 | Buzz agent | Proposed pairing | Notes |
 |---|---|---|
-| Pollen | `@prime` + `@research` | Gather context, scope proposals, research |
-| Fizz | `@build` | Execution energy, candidate production |
-| Honey | `@steward` | Consolidation, receipts, projections |
+| Pollen | `@atlas` + `@scout` | Gather context, scope proposals, research |
+| Fizz | `@forge` | Execution energy, candidate production |
+| Honey | `@ledger` | Consolidation, receipts, projections |
 
 This pairing is a proposal, not yet authoritative — confirm each agent's persona in Buzz Desktop,
 then either keep this table or replace it with the real split.
@@ -72,7 +72,7 @@ then either keep this table or replace it with the real split.
 | Runtime | What it runs | Where |
 |---|---|---|
 | `runtime/desk` | The job engine: SQLite jobs/artifacts/outbox/cursors, Buzz poll + ingest, worktrees, dispatch | `telepathy/runtime/desk` |
-| opencode2 (v2 pilot) | Interactive planning sessions only — service healthy but free zen models are unavailable for execution (`ModelUnavailable`) | `~/.local/share/intuitxn-opencode-v2` via `runtime/opencode-v2/run.sh` |
+| opencode (fork runtime) | Desk job execution — runs the oc2 fork binary headlessly with the authenticated `opencode-go` provider (`opencode run -m opencode-go/deepseek-v4-flash`); the upstream beta's free zen models stay interactive-only | `~/opencode2` fork build via `runtime/desk/src/runtime.js` (`FORK_BIN`) |
 | codex CLI | Sandboxed execution worker (`codex exec --json`) | local install |
 
 ## JTBD lifecycle
@@ -98,7 +98,7 @@ Buzz is the human surface; the desk ledger is execution truth; git holds accepte
 3. **Runtime executes** in a git worktree at the accepted base revision (codex or opencode2 per job).
 4. **Candidate + evidence** returns: changed files, verification results, unresolved issues, exact revision.
 5. **Human reviews and accepts** in the Buzz thread — acceptance is a named human at an exact revision.
-6. **Steward projects** the outcome: resolution, changelog, activity; the outbox replies to the original thread.
+6. **Ledger projects** the outcome: resolution, changelog, activity; the outbox replies to the original thread.
 
 ## Where state lives
 

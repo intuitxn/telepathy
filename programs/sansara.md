@@ -5,7 +5,7 @@
 - **channel:** `sansara` (stream) — the program's home on the Buzz relay
 - **owner:** Shubham
 - **reviewers:** Om, Kush
-- **agents:** `@build` for node changes, `@research` for world/runtime questions, `@steward` for release projection
+- **agents:** `@forge` for node changes, `@scout` for world/runtime questions, `@ledger` for release projection
 - **runtime:** desk engine with Codex; the node itself runs separately (local Go or Docker)
 - **what it owns:** the agent portal, world runtime, wiki, federation
 

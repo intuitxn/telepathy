@@ -28,4 +28,4 @@ Sites may render the accepted activity and meta-agent registry. Unaccepted candi
 
 ## External communication
 
-Relationship tools prepare drafts only. A named human reviews recipient identity, evidence, private context, and wording before sending. Record sent state only from verified delivery evidence.
+Diplomat tools prepare drafts only. A named human reviews recipient identity, evidence, private context, and wording before sending. Record sent state only from verified delivery evidence.

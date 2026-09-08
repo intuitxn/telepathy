@@ -19,7 +19,11 @@
 
 ### Fixed
 
-- Desk openCode runtime now passes a `provider/model` reference to the session API instead of a bare model string.
+- Desk openCode runtime now executes: jobs with `runtime: opencode` run the oc2 fork binary headlessly with the authenticated `opencode-go` provider (default `opencode-go/deepseek-v4-flash`), instead of the upstream beta's interactive-only free zen models. Verified by live smoke job `3138987b` (executed, reviewed, resolved). Codex remains the default worker.
+- Labs tunnel (`labs.intuitxn.com`) restored: the `intuitxn.labs` LaunchAgent now carries a PATH that includes `cloudflared`; page, `team.json`, and the `oc2-join.sh` installer serve again.
+- Desk `accept` and `run` commands resolve full job IDs (prefix-only IDs were rejected with a misleading message).
+- Stale `error`/`stopped` fields are cleared when a job is retried.
+- oc2 fork changes now have a public GitHub mirror at `intuitxn/oc2` (branch `2.0`), alongside the Buzz `oc2` repo.
 
 
 All notable Telepathy product changes are recorded here. Planned work stays in the GitHub Project and is not listed as shipped.

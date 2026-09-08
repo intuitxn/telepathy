@@ -23,6 +23,6 @@ Never infer Job state from a Project card or agent session. Project views are fo
 
 ## Meta-agent work
 
-Every meta-agent request starts with a human owner and reviewer. Prime may propose the Job, Build may create a candidate, and Steward may project an accepted outcome. None may accept its own artifact, impersonate a human author, or send an external message.
+Every meta-agent request starts with a human owner and reviewer. Atlas may propose the Job, Forge may create a candidate, and Ledger may project an accepted outcome. None may accept its own artifact, impersonate a human author, or send an external message.
 
 See [`../plugins/telepathy-meta-agents/registry.json`](../plugins/telepathy-meta-agents/registry.json) for the current declarative catalog.

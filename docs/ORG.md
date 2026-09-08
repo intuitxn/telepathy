@@ -18,11 +18,11 @@ One application and one backend should resolve focused interfaces from the host.
 |---|---|---|
 | `telepathy.intuitxn.com` | `/` | Human workspace |
 | `agents.telepathy.intuitxn.com` | `/agents` | Meta-agent catalog |
-| `prime.telepathy.intuitxn.com` | `/agents/prime` | Job proposal |
-| `build.telepathy.intuitxn.com` | `/agents/build` | Candidate build and verification |
-| `steward.telepathy.intuitxn.com` | `/agents/steward` | Resolution and projections |
-| `research.telepathy.intuitxn.com` | `/agents/research` | Evidence-backed research |
-| `relationships.telepathy.intuitxn.com` | `/agents/relationships` | Reviewed external-conversation drafts |
+| `atlas.telepathy.intuitxn.com` | `/agents/atlas` | Job proposal |
+| `forge.telepathy.intuitxn.com` | `/agents/forge` | Candidate build and verification |
+| `ledger.telepathy.intuitxn.com` | `/agents/ledger` | Resolution and projections |
+| `scout.telepathy.intuitxn.com` | `/agents/scout` | Evidence-backed research |
+| `diplomat.telepathy.intuitxn.com` | `/agents/diplomat` | Reviewed external-conversation drafts |
 
 Project navigation remains path-based at `/projects/:project` so project slugs cannot collide with agent hosts.
 

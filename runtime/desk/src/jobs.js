@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync, rmSync, copyFileSyn
 import { join, resolve, dirname } from 'node:path';
 import { get, put, home, now, hash, confined } from './core.js';
 import { checked, execute } from './process.js';
-import { connect } from './runtime.js';
+import { forkEnv, FORK_BIN, DEFAULT_FORK_MODEL } from './runtime.js';
 export function resultText(messages) {
   for (const message of [...messages].reverse()) {
     if (message.type !== 'assistant') continue;
@@ -22,6 +22,7 @@ export function brief(job, context = []) {
 export async function runJob(db, id, cfg, { executor } = {}) {
   let job = claim(db, id); const folder = join(home(), 'jobs', id); mkdirSync(folder, { recursive: true });
   try {
+    delete job.error; delete job.stopped;
     const repository = resolve(job.repository);
     if (!cfg.repositories.some(path => resolve(path) === repository)) throw Error('Repository is not in .local/config.json repositories');
     const base = await checked('git', ['rev-parse', 'HEAD'], { cwd: repository });
@@ -48,23 +49,17 @@ export async function runJob(db, id, cfg, { executor } = {}) {
       if (!existsSync(final)) throw Error('Codex returned no final result');
       output = readFileSync(final, 'utf8');
     } else {
-      if (!cfg.model) throw Error('Choose an available OpenCode model in .local/config.json');
-      const slash = String(cfg.model).indexOf('/');
-      if (slash <= 0) throw Error('Model must be a provider/model ref (e.g. zen/nemotron-3-ultra-free) in .local/config.json');
-      const model = { providerID: String(cfg.model).slice(0, slash), id: String(cfg.model).slice(slash + 1) };
-      const client = await connect(); const location = { directory: worktree };
-      await client.plugin.awaitActivation({ location });
-      const session = await client.session.create({ location, agent: 'intuitxn-build', model, title: `[${job.id}] ${job.request.slice(0, 80)}` });
-      job = put(db, 'jobs', { ...job, sessionID: session.id, submission: 'pending' });
-      await client.session.prompt({ sessionID: session.id, text: prompt, metadata: { jobID: job.id } });
-      job = put(db, 'jobs', { ...job, submission: 'accepted' });
-      try { await client.session.wait({ sessionID: session.id }, { signal: AbortSignal.timeout(cfg.timeoutSeconds * 1000) }); }
-      catch (error) { await client.session.interrupt({ sessionID: session.id }).catch(() => {}); throw error; }
-      const info = await client.session.get({ sessionID: session.id });
-      const messages = await client.session.context({ sessionID: session.id });
-      writeFileSync(join(folder, 'messages.json'), JSON.stringify(messages, null, 2));
-      if (info.outcome !== 'succeeded') throw Error(`OpenCode outcome: ${info.outcome || 'unknown'}`);
-      output = resultText(messages);
+      // opencode runtime: run the oc2 fork binary headlessly with the canonical
+      // work profile (its opencode-go provider is authenticated and executes;
+      // the upstream beta's free zen models are interactive-only).
+      const model = cfg.model || DEFAULT_FORK_MODEL;
+      const result = await execute(FORK_BIN, ['run', '-m', model, prompt], {
+        cwd: worktree, env: forkEnv(), timeout: cfg.timeoutSeconds * 1000,
+      });
+      job = put(db, 'jobs', { ...job, model, submission: 'fork-run' });
+      if (result.code !== 0) throw Error(`opencode exited ${result.code}; inspect the job folder`);
+      output = result.stdout.trim();
+      if (!output) throw Error('opencode returned no text result; inspect the job folder');
     }
     writeFileSync(join(folder, 'result.md'), output);
     const diff = await checked('git', ['diff', '--binary', 'HEAD'], { cwd: worktree });

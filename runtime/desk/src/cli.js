@@ -67,8 +67,18 @@ async function main() {
     if (command === 'review') return print(approveArtifact(db, args[0], args.slice(1).join(' ')));
     if (command === 'export') return print(exportArtifact(db, args[0]));
     if (command === 'job') return print(newJob(db, JSON.parse(readFileSync(args[0], 'utf8'))));
-    if (command === 'run') return print(await runJob(db, args[0], config()));
-    if (command === 'accept') return print(acceptJob(db, args[0], args.slice(1).join(' ')));
+    if (command === 'run' || command === 'accept') {
+      const raw = args[0];
+      if (!raw) throw Error('Pass a job ID or unique prefix');
+      const direct = db.prepare('SELECT id FROM jobs WHERE id=?').get(raw);
+      const id = direct ? direct.id : (() => {
+        const rows = db.prepare('SELECT id FROM jobs WHERE id LIKE ? ORDER BY rowid').all(raw + '%');
+        if (rows.length === 1) return rows[0].id;
+        throw Error(rows.length > 1 ? `Ambiguous prefix ${raw}; use more characters` : `jobs: ${raw} not found`);
+      })();
+      if (command === 'run') return print(await runJob(db, id, config()));
+      return print(acceptJob(db, id, args.slice(1).join(' ')));
+    }
     if (command === 'queue-artifact') {
       const exported = exportArtifact(db, args[1]);
       return print(queueMessage(db, { channel: args[0], text: readFileSync(exported.file, 'utf8') }));
