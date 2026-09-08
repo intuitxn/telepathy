@@ -1,0 +1,9 @@
+#!/bin/sh
+# Installed OS command follows the current verified Telepathy service release.
+set -eu
+STATE="${TELEPATHY_SERVICE_STATE:-$HOME/.local/share/telepathy-workspace}"
+RELEASE="$(cat "$STATE/current-release")"
+PYTHON="$(cat "$STATE/interpreter")"
+export NUDGE_ROOT="$RELEASE/nudge"
+export INTUITXN_NETWORK="${INTUITXN_NETWORK:-${BUZZ_RELAY_URL:-https://intuitxn.communities.buzz.xyz}}"
+exec "$PYTHON" "$RELEASE/runtime/programs/cli.py" "$@"

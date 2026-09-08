@@ -22,11 +22,12 @@ function formatDateTime(value: string) {
 
 interface PostItemProps {
   post: Post
+  canResolve?: boolean
   people: Person[]
   activePerson: Person
-  onAddReply: (postId: string, reply: Reply) => void
-  onToggleAcknowledgement: (postId: string, personId: PersonId) => void
-  onResolve: (postId: string, summary: string) => void
+  onAddReply: (postId: string, reply: Reply) => void | Promise<void>
+  onToggleAcknowledgement: (postId: string, personId: PersonId) => void | Promise<void>
+  onResolve: (postId: string, summary: string) => void | Promise<void>
 }
 
 export function PostItem({
@@ -36,12 +37,14 @@ export function PostItem({
   onAddReply,
   onToggleAcknowledgement,
   onResolve,
+  canResolve = true,
 }: PostItemProps) {
   const [replyOpen, setReplyOpen] = useState(false)
   const [replyBody, setReplyBody] = useState('')
   const [resolutionOpen, setResolutionOpen] = useState(false)
   const [resolutionBody, setResolutionBody] = useState('')
   const [error, setError] = useState('')
+  const [pending, setPending] = useState(false)
   const panelId = useId()
   const author = people.find((person) => person.id === post.authorId) ?? people[0]
   const acknowledged = post.acknowledgements.includes(activePerson.id)
@@ -50,28 +53,36 @@ export function PostItem({
     .map((id) => people.find((person) => person.id === id))
     .filter((person): person is Person => Boolean(person))
 
-  const submitReply = (event: FormEvent<HTMLFormElement>) => {
+  const submitReply = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!replyBody.trim()) {
       setError('Write a reply before adding it.')
       return
     }
-    onAddReply(post.id, createReply({ authorId: activePerson.id, body: replyBody }))
+    setPending(true)
+    try {
+    await onAddReply(post.id, createReply({ authorId: activePerson.id, body: replyBody }))
     setReplyBody('')
     setError('')
     setReplyOpen(false)
+    } catch (error) { setError(error instanceof Error ? error.message : 'Could not save reply.') }
+    finally { setPending(false) }
   }
 
-  const submitResolution = (event: FormEvent<HTMLFormElement>) => {
+  const submitResolution = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!resolutionBody.trim()) {
       setError('Add the answer or outcome that closed this question.')
       return
     }
-    onResolve(post.id, resolutionBody)
+    setPending(true)
+    try {
+    await onResolve(post.id, resolutionBody)
     setResolutionBody('')
     setError('')
     setResolutionOpen(false)
+    } catch (error) { setError(error instanceof Error ? error.message : 'Could not resolve.') }
+    finally { setPending(false) }
   }
 
   return (
@@ -157,14 +168,14 @@ export function PostItem({
             className={`post-action${acknowledged ? ' is-active' : ''}`}
             disabled={ownPost}
             onClick={() => onToggleAcknowledgement(post.id, activePerson.id)}
-            title={ownPost ? 'You cannot acknowledge your own post in this demo.' : undefined}
+            title={ownPost ? 'You cannot acknowledge your own post.' : undefined}
             type="button"
           >
             <CheckIcon />
             {ownPost ? 'Your post' : acknowledged ? 'Acknowledged' : 'Acknowledge'}
           </button>
 
-          {post.kind === 'question' && !post.resolution && (
+          {canResolve && post.kind === 'question' && !post.resolution && (
               <button
                 aria-expanded={resolutionOpen}
                 aria-controls={`${panelId}-resolution`}
@@ -208,7 +219,7 @@ export function PostItem({
           />
           <div className="inline-form__footer">
             <span className="form-error" role="alert">{error}</span>
-            <button className="secondary-button" type="submit">Add reply</button>
+            <button className="secondary-button" type="submit" disabled={pending}>Add reply</button>
           </div>
         </form>
       )}
@@ -231,7 +242,7 @@ export function PostItem({
           <div className="inline-form__footer">
             <small>Resolving as {activePerson.name}</small>
             <span className="form-error" role="alert">{error}</span>
-            <button className="secondary-button" type="submit">Mark resolved</button>
+            <button className="secondary-button" type="submit" disabled={pending}>Mark resolved</button>
           </div>
         </form>
       )}

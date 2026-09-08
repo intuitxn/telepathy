@@ -111,7 +111,7 @@ function isWorkspaceState(value: unknown): value is WorkspaceState {
   if (!value || typeof value !== 'object') return false
   const candidate = value as Partial<WorkspaceState>
   return (
-    personIds.includes(candidate.activePersonId as PersonId) &&
+    personIds.includes(candidate.activePersonId as (typeof personIds)[number]) &&
     (candidate.theme === 'light' || candidate.theme === 'dark') &&
     Array.isArray(candidate.posts) &&
     candidate.posts.every(
@@ -119,7 +119,7 @@ function isWorkspaceState(value: unknown): value is WorkspaceState {
         post &&
         typeof post.id === 'string' &&
         postKinds.includes(post.kind as PostKind) &&
-        personIds.includes(post.authorId as PersonId) &&
+        personIds.includes(post.authorId as (typeof personIds)[number]) &&
         typeof post.body === 'string' &&
         typeof post.createdAt === 'string' &&
         Number.isFinite(Date.parse(post.createdAt)) &&
@@ -129,26 +129,26 @@ function isWorkspaceState(value: unknown): value is WorkspaceState {
           (reply) =>
             reply &&
             typeof reply.id === 'string' &&
-            personIds.includes(reply.authorId as PersonId) &&
+            personIds.includes(reply.authorId as (typeof personIds)[number]) &&
             typeof reply.body === 'string' &&
             typeof reply.createdAt === 'string' &&
             Number.isFinite(Date.parse(reply.createdAt)) &&
             (reply.example === undefined || typeof reply.example === 'boolean'),
         ) &&
         Array.isArray(post.acknowledgements) &&
-        post.acknowledgements.every((id) => personIds.includes(id as PersonId)) &&
+        post.acknowledgements.every((id) => personIds.includes(id as (typeof personIds)[number])) &&
         (!post.resolution ||
           (typeof post.resolution.summary === 'string' &&
             typeof post.resolution.resolvedAt === 'string' &&
             Number.isFinite(Date.parse(post.resolution.resolvedAt)) &&
-            personIds.includes(post.resolution.resolvedBy as PersonId))),
+            personIds.includes(post.resolution.resolvedBy as (typeof personIds)[number]))),
     ) &&
     Array.isArray(candidate.people) &&
     personIds.every((id) => candidate.people?.some((person) => person.id === id)) &&
     candidate.people.every(
       (person) =>
         person &&
-        personIds.includes(person.id as PersonId) &&
+        personIds.includes(person.id as (typeof personIds)[number]) &&
         typeof person.name === 'string' &&
         typeof person.initials === 'string' &&
         Array.isArray(person.onboarding) &&

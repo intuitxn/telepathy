@@ -1,0 +1,19 @@
+@layer components {
+  .shared-shell [hidden] { display: none !important; }
+  .shared-login { max-width: 720px; margin: 8vh auto; padding: 24px; }
+  .shared-login > .brand-mark { margin-bottom: 24px; }
+  .shared-banner { padding: 16px 22px; background: var(--paper-raised); border: 1px solid var(--line); border-radius: 10px; margin: 16px 0; overflow-wrap: anywhere; }
+  .shared-selection { position: sticky; top: 10px; z-index: 4; padding: 16px; background: var(--paper); border: 1px solid var(--accent); border-radius: 10px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin: 20px 0; }
+  .source-selector { padding: 12px 20px; font-size: 13px; }
+  .source-selector summary { cursor: pointer; color: var(--ink-secondary); }
+  .source-selector label { display: flex; align-items: baseline; gap: 10px; padding: 8px 0; }
+  .shared-thread { border-bottom: 1px solid var(--line); }
+  .artifact-editor .composer { display: grid; gap: 18px; }
+  .artifact-preview { width: 100%; min-height: 540px; border: 1px solid var(--line); border-radius: 8px; background: white; }
+  .publication-controls { display: grid; gap: 16px; border: 1px solid var(--line); padding: 18px; border-radius: 8px; }
+  .publication-controls legend { padding: 0 6px; font-weight: 600; }
+  .review-check { display: flex; align-items: baseline; gap: 10px; }
+  .program-source { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; padding: 16px; background: var(--paper-soft); border-radius: 8px; max-height: 420px; overflow-y: auto; }
+  .preserve-lines { white-space: pre-wrap; }
+  .shared-shell .workspace-controls { flex-wrap: wrap; }
+}

@@ -1,5 +1,5 @@
 export const personIds = ['shubham', 'om', 'kush'] as const
-export type PersonId = (typeof personIds)[number]
+export type PersonId = string
 
 export const postKinds = ['update', 'decision', 'question', 'announcement'] as const
 export type PostKind = (typeof postKinds)[number]

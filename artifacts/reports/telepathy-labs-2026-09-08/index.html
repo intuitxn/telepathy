@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Telepathy &amp; Intuitxn Labs: what we have built</title><meta name="description" content="Technical report: architecture, working agent execution, shipped foundations, live verification, and what remains before a shared production workspace.">
+<link rel="canonical" href="https://labs.intuitxn.com/reports/telepathy-labs-2026-09-08/">
+<meta property="og:type" content="article"><meta property="og:site_name" content="Intuitxn Reports">
+<meta property="og:title" content="Telepathy &amp; Intuitxn Labs: what we have built"><meta property="og:description" content="Technical report: architecture, working agent execution, shipped foundations, live verification, and what remains before a shared production workspace.">
+<meta property="og:url" content="https://labs.intuitxn.com/reports/telepathy-labs-2026-09-08/"><meta property="og:image" content="https://labs.intuitxn.com/reports/telepathy-labs-2026-09-08/preview.png">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Telepathy and Intuitxn Labs technical report, 8 September 2026">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Telepathy &amp; Intuitxn Labs: what we have built">
+<meta name="twitter:description" content="Technical report: architecture, working agent execution, shipped foundations, live verification, and what remains before a shared production workspace."><meta name="twitter:image" content="https://labs.intuitxn.com/reports/telepathy-labs-2026-09-08/preview.png">
+<style>
+:root{color-scheme:light;--paper:#f2eee6;--ink:#26231f;--accent:#bd3b22}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.75 system-ui,-apple-system,sans-serif}
+header,main,footer{max-width:860px;margin:auto;padding:32px 28px}header{border-bottom:1px solid #d7cec0;display:flex;justify-content:space-between;gap:20px;font-size:14px}header a{font-weight:650}main{padding-top:12px;padding-bottom:56px}
+h1,h2,h3{line-height:1.2;text-wrap:balance}h1{font:500 clamp(38px,6vw,60px)/1.1 Georgia,serif;letter-spacing:-1.8px;margin:36px 0 24px}h2{font:500 31px/1.2 Georgia,serif;margin:48px 0 16px;padding-top:20px;border-top:1px solid #d7cec0}h3{font-size:20px;margin-top:30px}p{margin:16px 0}a{color:#902a18;text-underline-offset:4px}a:hover{color:var(--accent)}li{margin:10px 0}code{font:0.86em/1.7 ui-monospace,monospace;background:#e9e3d8;border-radius:4px;padding:2px 5px;overflow-wrap:anywhere}pre{background:#26231f;color:#f2eee6;padding:24px;border-radius:12px;overflow:auto;font-size:14px}pre code{padding:0;background:none;color:inherit;white-space:pre;overflow-wrap:normal}footer{border-top:1px solid #d7cec0;color:#625c54;font-size:14px}a:focus-visible{outline:3px solid var(--accent);outline-offset:5px}
+@media(max-width:500px){body{font-size:16px}header,main,footer{padding-left:20px;padding-right:20px}h1{letter-spacing:-1px}pre{padding:16px}}
+@media print{body{background:white}header,footer{display:none}main{max-width:none}h2,h3{break-after:avoid}pre{white-space:pre-wrap}}
+</style></head><body><header><a href="https://labs.intuitxn.com/">intuitxn / reports</a><a href="report.md" download>Download Markdown</a></header><main><h1>Telepathy and Intuitxn Labs: what we have built</h1>
+<p>Technical report · 8 September 2026</p>
+<p>Prepared by Codex and shared at Shubham&#x27;s request. Verification refers to the September 8 implementation and live checks; it is not a claim of production readiness.</p>
+<h2>Product and current release</h2>
+<p>We have built the foundations of a team workspace that turns human discussion into reviewed agent work. A person supplies a request and acceptance criteria, an agent prepares a candidate in a separate working directory, evidence returns to the discussion, and an authorized human accepts the outcome.</p>
+<p>Two usable surfaces exist today:</p>
+<ul>
+<li><strong>Buzz + Desk + the local node:</strong> the operational shared-work loop. Buzz holds team discussion and identity; Desk persists jobs and coordinates execution; OpenCode and Codex perform the work.</li>
+<li><strong>Telepathy web alpha:</strong> the intended human communication interface. It supports updates, decisions, questions, announcements, replies, acknowledgements and resolutions, with browser-local persistence.</li>
+</ul>
+<p>These surfaces are not connected end to end through the web UI yet. Posting in the alpha does not publish to Buzz or create a Desk job. Labs is the runtime status and distribution surface, rather than the finished team workspace.</p>
+<h2>Architecture</h2>
+<pre><code>Authorized person in a Buzz project thread
+  -&gt; explicit /intuitxn request + acceptance criteria
+  -&gt; Desk intake and persistent job ledger
+  -&gt; repository allowlist + separate Git worktree
+  -&gt; OpenCode fork or Codex execution
+  -&gt; candidate and verification returned to the thread
+  -&gt; human acceptance
+  -&gt; configured commit/push and outcome receipt
+
+Telepathy web alpha -&gt; browser-local workspace data
+Labs -&gt; runtime status, manifest and Mac installer distribution</code></pre>
+<p><strong>Buzz is the shared context layer.</strong> Channels, profiles, project metadata, notes and threaded messages provide team context. Normal conversation does not implicitly start a job: intake checks the authorized sender and the explicit request format.</p>
+<p><strong>Desk is the execution coordinator.</strong> It maintains durable job state, imports requests, creates worktrees, runs the selected runtime, captures candidate changes and verification, and handles acceptance. Outgoing messages use a persisted outbox and exact-content digest; uncertain delivery is retained rather than blindly resent. The installed watcher is configured to poll and execute eligible requests automatically. Human acceptance remains a separate action and can commit and push the candidate to configured remotes.</p>
+<p><strong>The resident node is the local execution service.</strong> The OpenCode 2 fork runs in a profile with separate configuration, data, cache and state. Plugins expose runtime execution, routing, relay reads and drafts, navigation and other local capabilities. Codex is an additional execution adapter. LaunchAgents restart the services after login and on process failure; this does not establish pre-unlock availability.</p>
+<p><strong>Labs distributes the runtime.</strong> The public page, team manifest and Apple Silicon Mac installer are served through the host&#x27;s tunnel. Serving an installer is distinct from validating installation and recovery on a fresh teammate machine.</p>
+<h2>What changed in this delivery</h2>
+<h3>One network setting</h3>
+<p>A2A milestone M2 introduces <code>INTUITXN_NETWORK</code>. Resolution order is:</p>
+<ol>
+<li><code>INTUITXN_NETWORK</code>;</li>
+<li>legacy <code>BUZZ_RELAY_URL</code>;</li>
+<li>the Intuitxn relay default.</li>
+</ol>
+<p>Node and task launchers load a common shell helper. It exports the Buzz CLI alias and derives <code>ws://</code> or <code>wss://</code> from the HTTP(S) base URL. The node LaunchAgent persists the canonical setting; Desk and both Buzz adapters honor its precedence. The third-party Buzz CLI still reads its original variable, so direct shell use requires sourcing the helper. Identity configuration remains separate.</p>
+<h3>Theme foundation without a redesign</h3>
+<p>UX milestone M1 moves the existing visual tokens into <code>tokens.css</code>, adds spacing, typography, radius, motion and semantic colors, and defines accent families for Telepathy, Sansara, Iktara and Nudge. <code>setEnvTheme</code> supplies the program selection, with Telepathy as the default. Reduced-motion preferences are respected.</p>
+<p>The existing alpha remains visually unchanged. This ships theme infrastructure; it does not yet ship the environment Markdown compiler, generated app shells, intent cues or cross-program applications.</p>
+<h3>Runtime and usage fixes verified</h3>
+<ul>
+<li>Labs loads, and its manifest and installer download successfully. The canonical installer path is <code>/join/oc2-join.sh</code>; the root path now has a compatibility copy.</li>
+<li>The node completed an OpenCode model call and invoked Codex successfully through its runtime tool. The Codex response was <code>CODEX_NODE_OK</code>, with exit code 0.</li>
+<li>The watcher runs from the main checkout and polls cleanly. The earlier OpenCode file-writing smoke result was inspected and matched its expected content.</li>
+<li>GitHub and Buzz mirrors contain the new commits. The recreated changelog channel and its three members were verified, as were the seven refreshed knowledge-base notes.</li>
+<li>The Labs request example now uses the supported Desk runtime name <code>opencode</code>. <code>opencode-sandbox</code> belongs to the node adapter interface and was rejected by Desk intake.</li>
+</ul>
+<h2>Verification and evidence</h2>
+<p>The delivery passed 26 existing tests across Desk, the plugin and the site, plus network configuration checks for defaults, legacy fallback, precedence, WebSocket derivation and invalid schemes. Site type checking and production build passed. GitHub Pages build and deployment succeeded.</p>
+<p>Browser checks confirmed posting and refresh persistence. Light and dark renderings were compared with the prior live alpha across element geometry, colors, backgrounds, fonts, borders, padding and margins; both comparisons matched. The deployed public page was then checked for the new theme tokens and default environment attribute.</p>
+<p>Sources:</p>
+<ul>
+<li><a href="https://github.com/intuitxn/telepathy/commit/05b73db541a80aa1a6525182b7c337b8ed971a7e">Telepathy implementation: 05b73db</a></li>
+<li><a href="https://github.com/intuitxn/oc2/commit/038432954a23da65780073b1c431c452b87c1a4b">Runtime implementation: 038432954</a></li>
+<li><a href="https://github.com/intuitxn/telepathy/actions/runs/34216042808">Successful Pages workflow</a></li>
+<li><a href="https://github.com/intuitxn/telepathy/blob/05b73db541a80aa1a6525182b7c337b8ed971a7e/runtime/desk/src/jobs.js">Desk execution and acceptance implementation</a></li>
+<li><a href="https://github.com/intuitxn/telepathy/blob/05b73db541a80aa1a6525182b7c337b8ed971a7e/PRODUCT.md">Product contract</a></li>
+</ul>
+<h2>Boundaries that matter</h2>
+<p><strong>Shared web product:</strong> authentication, shared server-side persistence, cross-device synchronization and production notifications are still missing from the alpha. Its identity selector is a demo control.</p>
+<p><strong>Isolation:</strong> a separate Git worktree is not an OS security boundary. Desk&#x27;s OpenCode path does not automatically apply macOS seatbelt. The gateway and explicit sandbox entry apply seatbelt. The running host also inherits a Buzz identity, contrary to the design&#x27;s no-signing-key assertion; network unification did not implement credential isolation. No credential values are included in this report.</p>
+<p><strong>Distribution:</strong> fresh-Mac installation and automatic-update recovery remain unverified. The network change is active on the current host and available in source; this delivery does not certify a refreshed installer bundle on teammate machines.</p>
+<p><strong>A2A:</strong> a designed topology is not a running multi-node network. Peer directory, signed ACP bridges and cross-node delegation remain future milestones. The same applies to the environment DSL and its app renderer.</p>
+<h2>How the team can use it now</h2>
+<p>Open <a href="https://intuitxn.github.io/telepathy/">Telepathy</a> to try the communication interface. Select <strong>Add to Now</strong>, write an update or question, reply, acknowledge, or resolve. Activity remains in that browser.</p>
+<p>For real shared work, use the relevant project channel in Buzz. An authorized member can submit:</p>
+<pre><code>/intuitxn {&quot;repository&quot;:0,&quot;request&quot;:&quot;Describe the exact change&quot;,&quot;acceptance&quot;:&quot;Describe the check that proves it works&quot;,&quot;runtime&quot;:&quot;opencode&quot;}</code></pre>
+<p>Confirm the repository number against the host&#x27;s configured allowlist before submitting. <code>codex</code> is the other supported Desk runtime. Inspect the candidate and evidence, then reply <code>accept</code> in its source thread only when ready to land the change.</p>
+<p>Use <a href="https://labs.intuitxn.com/">Labs</a> to inspect the runtime and distribution entry points. New-machine onboarding should be treated as a validation task, not assumed complete.</p>
+<h2>Recommended next product milestone</h2>
+<p>Connect the human workspace to authenticated shared Buzz/Desk data, then verify one complete journey: an admitted teammate submits a scoped request, sees a candidate in context, reviews evidence, accepts it, and another teammate sees the same outcome. That would make the existing working parts a single shared product. Fresh-machine recovery and credential boundaries should be validated alongside that work. This is a recommendation, not a claim that those milestones have been started.</p></main><footer>Technical report · 8 September 2026 · Prepared by Codex and shared at Shubham’s request.<br>This report describes the verified release boundary; Telepathy’s web interface remains a browser-local alpha.</footer></body></html>

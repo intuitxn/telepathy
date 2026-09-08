@@ -37,15 +37,17 @@ const kinds = Object.keys(composerCopy) as PostKind[]
 
 interface ComposerProps {
   activePerson: Person
-  onAddPost: (post: ReturnType<typeof createPost>) => void
+  onAddPost: (post: ReturnType<typeof createPost>) => void | Promise<void>
+  shared?: boolean
 }
 
-export function Composer({ activePerson, onAddPost }: ComposerProps) {
+export function Composer({ activePerson, onAddPost, shared = false }: ComposerProps) {
   const [open, setOpen] = useState(false)
   const [kind, setKind] = useState<PostKind>('update')
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [error, setError] = useState('')
+  const [pending, setPending] = useState(false)
   const bodyRef = useRef<HTMLTextAreaElement>(null)
   const openButtonRef = useRef<HTMLButtonElement>(null)
 
@@ -66,7 +68,7 @@ export function Composer({ activePerson, onAddPost }: ComposerProps) {
     requestAnimationFrame(() => openButtonRef.current?.focus())
   }
 
-  const submit = (event: FormEvent<HTMLFormElement>) => {
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const trimmedBody = body.trim()
     const needsTitle = kind !== 'update'
@@ -75,7 +77,9 @@ export function Composer({ activePerson, onAddPost }: ComposerProps) {
       return
     }
 
-    onAddPost(
+    setPending(true)
+    try {
+    await onAddPost(
       createPost({
         kind,
         authorId: activePerson.id,
@@ -84,6 +88,8 @@ export function Composer({ activePerson, onAddPost }: ComposerProps) {
       }),
     )
     close()
+    } catch (error) { setError(error instanceof Error ? error.message : 'Could not save. Your draft is still here.') }
+    finally { setPending(false) }
   }
 
   if (!open) {
@@ -97,7 +103,7 @@ export function Composer({ activePerson, onAddPost }: ComposerProps) {
         <span className="composer-invite__plus"><PlusIcon /></span>
         <span>
           <strong>Add to Now</strong>
-          <small>Create a local update, decision, question, or announcement</small>
+          <small>{shared ? 'Share an update, decision, question, or announcement with the team' : 'Create a local update, decision, question, or announcement'}</small>
         </span>
         <ArrowIcon className="composer-invite__arrow" />
       </button>
@@ -180,7 +186,7 @@ export function Composer({ activePerson, onAddPost }: ComposerProps) {
 
       <div className="composer__footer">
         <span className="form-error" id="composer-error" role="alert">{error}</span>
-        <button className="primary-button" type="submit">
+        <button className="primary-button" type="submit" disabled={pending}>
           {selected.action}
           <ArrowIcon />
         </button>

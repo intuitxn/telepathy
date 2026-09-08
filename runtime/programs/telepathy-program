@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+SOURCE="$0"
+while [ -L "$SOURCE" ]; do SOURCE="$(readlink "$SOURCE")"; done
+ROOT="$(CDPATH= cd -- "$(dirname -- "$SOURCE")/../.." && pwd)"
+NUDGE_ROOT="${NUDGE_ROOT:-$(dirname "$ROOT")/nudge}"
+export NUDGE_ROOT
+exec "$NUDGE_ROOT/.venv/bin/python3.12" "$ROOT/runtime/programs/cli.py" "$@"
