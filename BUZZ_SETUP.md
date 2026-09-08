@@ -121,3 +121,7 @@ This local job ledger is the execution authority for the pilot. It is not synced
 - Local operator commands are trusted. The pilot does not provide multi-user login, role enforcement, or isolation from a malicious repository. Do not expose the CLI through an unauthenticated web endpoint.
 
 Sources: [v2 plugins](https://opencode.ai/v2/docs/build/plugins/), [client](https://opencode.ai/v2/docs/build/client/), [instructions](https://opencode.ai/v2/docs/instructions/). The old `session.share` approach is unavailable in v2; team access comes from the application and authenticated server access.
+
+## One network setting
+
+Set `INTUITXN_NETWORK=https://intuitxn.communities.buzz.xyz` for Desk and the Telepathy plugin. It takes precedence over the legacy `BUZZ_RELAY_URL`; identity configuration is unchanged. For direct Buzz CLI calls, source `~/opencode2/script/oc2-network.sh` to export the CLI alias. See [current live use and boundaries](docs/FOUNDATIONS_AND_LIVE_USE.md).

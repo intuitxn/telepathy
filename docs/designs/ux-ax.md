@@ -1,3 +1,5 @@
+> Implementation update (2026-09-08): M1 token foundation is implemented; light/dark element layout and computed visual styles match the existing live alpha. M2 onward remains design work. See [verification](../FOUNDATIONS_AND_LIVE_USE.md).
+
 > Design proposal — not shipped. Prepared by an agent design pass on 2026-09-08.
 > Milestones M1–M8 are ordered and testable; M1 is guaranteed pixel-identical to the current alpha.
 > Owner review required before any milestone starts.

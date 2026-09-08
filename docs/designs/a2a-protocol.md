@@ -1,3 +1,5 @@
+> Implementation update (2026-09-08): M2 network configuration is implemented. Live Codex and Buzz tool calls passed. The running node inherits a Buzz identity; the no-key assertion below is not true for this host. See [current verification and limits](../FOUNDATIONS_AND_LIVE_USE.md).
+
 > Design proposal — not shipped. Prepared by an agent design pass on 2026-09-08.
 > Every fact in section 0 was verified live (probes, exact outputs). Marked guesses are in section 6.
 > Milestones M1–M8 are ordered and independently testable. Owner review required before any milestone starts.

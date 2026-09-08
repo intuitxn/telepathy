@@ -2,7 +2,7 @@ import { execute } from './process.js';
 import { get, put, list, hash, now, newJob } from './core.js';
 export async function buzz(args, input) {
   if (!process.env.BUZZ_PRIVATE_KEY) throw Error('Buzz is not connected. Launch from the managed Buzz runtime, or configure the service identity in its environment.');
-  const result = await execute(process.env.BUZZ_BIN || 'buzz', args, { input, timeout: 30000 });
+  const result = await execute(process.env.BUZZ_BIN || 'buzz', args, { input, timeout: 30000, env: { ...process.env, BUZZ_RELAY_URL: process.env.INTUITXN_NETWORK || process.env.BUZZ_RELAY_URL || 'https://intuitxn.communities.buzz.xyz' } });
   if (result.code !== 0) throw Error(`Buzz exited ${result.code}; check relay connectivity and identity membership`);
   try { return JSON.parse(result.stdout); } catch { throw Error('Buzz returned invalid JSON'); }
 }

@@ -88,7 +88,7 @@ export function buzzConfigured(): {
   return {
     configured: missing.length === 0,
     missing,
-    relay: process.env.BUZZ_RELAY_URL ?? DEFAULT_RELAY,
+    relay: process.env.INTUITXN_NETWORK || process.env.BUZZ_RELAY_URL || DEFAULT_RELAY,
   };
 }
 
@@ -97,7 +97,7 @@ export function buzzConfigHint(): string {
   if (cfg.configured) return "";
   return (
     `Buzz is not configured (relay ${cfg.relay}). Missing: ${cfg.missing.join(", ")}. ` +
-    `Set BUZZ_PRIVATE_KEY (hex or nsec) and optionally BUZZ_RELAY_URL, then retry. ` +
+    `Set BUZZ_PRIVATE_KEY (hex or nsec) and optionally INTUITXN_NETWORK, then retry. ` +
     `Buzz Desktop reports the workspace relay; see the Buzz CLI skill for details.`
   );
 }
@@ -126,7 +126,7 @@ export function runBuzz(
     const child = spawn(BUZZ_BIN, args, {
       env: {
         ...process.env,
-        BUZZ_RELAY_URL: process.env.BUZZ_RELAY_URL ?? DEFAULT_RELAY,
+        BUZZ_RELAY_URL: process.env.INTUITXN_NETWORK || process.env.BUZZ_RELAY_URL || DEFAULT_RELAY,
       },
       stdio: ["pipe", "pipe", "pipe"],
     });

@@ -1,4 +1,5 @@
 @layer reset, base, components, responsive;
+@import "./tokens.css";
 
 @layer reset {
   *, *::before, *::after {
@@ -40,51 +41,6 @@
 }
 
 @layer base {
-  :root {
-    --paper: #f2eee6;
-    --paper-raised: #faf7f0;
-    --paper-soft: #e9e3d8;
-    --paper-deep: #ddd4c6;
-    --ink: #26231f;
-    --ink-secondary: #625c54;
-    --ink-tertiary: #6f675e;
-    --line: #d7cec0;
-    --line-strong: #bfb4a4;
-    --accent: #bd3b22;
-    --accent-deep: #902a18;
-    --accent-soft: #f1d8d0;
-    --olive: #67704c;
-    --olive-soft: #e2e5d5;
-    --question: #796331;
-    --question-soft: #eee5ca;
-    --announcement: #6d5578;
-    --announcement-soft: #ebe1ee;
-    --sidebar-width: 248px;
-    --serif: Georgia, 'Times New Roman', serif;
-    --sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  }
-
-  :root[data-theme='dark'] {
-    --paper: #1d1b18;
-    --paper-raised: #25221e;
-    --paper-soft: #2e2a25;
-    --paper-deep: #38322c;
-    --ink: #f1ece3;
-    --ink-secondary: #bcb3a8;
-    --ink-tertiary: #938a80;
-    --line: #3f3932;
-    --line-strong: #5a5147;
-    --accent: #ef6849;
-    --accent-deep: #ff896f;
-    --accent-soft: #48291f;
-    --olive: #b4c089;
-    --olive-soft: #313725;
-    --question: #d5b664;
-    --question-soft: #3a321f;
-    --announcement: #c7a7d0;
-    --announcement-soft: #382d3c;
-  }
-
   body {
     background: var(--paper);
     color: var(--ink);
@@ -1730,5 +1686,14 @@
       animation-iteration-count: 1 !important;
       transition-duration: .01ms !important;
     }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
