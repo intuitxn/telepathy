@@ -1,5 +1,7 @@
 # Telepathy system index
 
+Design proposals (not shipped): [UX & AX — work environments as apps](designs/ux-ax.md).
+
 Telepathy is Intuitxn's human context layer and its family of focused meta-agent tools.
 
 ## Two planes
