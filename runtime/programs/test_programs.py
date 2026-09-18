@@ -36,7 +36,8 @@ class V11Harness(unittest.TestCase):
 
     def candidate(self):
         source = cli.source_named('artifact-design')
-        return {'source': source.replace('Keep output concise.', 'Keep output concise. Prefer short paragraphs.'),
+        # count=1: prompt-fence edit only; the frozen bend-law constants stay untouched.
+        return {'source': source.replace('Keep output concise.', 'Keep output concise. Prefer short paragraphs.', 1),
                 'parentDigest': cli.compile_named('artifact-design').package_digest}
 
     def test_v11_sources_dispatch_to_v11_compiler(self):
@@ -159,7 +160,7 @@ class V11Harness(unittest.TestCase):
     def test_fence_only_edit_keeps_frozen_digest(self):
         base = cli.source_named('artifact-design')
         parent = v11.compile_v11(base)
-        edited = base.replace('Keep output concise.', 'Keep output concise. Prefer short paragraphs.')
+        edited = base.replace('Keep output concise.', 'Keep output concise. Prefer short paragraphs.', 1)
         candidate = v11.compile_v11(edited)
         self.assertEqual(candidate.frozen_digest, parent.frozen_digest)
         self.assertNotEqual(candidate.package_digest, parent.package_digest)
@@ -196,9 +197,16 @@ class LegacyRejected(unittest.TestCase):
 
 class RunnerAndGate(unittest.TestCase):
     def test_bend_gate_open_without_law(self):
-        result = cli.bend_gate('artifact-design')
+        result = cli.bend_gate('lesson-proposal')
         self.assertEqual(result['status'], 'open')
         self.assertEqual(result['gate']['reason'], 'no_law')
+
+    def test_bend_gate_proven_with_inline_law(self):
+        import shutil
+        if shutil.which('bend') is None and not cli._bend_binary().is_file():
+            self.skipTest('no Bend binary')
+        result = cli.bend_gate('artifact-design')
+        self.assertEqual(result['status'], 'proven')
 
     def test_gate_blocks_prove_trivial_law(self):
         import shutil
@@ -238,7 +246,7 @@ class PinnedRunner(unittest.TestCase):
         import subprocess
         path = cli.gen_runner('artifact-design', self.tmp.name)
         candidate = {'source': cli.source_named('artifact-design').replace(
-            'Keep output concise.', 'Keep output concise. Prefer short paragraphs.'),
+            'Keep output concise.', 'Keep output concise. Prefer short paragraphs.', 1),
             'parentDigest': cli.compile_named('artifact-design').package_digest}
         digest = cli.validate_candidate('artifact-design', candidate)['candidateDigest']
         cli.promote_candidate('artifact-design', dict(candidate, candidateDigest=digest))

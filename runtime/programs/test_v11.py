@@ -98,7 +98,7 @@ class Canonicalization(unittest.TestCase):
             "\n"
             "[program]\n"
             'description = "Design a readable artifact from supplied evidence."\n'
-            'version = "0.2.0"\n'
+            'version = "0.3.0"\n'
             'name = "artifact-design"\n'
             "\n"
             "[inputs]\n"
@@ -127,7 +127,7 @@ class Canonicalization(unittest.TestCase):
         self.assertNotIn("\r", text)
         self.assertTrue(text.endswith("```\n") and not text.endswith("\n\n"))
         program_block = (
-            "[program]\nname = \"artifact-design\"\nversion = \"0.2.0\"\n"
+            "[program]\nname = \"artifact-design\"\nversion = \"0.3.0\"\n"
             'description = "Design a readable artifact from supplied evidence."\n'
         )
         self.assertIn(program_block, text)
@@ -140,14 +140,14 @@ class Canonicalization(unittest.TestCase):
         self.assertIn("```nudge-prompt user\n", text)
 
     def test_fence_only_edit_keeps_frozen_digest(self):
-        edited = self.base.replace("Keep output concise.", "Keep output concise. Prefer short paragraphs.")
+        edited = self.base.replace("Keep output concise.", "Keep output concise. Prefer short paragraphs.", 1)
         candidate = compile_v11(edited)
         self.assertEqual(candidate.frozen_digest, self.bundle.frozen_digest)
         self.assertEqual(candidate.frozen_source, self.bundle.frozen_source)
         self.assertNotEqual(candidate.package_digest, self.bundle.package_digest)
 
     def test_user_fence_only_edit_keeps_frozen_digest(self):
-        edited = self.base.replace("Title: {{ title }}", "Title: {{ title }}!")
+        edited = self.base.replace("Title: {{ title }}", "Title: {{ title }}!", 1)
         candidate = compile_v11(edited)
         self.assertEqual(candidate.frozen_digest, self.bundle.frozen_digest)
         self.assertNotEqual(candidate.package_digest, self.bundle.package_digest)
@@ -305,7 +305,7 @@ class ClosedShape(unittest.TestCase):
     def test_bad_schema_version_name_description_rejected(self):
         cases = [
             self.base.replace('schema = "nudge.transaction/v1.1"', 'schema = "nudge.prompt/v1"'),
-            self.base.replace('version = "0.2.0"', 'version = "0.2"'),
+            self.base.replace('version = "0.3.0"', 'version = "0.2"'),
             self.base.replace('name = "artifact-design"', 'name = "Artifact_Design"'),
             self.base.replace(
                 'description = "Design a readable artifact from supplied evidence."',
@@ -408,58 +408,64 @@ def with_bend_blocks(source, law=True, proof=True):
 
 class BendFences(unittest.TestCase):
     def test_absent_blocks_are_none_and_canonical_stable(self):
-        bundle = compile_v11(read_program("artifact-design"))
+        bundle = compile_v11(read_program("lesson-review"))
         self.assertIsNone(bundle.law)
         self.assertIsNone(bundle.proof)
         self.assertNotIn(b"bend-law", bundle.canonical)
         self.assertNotIn(b"bend-proof", bundle.canonical)
-        self.assertEqual(v11.extract_bend(read_program("artifact-design")),
+        self.assertEqual(v11.extract_bend(read_program("lesson-review")),
                          {"law": None, "proof": None})
 
+    def test_shipped_artifact_design_carries_law_and_proof(self):
+        bundle = compile_v11(read_program("artifact-design"))
+        self.assertIsNotNone(bundle.law)
+        self.assertIsNotNone(bundle.proof)
+        self.assertIn(b"```bend-law", bundle.canonical)
+
     def test_law_and_proof_compile_and_extract(self):
-        bundle = compile_v11(with_bend_blocks(read_program("artifact-design")))
+        bundle = compile_v11(with_bend_blocks(read_program("lesson-review")))
         self.assertTrue(bundle.law.endswith("}\n"))
         self.assertIn("def Laws.lamp_on", bundle.proof)
         self.assertIn(b"```bend-law", bundle.canonical)
         self.assertIn(b"```bend-proof", bundle.canonical)
-        blocks = v11.extract_bend(with_bend_blocks(read_program("artifact-design")))
+        blocks = v11.extract_bend(with_bend_blocks(read_program("lesson-review")))
         self.assertEqual(blocks["law"], bundle.law)
         self.assertEqual(blocks["proof"], bundle.proof)
 
     def test_law_without_proof_is_open(self):
-        bundle = compile_v11(with_bend_blocks(read_program("artifact-design"), proof=False))
+        bundle = compile_v11(with_bend_blocks(read_program("lesson-review"), proof=False))
         self.assertIsNotNone(bundle.law)
         self.assertIsNone(bundle.proof)
 
     def test_proof_without_law_rejected(self):
         with self.assertRaises(V11CompileError):
-            compile_v11(with_bend_blocks(read_program("artifact-design"), law=False))
+            compile_v11(with_bend_blocks(read_program("lesson-review"), law=False))
 
     def test_duplicate_law_rejected(self):
-        doubled = with_bend_blocks(read_program("artifact-design")) + "\n" + LAW_BLOCK
+        doubled = with_bend_blocks(read_program("lesson-review")) + "\n" + LAW_BLOCK
         with self.assertRaises(V11CompileError):
             compile_v11(doubled)
 
     def test_swapped_bend_order_rejected(self):
-        source = read_program("artifact-design").rstrip("\n") + "\n\n" + PROOF_BLOCK + "\n" + LAW_BLOCK
+        source = read_program("lesson-review").rstrip("\n") + "\n\n" + PROOF_BLOCK + "\n" + LAW_BLOCK
         with self.assertRaises(V11CompileError):
             compile_v11(source)
 
     def test_bend_braces_are_not_templates(self):
-        bundle = compile_v11(with_bend_blocks(read_program("artifact-design")))
+        bundle = compile_v11(with_bend_blocks(read_program("lesson-review")))
         self.assertIn("{==}", bundle.proof)
 
     def test_proof_only_edit_keeps_frozen_digest(self):
-        base = compile_v11(with_bend_blocks(read_program("artifact-design")))
+        base = compile_v11(with_bend_blocks(read_program("lesson-review")))
         edited = compile_v11(with_bend_blocks(
-            read_program("artifact-design")).replace("def Laws.lamp_on", "def Laws.lamp_on "))
+            read_program("lesson-review")).replace("def Laws.lamp_on", "def Laws.lamp_on "))
         self.assertEqual(edited.frozen_digest, base.frozen_digest)
         self.assertNotEqual(edited.package_digest, base.package_digest)
 
     def test_law_edit_moves_both_digests(self):
-        base = compile_v11(with_bend_blocks(read_program("artifact-design")))
+        base = compile_v11(with_bend_blocks(read_program("lesson-review")))
         edited = compile_v11(with_bend_blocks(
-            read_program("artifact-design")).replace("lamp_on", "lamp_off"))
+            read_program("lesson-review")).replace("lamp_on", "lamp_off"))
         self.assertNotEqual(edited.frozen_digest, base.frozen_digest)
         self.assertNotEqual(edited.package_digest, base.package_digest)
 
