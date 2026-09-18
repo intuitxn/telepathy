@@ -49,6 +49,7 @@ Rule: no kernel lands without stated complexity, fuel threading, law set, and a 
 - **P1 (done):** v1.1 compiler (`v11.py`, 46 tests); `source`/`parentDigest` one-release exception documented + enforced; `agit` CLI live-fired; bend-forge + relay-keeper wired in registry.
 - **P2:** diffusion spike lands (`retrieval/`), `orientation` + `fuel` triples recorded per transition; router strategies as laws.
 - **P3:** multi-job causal graph queries (lineage, stale-digest blast radius); measured retrieval quality vs incumbent concat baseline.
+- **E1 (next):** score lane — typed `ScoreReport` evidence, evaluated vs operational promotion, retrieval baseline as the first instance (`score-lane.md`).
 
 ## 5. Verification bar
 
