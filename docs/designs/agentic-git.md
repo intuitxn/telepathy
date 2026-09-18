@@ -2,6 +2,10 @@
 > Owner review required before any implementation starts.
 > This file is the only artifact of this pass. It changes no runtime code.
 
+> Update 2026-09-18: body below is the original design record — `cli.py`
+> has since gained `bend-gate`/`gen-runner` and a v1.1 single-run rewrite,
+> and the gate is bare `bend PROOF.bend` on 2.0.5 (no `bend check`).
+
 # Agentic-git: git as the state store on top of Nudge + Bend
 
 **Status:** design proposal · **Base:** `HARNESS.md`, `docs/PROJECTS.md`, `docs/SHARED_PRODUCT.md`, `runtime/programs/README.md` + `LIVE_RUN.md`, `runtime/desk/src/cli.js` + `jobs.js`

@@ -4,13 +4,13 @@ Date: 2026-09-18. Host: macOS arm64 (uname per launcher telemetry fields).
 Install method (as requested): `curl -fsSL https://bend-lang.com/install.sh | sh`.
 Telemetry: all verification runs below used `BEND_NO_TELEMETRY=1`.
 
-## Result: side-by-side, old install unbroken
+## Result: bend 2.0.5 only (legacy rows below are historical)
 
 | Slot | `… --version` | Path | Notes |
 |---|---|---|---|
-| Legacy (pre-existing) | `bend-lang 0.2.38` | `/Users/a3fckx/.cargo/bin/bend` | Untouched by installer. sha256 `2792465a32cd3b541a1b970f7845d463b4eb342c5bdafe961d2ab9069c64e710`. |
-| Legacy fallback (created 2026-09-18) | `bend-lang 0.2.38` | `/Users/a3fckx/.cargo/bin/bend-0.2.38` | `cp -n` copy of the above; same sha256. Use if PATH shadowing ever confuses `bend`. |
-| Proof-carrying (latest per `rep`) | `bend 2.0.5` | `/Users/a3fckx/.bend/bin/bend` (launcher shell script, 3543 bytes) | Installed by bend-lang.com script. No overwrite: the script installs to `${BEND_HOME:-$HOME/.bend}/bin/bend`, never to `~/.cargo/bin`. |
+| ~~Legacy (pre-existing)~~ removed | ~~`bend-lang 0.2.38`~~ | ~~`/Users/a3fckx/.cargo/bin/bend`~~ | Removed 2026-09-18 per owner; hash was `2792465a…9069c64e710`. |
+| ~~Legacy fallback~~ removed | ~~`bend-lang 0.2.38`~~ | ~~`/Users/a3fckx/.cargo/bin/bend-0.2.38`~~ | Removed with the above. |
+| Proof-carrying (latest per `rep`) | `bend 2.0.5` | `/Users/a3fckx/.bend/bin/bend` (launcher shell script, 3543 bytes) | Installed by bend-lang.com script. |
 
 New-toolchain store details (2026-09-18):
 
@@ -22,18 +22,15 @@ New-toolchain store details (2026-09-18):
 - Requires `bun` (found `/Users/a3fckx/.bun/bin/bun`, `1.3.11`); launcher shells out to it.
 
 PATH note: the installer appended `export PATH="/Users/a3fckx/.bend/bin:$PATH"` to `~/.zshrc`.
-In the verifying shell (pre-reload) `which -a bend` → only `/Users/a3fckx/.cargo/bin/bend`,
-so bare `bend` still meant 0.2.38 there. After opening a new shell, `~/.bend/bin` sorts
-first and bare `bend` will mean 2.0.5. Scripts must therefore use absolute paths:
-`/Users/a3fckx/.cargo/bin/bend` (legacy) vs `/Users/a3fckx/.bend/bin/bend` (proof-carrying).
-`bend-0.2.38` is the stable legacy alias.
+Scripts must still use the absolute path `/Users/a3fckx/.bend/bin/bend`;
+never bare `bend` in scripts or gates.
 
 ## Gate inputs
 
-- `runtime/programs/bend-laws/LAWS.bend` — human-owned laws (`agent_is_effect_free`, `human_accept_resolves`, `accept_is_idempotent`).
+- `runtime/programs/bend-laws/LAWS.bend` — human-owned laws (`agent_is_effect_free`, `human_accept_resolves`, `accept_is_idempotent`, `orientation_monotone`, `fuel_bound`).
 - `runtime/programs/bend-laws/PROOF.bend` — AI-owned `{==}` proofs under `Laws.*`.
 
-## Legacy gate output (expected FAIL — documents why 0.2.38 cannot gate these files)
+## Historical: legacy gate output (binaries removed; kept as record)
 
 ```
 $ ~/.cargo/bin/bend --version

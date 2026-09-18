@@ -5,6 +5,11 @@
 > (§2: data algorithms belong in Bend). All Bend code below passed
 > `bend check` and `bend run-rs` on bend-lang 0.2.38 (see §8).
 
+> Update 2026-09-18: written against bend-lang 0.2.38 (removed).
+> Current truth: bend 2.0.5 only — `guide`/`base` exist, `check`/`run-rs`
+> do not; laws use `import Base`, `type … is Data`, `law`, `{==}`, `+`
+> affine, `Bool.pick`, fused single-defs. See SYSTEM.md and `retrieval/`.
+
 # agit logic in Bend: lifecycle + proof laws as pure functions
 
 **Status:** design proposal · **Base:** `docs/designs/agentic-git.md`,

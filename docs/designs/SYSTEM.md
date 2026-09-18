@@ -22,12 +22,12 @@ human intent
   → diffusion retrieval + metacognitive router over that graph  [memory]
 ```
 
-- **Nudge** (`programs/*.nudge.md`, `nudge.transaction/v1.1`): typed `inputs/outputs`, two fences, limits-as-defaults, dual digests. No loops, no auth, no approval. Dual-run with v1.0; see `nudge-simplify.md`.
+- **Nudge** (`programs/*.nudge.md`, `nudge.transaction/v1.1`): typed `inputs/outputs`, two prompt fences plus optional `bend-law`/`bend-proof`, limits-as-defaults, dual digests. No loops, no auth, no approval. Single-run v1.1 only — legacy rejected; see `nudge-simplify.md` for design history.
 - **Bend kernels** (`runtime/programs/bend-laws/`, `runtime/programs/retrieval/`): small recursive blocks, each with signature + complexity + termination measure + laws. Canonical boundary laws 1–5 gated.
 - **agit** (`docs/designs/agentic-git.md`, `agit-in-bend.md`): every transition a git object with `Bundle-Digest/Proof-Digest/Candidate-Digest/Reviewer` trailers + `refs/notes/agit-*`. Orientation `O=(stage, laws_passed, fresh)` monotone; SQLite is rebuildable cache.
 - **Retrieval**: CSR graph over Job/timeline/artifact/digest nodes (`job-contract.md`), PPR/heat diffusion in Bend with fuel, `host.output_excludes` guard outside the model.
 - **Metacognition**: strategies as Bend defs (lexical/diffusion/fusion/confidence/abstain); router choice + scores recorded per transition. Model text never counts as evidence.
-- **bend-forge** (`plugins/telepathy-meta-agents/bend-specialist.md`): the one agent perfect in Bend. Writes defs/laws/proofs, runs gates + negative controls, never self-accepts/merges/touches network. Spawns per job; registry wiring is an owner edit.
+- **bend-forge** (`plugins/telepathy-meta-agents/bend-specialist.md`, `.opencode/agents/bend-forge.md`, registry entry): the one agent perfect in Bend. Writes defs/laws/proofs, runs gates + negative controls, never self-accepts/merges/touches network. Spawns per job.
 
 ## 3. Kernel catalog (each: complexity + laws)
 
@@ -46,10 +46,10 @@ Rule: no kernel lands without stated complexity, fuel threading, law set, and a 
 ## 4. Project plan
 
 - **P0 (done):** thin-Nudge spec, agit design, agit-in-Bend kernel, bend-forge role, 2.0.5 toolchain, laws 1–5 gated, legacy + pilot removed.
-- **P1:** compiler implements v1.1 (§2 of `nudge-simplify.md`); resolve `source`/`parentDigest` reserved-name exception; `agit` CLI (propose→accept) with gate inline; registry wires bend-forge.
+- **P1 (done):** v1.1 compiler (`v11.py`, 46 tests); `source`/`parentDigest` one-release exception documented + enforced; `agit` CLI live-fired; bend-forge + relay-keeper wired in registry.
 - **P2:** diffusion spike lands (`retrieval/`), `orientation` + `fuel` triples recorded per transition; router strategies as laws.
 - **P3:** multi-job causal graph queries (lineage, stale-digest blast radius); measured retrieval quality vs incumbent concat baseline.
 
 ## 5. Verification bar
 
-`bend PROOF.bend` green + negative control red, `test_programs.py` green once `nudge.program_dsl` present, `npm run check` green, one live run per program with digests logged, human accept on exact revision. Nothing else counts.
+`bend PROOF.bend` green + negative control red, `test_v11.py` + `test_programs.py` green (71 total, stdlib-only, zero skips), `bend-gate`/`gen-runner` live, one live run per program with digests logged, human accept on exact revision. Nothing else counts.

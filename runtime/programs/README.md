@@ -1,9 +1,10 @@
 # Telepathy prompt programs
 
-This host wrapper compiles the existing Nudge `nudge.prompt/v1` source files in
+This host wrapper compiles the Nudge `nudge.transaction/v1.1` source files in
 `programs/` and executes one typed transaction with the real oc2 binary. It uses
-`compile_program -> PromptBundle -> HarnessAdapter -> run_program -> ProgramResult`.
-There is no new DSL, VM, scheduler or model-based compiler here.
+`compile_v11 -> bundle -> render -> run_v11 -> validated output`.
+There is no new DSL, VM, scheduler or model-based compiler here; legacy
+`nudge.prompt/v1` sources are rejected with a recompile directive.
 
 ```sh
 runtime/programs/telepathy-program list
@@ -74,7 +75,12 @@ separate actual model invocation. No external evaluator or score was run.
 
 The host also exposes:
 
-- `inspect NAME` → `{source,digest}` for the currently active source.
+- `inspect NAME` → `{source,digest,frozenDigest}` for the currently active source.
+- `bend-gate NAME` → package/frozen digests plus the Bend verdict over the
+  program's inline `bend-law`/`bend-proof` fences (`proven`, `open`, `failed`,
+  or `needs-toolchain`).
+- `gen-runner NAME` → writes a digest-pinned per-program runner
+  (`runtime/programs/runners/`, gitignored) that refuses to run on drift.
 - `validate-candidate NAME --input -` accepts `{source,parentDigest}` and returns
   `{valid:true,parentDigest,candidateDigest}`. Only existing prompt-fence contents
   may differ; all frontmatter, role boundaries, source documentation, input and

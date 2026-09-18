@@ -1,6 +1,9 @@
-# retrieval spike — diffusion retrieval over the job graph (Bend, new-syntax target)
+# retrieval spike — diffusion retrieval over the job graph (Bend, new syntax)
 
-Status: spike complete as sources; machine gate RED (no executable toolchain).
+Status: 4/5 laws gated on bend 2.0.5, demos execute; one `?TODO` leaf
+remains (`step_preserves_heat` assembly). See §8 addendum for the real-gate
+record; §§1–7 below are the original spike record (no executable toolchain
+at build time).
 Date: 2026-09-18. Scope: NEW dir only `runtime/programs/retrieval/`
 (graph.bend, rank.bend, route.bend, LAWS.bend, PROOF.bend, REPORT.md).
 Nothing else touched: no edits to `programs/*.nudge.md`,

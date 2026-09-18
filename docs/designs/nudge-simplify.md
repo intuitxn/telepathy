@@ -1,3 +1,8 @@
+> Update 2026-09-18: SHIPPED — v1.1 compiler (`runtime/programs/v11.py`),
+> single-run `cli.py`, all three programs v1.1, 46 + 25 tests green.
+> Cross-schema promotion is rejected (recompile first). Body below is the
+> original proposal.
+
 # Nudge simplify: thin outer transaction (schema v1.1 proposal)
 
 > Design proposal — not shipped. No runtime, program, or vault changes made.
