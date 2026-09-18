@@ -8,7 +8,7 @@ The shared product keeps the existing human workspace design. Its author comes f
 
 ## Programs, host, and shared network
 
-Nudge's core contract stays `ProgramSource Markdown -> compile_program -> immutable PromptBundle -> HarnessAdapter -> ProgramResult`. Typed inputs, outputs, prompt messages and finite declared limits belong to `.nudge.md` source. Program compilation is deterministic; model execution is a separate step.
+Nudge's core contract stays `ProgramSource Markdown -> compile_program -> immutable PromptBundle -> HarnessAdapter -> ProgramResult` (shipped programs are `nudge.transaction/v1.1` thin transactions). Typed inputs, outputs, prompt messages and finite declared limits belong to `.nudge.md` source. Program compilation is deterministic; model execution is a separate step.
 
 The host owns OS processes, authentication, persistence, permissions, effects and receipts. The shared network is configured with `INTUITXN_NETWORK`. A domain is a publishing destination; it is not an authentication mechanism or a substitute for shared state.
 

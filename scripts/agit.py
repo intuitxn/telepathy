@@ -124,7 +124,8 @@ def run_git(repo, args, check=True, input_text=None):
     if check and proc.returncode != 0:
         raise AgitError("git-failed",
                         "git %s failed: %s" % (" ".join(args),
-                                               proc.stderr.strip()[:500]))
+                                               (proc.stderr.strip()
+                                                or proc.stdout.strip())[:500]))
     return proc
 
 
@@ -993,7 +994,9 @@ def cmd_review(args):
     (repo / "CANDIDATE.md").write_bytes(candidate)
     (repo / "CANDIDATE.sha256").write_text(cand_digest + "\n")
     run_git(repo, ["add", "--", "CANDIDATE.md", "CANDIDATE.sha256"])
-    run_git(repo, ["commit", "-m", message])
+    # Trailers carry the Review transition; the tree may be unchanged when
+    # candidate bytes repeat a prior job's, so allow an empty commit.
+    run_git(repo, ["commit", "--allow-empty", "-m", message])
     sha = run_git(repo, ["rev-parse", "HEAD"]).stdout.strip()
     existing = review_tags(repo, job)
     nums = []
@@ -1375,11 +1378,11 @@ def build_parser():
 
     log = subs.add_parser("log", help="transition history from git")
     log.add_argument("job")
-    log.add_argument("--repo", default=None)
+    log.add_argument("--repo", default=argparse.SUPPRESS)
 
     state = subs.add_parser("state", help="current stage from git")
     state.add_argument("job")
-    state.add_argument("--repo", default=None)
+    state.add_argument("--repo", default=argparse.SUPPRESS)
     state.add_argument("--json", action="store_true")
     return parser
 
