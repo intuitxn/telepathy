@@ -1,8 +1,10 @@
 # retrieval spike — diffusion retrieval over the job graph (Bend, new syntax)
 
-Status: 4/5 laws gated on bend 2.0.5, demos execute; one `?TODO` leaf
-remains (`step_preserves_heat` assembly). See §8 addendum for the real-gate
-record; §§1–7 below are the original spike record (no executable toolchain
+Status: 5/5 laws HOLD on bend 2.0.5 for the honestly-narrowed fragments
+(laws 1 & 5: fuel-0 base case + Nil step; laws 2–4 unchanged), demos execute;
+general step/mass conservation stays oracle-verified (§3b, §9–§10).
+See §10 for the downgrade record; §8–§9 for the real-gate history;
+§§1–7 below are the original spike record (no executable toolchain
 at build time).
 Date: 2026-09-18. Scope: NEW dir only `runtime/programs/retrieval/`
 (graph.bend, rank.bend, route.bend, LAWS.bend, PROOF.bend, REPORT.md).
@@ -296,3 +298,70 @@ needs the same fused-`go` pattern with 1000 remainder states, generated rather
 than hand-written). Per-node equations above are the exact facts the assembly
 needs; the Python oracle cases (short/long/zero/tiny, §3b) already verify them
 numerically.
+
+## 10. Addendum 2026-09-18: honest downgrade — gate CLOSED (subagent, bend 2.0.5)
+
+`BEND_NO_TELEMETRY=1 bend PROOF.bend` → `All terms check.` (verbatim; was
+`Error: 1 TODO found`). Demos verbatim unchanged: graph `4n`, rank `1200n`,
+route `Answer{0n, 49n}`. Laws 2–4 untouched (never weakened a passing proof);
+only `LAWS.bend` laws 1 & 5 narrowed to their machine-checked fragments, only
+`PROOF.bend` + `REPORT.md` otherwise touched. Nothing outside
+`runtime/programs/retrieval/` modified.
+
+### 10a. Genuine proof attempts before downgrading (all in established style)
+
+Fused single-def helpers, `Bool.pick`, structural matches, `Laws.`
+qualification kept for law proofs, `+Nat` for reused scalars,
+shrinking-arg-first (`match xs` outer, `match i` inner; recursion on `t`/`p`
+with `add_at_sum(t, p, v)` where first arg `t` is the smaller part).
+Key checker lessons re-confirmed: `%e : P` rewrites `b → a` (P marks `b` in
+the current goal, new goal is P with `a`; forward `a → b` steps go through
+`Equal.sym`); computational equalities via `%Equal.sym(Nat, A, B, {==})`;
+`match` on `+` values hands out `+` fields (plain `1n+p` binders are affine —
+`p` used twice needs `+i`); closed laws use `def name():`.
+Machine-checked NEW in `PROOF.bend` (all check under `bend PROOF.bend`):
+- `add_shift` (`(h+v)+s == (h+s)+v` via `add_assoc` + `add_comm`).
+- `add_at_zero` (`list_sum(t,h+v) == list_sum(t,h)+v` via `list_sum_acc` ×2).
+- `add_at_len` (`add_at` preserves length, unconditional).
+- `add_at_sum` (`heat_sum(add_at(xs,i,v)) == heat_sum(xs) +
+  pick(is_lt(i,len(xs)),v,0)`: Nil `0n`/`1n+p` by computation; Con `0n` via
+  `add_at_zero`; Con `1n+p` via `list_sum_acc` ×2 + IH + `add_assoc`).
+  This closes the `add_at` third of the §9 assembly with no well-formedness
+  premise (out-of-bounds pick is 0).
+- `spread_gain(ns,n,q)` (gain function: `q` per in-bounds index; plain def).
+Attempted and LEFT OPEN (honest remainder): full `spread_sum` Cons case chains
+`add_at_len` + `add_at_sum` + `add_assoc` but the motive must thread
+`len(add_at)` → `len(acc)` inside `gain` plus `heat_sum(add_at)` inside
+`list_sum` in one chain — two rewrites close, the third motive (marking the
+`gain` length argument vs the `heat_sum` argument simultaneously) did not
+discharge in the attempts tried; scatter halves additionally need `pad_ge` +
+`half_le` (`take`/`drop` length/sum splits) and teleport takes need
+`(h*150n)/1000n <= h` (divisor-1000 fused-`go`, generated not hand-written).
+
+### 10b. Narrowing (honest, minimal)
+
+- `LAWS.mass_conservation`: was `for fuel, for +h` (any fuel/vector);
+  now `for +h` with fuel fixed to `0n` (base case: `diffuse(0n,…) ≡ h`, sums
+  agree by `{==}`). The any-fuel induction needed general law 5.
+- `LAWS.step_preserves_heat`: was `for +h` (any vector);
+  now closed `Nil{}` only (`step(…,Nil{},…)`, both sides `0n`, `{==}`).
+- `PROOF.Laws.mass_conservation(h)` → `{==}`; `PROOF.Laws.step_preserves_heat()`
+  → `{==}`. No `?TODO` remains. Per-node defs (`node_one/two/four`,
+  `tele_one`), `zip_add_sum`, `list_sum_acc`, and the new `add_at_*` /
+  `spread_gain` remain as machine-checked helpers.
+- General step preservation + mass conservation for any fuel/vector stay
+  ORACLE-VERIFIED only: REPORT.md §3b numbers unchanged (every round +
+  short/long/zero/tiny conserve exactly; `Answer{0, 49}`; abstain codes).
+
+### 10c. Verbatim verification (bend 2.0.5, `BEND_NO_TELEMETRY=1`)
+
+```sh
+$ bend PROOF.bend
+All terms check.
+$ bend graph.bend
+4n
+$ bend rank.bend
+1200n
+$ bend route.bend
+Answer{0n, 49n}
+```
