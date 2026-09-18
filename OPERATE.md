@@ -57,7 +57,7 @@ $TP validate-candidate <name> --input - < candidate.json  # {source,parentDigest
 $TP promote-candidate <name> --input - < review.json      # exact-digest, locked, atomic pointer move
 ```
 
-Contract tests: `/Users/a3fckx/Desktop/Attri/nudge/.venv/bin/python3.12 -m unittest discover -s /Users/a3fckx/Desktop/Attri/telepathy/runtime/programs -p 'test_*.py'`. Live-model runs: `runtime/programs/LIVE_RUN.md`. Full rules: `runtime/programs/README.md`.
+Contract tests: `python3 -m unittest discover -s runtime/programs -p 'test_*.py'` from the repo root (stdlib-only; runs without the nudge checkout). Live-model runs: `runtime/programs/LIVE_RUN.md`. Full rules: `runtime/programs/README.md`.
 
 ## 3. Remember — agit walk + human accept
 

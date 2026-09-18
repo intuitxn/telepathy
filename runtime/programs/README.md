@@ -83,9 +83,10 @@ The host also exposes:
 - `gen-runner NAME` → writes a digest-pinned per-program runner
   (`runtime/programs/runners/`, gitignored) that refuses to run on drift.
 - `validate-candidate NAME --input -` accepts `{source,parentDigest}` and returns
-  `{valid:true,parentDigest,candidateDigest}`. Only existing prompt-fence contents
-  may differ; all frontmatter, role boundaries, source documentation, input and
-  output contracts remain byte-identical. Unchanged candidates are refused.
+  `{valid:true,parentDigest,candidateDigest}`. Only existing prompt-fence bodies
+  and `bend-proof` bodies may differ; all frontmatter, role boundaries, laws
+  (`bend-law`), source documentation, input and output contracts remain
+  byte-identical. Unchanged candidates are refused.
 - `promote-candidate NAME --input -` accepts
   `{source,parentDigest,candidateDigest}`. It revalidates under a file lock,
   requires both exact digests, retains immutable parent/candidate source files,
@@ -109,3 +110,36 @@ A contract-valid JSON response that contains such metadata becomes a failed run
 with no accepted output. The prompt explicitly asks for the same separation.
 This is an exact supplied-ID guard, not a general detector of arbitrary private
 information; the human still reviews the selected text before publication.
+
+## Single-file programs (inline Bend fences)
+
+A v1.1 program can carry its own formal claims in the same file. Two optional
+fences append after the user fence, in order:
+
+- `bend-law` — human-owned ADTs, defs and `law` claims; the frozen contract.
+- `bend-proof` — AI-owned proofs using the `Laws.` qualifier, same convention as
+  `runtime/programs/bend-laws/`: the gate synthesizes `PROOF.bend` as
+  `import ./LAWS.bend as Laws` plus this body. A law without a proof fence is
+  open.
+
+Files without fences canonicalize byte-identically (digest-stable). `{{ }}`
+template rules do not apply inside bend fences — Bend owns its braces.
+
+Digest semantics: `package_digest` covers all canonical bytes; `frozen_digest`
+masks the two prompt bodies and the proof body. Therefore:
+
+- a proof-only edit keeps `frozen_digest` and moves `package_digest`;
+- any law change (or adding/removing fences) moves both.
+
+Commands:
+
+```sh
+python3 runtime/programs/cli.py bend-gate NAME    # gate verdict; proven = "All terms check."
+python3 runtime/programs/cli.py gen-runner NAME   # digest-pinned single-run runner
+```
+
+Owner-only adoption: introducing fences, changing a law, or adding the first
+proof fence cannot pass `validate_candidate` (`frozen_source_changed`) — those
+are owner edits landed directly in git; agents iterate existing proof bodies
+only. First shipped example: `programs/artifact-design.nudge.md` (v0.3.0, law
+`no_leak`, `bend-gate` → `proven`).
