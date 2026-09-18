@@ -1,10 +1,9 @@
 +++
-schema = "nudge.prompt/v1"
-name = "lesson-proposal"
-version = "0.1.0"
+schema = "nudge.transaction/v1.1"
 
-[goal]
-id = "lesson-proposal"
+[program]
+name = "lesson-proposal"
+version = "0.2.0"
 description = "Propose a reviewable prompt revision from explicit feedback and outcome."
 
 [inputs]
@@ -18,20 +17,8 @@ lesson = "string"
 candidateSource = "string"
 rationale = "string"
 
-[runtime]
-protocol = "nudge.harness/v1"
-model = "reasoner"
-features = ["structured-output"]
-
 [limits]
-max_turns = 1
-max_model_calls = 1
-max_input_chars = 30000
-max_output_chars = 12000
-
-[optimization]
-mutable = ["prompt.system", "prompt.user"]
-frozen = ["inputs", "outputs", "runtime", "limits"]
+# all defaults; omitted keys = §2.5 values (1/1/30000/12000/90/262144)
 +++
 
 ```nudge-prompt system
