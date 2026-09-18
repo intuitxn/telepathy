@@ -9,7 +9,7 @@ Status: canonical spec, gated on new toolchain 2026-09-18 (`bend 2.0.5`, see `TO
 - `../../docs/designs/job-contract.md` — causal nodes for traversal (Job→states→timeline→artifacts→resolution, example `5046e555→05afab1`). Preserved per owner for graph diffusion, not deleted.
 
 ## Verifiable gate (2.0.5)
-1. `~/.bend/bin/bend runtime/programs/bend-laws/PROOF.bend` → `All terms check.`, exit 0 (`LAWS.bend` alone correctly fails with `3 TODOs found`).
+1. `~/.bend/bin/bend runtime/programs/bend-laws/PROOF.bend` → `All terms check.`, exit 0 (`LAWS.bend` alone correctly fails with `5 TODOs found`).
 2. No `bend check <file>` on 2.0.5 — not a subcommand. Legacy `0.2.38` removed; no fallback.
 3. `agit accept` re-checks proof digest + exact candidate digest before merge. See `TOOLCHAIN.md` for canonical commands; use absolute paths, never bare `bend` in scripts.
 

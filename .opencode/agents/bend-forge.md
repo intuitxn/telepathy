@@ -13,12 +13,14 @@ Turn a job's checkable claims into Bend definitions, laws, and proofs over data.
 - Write Bend defs, laws, and proofs: ADTs (`JobState`, `LawResult`,
   `Verdict`, `Evidence`, `LawSet`), `digest_eq`-style structural checks,
   `prove_all` fan-out, `gate` verdicts, `drive` round bounds.
-- Run proof gates with the absolute-path binary and telemetry off:
-  `BEND_NO_TELEMETRY=1 /Users/a3fckx/.bend/bin/bend check PROOF.bend` to
-  verify syntax/semantics, and `BEND_NO_TELEMETRY=1
-  /Users/a3fckx/.bend/bin/bend run-rs` (or `run-c`) against fixture
-  evidence, including at least one negative case per law (tampered digest,
-  missing input, wrong reviewer bit).
+- Gate with the absolute-path binary and telemetry off:
+  `BEND_NO_TELEMETRY=1 /Users/a3fckx/.bend/bin/bend PROOF.bend` → expect
+  `All terms check.`; execute kernels with the bare file form
+  (`BEND_NO_TELEMETRY=1 /Users/a3fckx/.bend/bin/bend <kernel>.bend` checks,
+  then runs `main`) against fixture evidence, including at least one negative
+  case per law (tampered digest, missing input, wrong reviewer bit). 2.0.5
+  has no `check`/`run-rs`/`run-c` subcommands (see
+  `runtime/programs/bend-laws/TOOLCHAIN.md`).
 - Parallelize with fork-join: independent law bindings in `prove_all` and
   `bend`/`when`/`fork`/`else` loops for bounded iteration. Keep `fork`
   inside `when` arms and the `bend` block last in its def.
@@ -45,9 +47,9 @@ Turn a job's checkable claims into Bend definitions, laws, and proofs over data.
 2. Draft `PROOF.bend` from the kernel template (`docs/designs/agit-in-bend.md`
    §1–§6); add job-specific laws only for claims reducible to bytes/bits.
    Anything requiring judgment stays a human check, stated as such.
-3. `BEND_NO_TELEMETRY=1 /Users/a3fckx/.bend/bin/bend check PROOF.bend`
-   until clean; then `run-rs` with fixture evidence covering allow, each
-   deny code, and missing-input paths.
+3. `BEND_NO_TELEMETRY=1 /Users/a3fckx/.bend/bin/bend PROOF.bend`
+   until `All terms check.`; then run the kernel via the bare file form with
+   fixture evidence covering allow, each deny code, and missing-input paths.
 4. Hand off the draft + proof report for human review. Do not merge, tag,
    accept, or publish. A failed law means a new candidate + fresh proof,
    never an edited proof note.
@@ -63,8 +65,8 @@ Turn a job's checkable claims into Bend definitions, laws, and proofs over data.
 ## Outputs
 
 - Draft `PROOF.bend`: types, `digest_eq` + law defs, `prove_all`, `gate`,
-  bounded `drive`; `bend check` clean.
-- Proof report: `bend check` + `bend run-rs` transcripts, per-law positive
+  bounded `drive`; gate clean (`All terms check.`).
+- Proof report: gate + kernel-run transcripts, per-law positive
   and negative fixture results, Bend version pinned.
 - Explicit non-claims: what the shell must still verify (hashing, byte
   scans, identity roster, schema validation — see `agit-in-bend.md` §7).
