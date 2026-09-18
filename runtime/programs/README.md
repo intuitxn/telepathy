@@ -14,7 +14,7 @@ printf '%s' '{"title":"Notes","body":"We will test shared pages.","sourceIds":[]
 
 The executable prefers `TELEPATHY_PYTHON` when set, then the sibling
 `../nudge/.venv/bin/python3.12` when that checkout exists, then `python3`;
-`NUDGE_ROOT` overrides the checkout location when one exists. `OC2_BINARY` overrides the installed fork binary path.
+`NUDGE_ROOT` overrides the checkout location when one exists. `OC2_BINARY` overrides the stock `opencode` binary path (resolved from `PATH` by default).
 The explicit host model defaults to `opencode-go/deepseek-v4-flash`; override with
 `--model` or `TELEPATHY_PROGRAM_MODEL`. Authentication stays in the existing work
 profile; no credentials are copied into bundles, results or receipts.

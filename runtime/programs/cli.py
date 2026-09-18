@@ -7,6 +7,7 @@ recompile directive — no legacy fallback, no external package.
 """
 import argparse
 import asyncio
+import shutil
 from datetime import datetime, timezone
 import hashlib
 import fcntl
@@ -27,7 +28,7 @@ import v11
 
 REGISTRY = {'artifact-design': 'artifact-designer', 'lesson-proposal': 'learning-proposer',
             'lesson-review': 'learning-reviewer'}
-DEFAULT_MODEL = 'opencode-go/deepseek-v4-flash'
+DEFAULT_MODEL = os.environ.get('TELEPATHY_PROGRAM_MODEL', 'opencode-go/deepseek-v4-flash')
 LIMITATIONS = ['CLI prompt roles use ordered framing, not native role equivalence',
     'Observed steps are checked; provider retries and billing calls are not observable or hard capped',
     'Typed success is not an evaluation or human approval']
@@ -173,7 +174,7 @@ async def _oc2_call(prompt, *, model, network, limits, timeout_s, max_event_byte
     """
     if len(prompt) > limits.max_input_chars:
         raise ValueError('input_limit_exceeded')
-    binary = Path(os.environ.get('OC2_BINARY', str(Path.home() / 'opencode2/packages/opencode/dist/opencode-darwin-arm64/bin/opencode')))
+    binary = Path(os.environ.get('OC2_BINARY') or shutil.which('opencode') or '')
     if not binary.is_file():
         raise ValueError('oc2_binary_missing')
     state = Path.home() / '.opencode2-profiles/work'
