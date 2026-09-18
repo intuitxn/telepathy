@@ -254,3 +254,42 @@ heat `1200n`, `Answer{0n, 49n}`, out-degree `4n`):
 Gate: all defs check; 4/5 laws hold; `step_preserves_heat` keeps its
 intentional `?TODO` (`Error: 1 TODO found`) — the per-node arithmetic leaf
 is the only open item. Demos execute: rank `1200n`, route `Answer{0n,49n}`.
+
+## 9. Addendum 2026-09-18: per-node arithmetic closed (subagent, bend 2.0.5)
+
+`BEND_NO_TELEMETRY=1 bend runtime/programs/retrieval/PROOF.bend` →
+`Error: 1 TODO found` (exact remaining leaf:
+`Laws.step_preserves_heat` `Con{x, xs}` branch `?TODO`; `Nil{}` branch closes
+by computation `{==}`). All helper defs check; demos unchanged
+(graph `4n`, rank `1200n`, route `Answer{0n,49n}`).
+
+Machine-checked in `PROOF.bend` (new helpers, `Laws.` qualification kept for
+law proofs only; proof-def params take no `+`, reused `Nat` scalars are `+`;
+binder order: shrinking `Nat`/`List` first, `match n` outer then `match c/q`
+inner; fused single-defs with `Bool.pick(Type, …)` / `Q4` mode selectors
+instead of mutual recursion):
+- Nat: `add_zero`, `add_right_succ`, `add_comm`, `add_assoc`,
+  `add_shuffle_base`, `add_shuffle`.
+- Lists: `list_sum_acc` (`list_sum(xs,acc) == acc + heat_sum(xs)`),
+  `zip_add_sum` (via `add_shuffle`).
+- `nsub`: `nsub_zero`, `nsub_add` (`nsub(a+b,a) == b`), `nsub_refl`.
+- Div-by-one (`go_one`/`div_one`, `mul_one`): `node_one`
+  (`keep + 1*q == h`, covers degree-1 nodes 1, 5) and `tele_one`
+  (`share*1 + rem == pool`, covers `s == 1n` repatriation).
+- Div-by-two fused 2-state `go2` (`d*2+r+n == q*2+r'` for
+  `(m,r) == (1,0)/(0,1)`): `node_two` (`keep + 2*q == h`, covers degree-2
+  nodes 2, 3, 4).
+- Div-by-four fused 4-state `go4` over `Q4` (`Q0..Q3` = remainders 0..3,
+  `go4m/go4r`; three steps definitional, `Q3→Q0` via `add_right_succ(3n,_)` +
+  `add_shuffle_base(_,4n,_)` + `add_assoc(4n,_,_)`): `node_four`
+  (`keep + 4*q == h`, covers degree-4 node 0).
+
+Remaining leaf (honest, minimal — one `?TODO`, nonempty `h` only): assembly
+of `diffuse_phase` halves (`add_at`/`spread` sums with `idx < n` bounds needing
+`pad_ge` + `half_le` via `is_le`-via-`cmp` structural splits plus
+`take`/`drop` length/sum splits) and `teleport` takes/`give_back` sums
+(needs `(h*150n)/1000n <= h` elementwise for `zip_sub` exactness; divisor-1000
+needs the same fused-`go` pattern with 1000 remainder states, generated rather
+than hand-written). Per-node equations above are the exact facts the assembly
+needs; the Python oracle cases (short/long/zero/tiny, §3b) already verify them
+numerically.

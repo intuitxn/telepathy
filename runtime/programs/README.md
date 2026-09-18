@@ -48,11 +48,7 @@ provider retries are not exposed by JSON step events. `usage.model_calls` is the
 observed model-step count, not a verified billing-call count or hard provider
 budget. This adapter does not claim complete canonical harness conformance.
 
-The current Nudge implementation additionally supports pipelines/delegation and
-has a smaller capability/result ABI than `docs/PROGRAM_DSL.md` describes. These
-programs use only the documented leaf format; host receipts add adapter/model
-identity and timestamps missing from the current implementation. No Nudge core
-files are modified.
+These programs use only the leaf format: typed inputs/outputs, two prompt fences, and declared limits. The host rejects any other shape (`steps`, `delegation`, pipelines) before execution. Shipped sources are `nudge.transaction/v1.1` (defaults and `package_digest`/`frozen_digest` per `runtime/programs/v11.py`); `nudge.prompt/v1` sources are rejected with a recompile directive — no legacy path. Host receipts record adapter/model identity and timestamps alongside the bundle digest. No Nudge core files are modified.
 
 ## Learning is a proposal, not automatic rule mutation
 

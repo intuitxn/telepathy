@@ -391,5 +391,78 @@ class ExactFieldValidation(unittest.TestCase):
             v11.render_prompt(self.bundle, {"title": "x"})
 
 
+
+
+LAW_BLOCK = '```bend-law\nimport Base\n\nlaw lamp_on:\n  {1n == 1n : Nat}\n```\n'
+PROOF_BLOCK = '```bend-proof\ndef Laws.lamp_on():\n  {==}\n```\n'
+
+
+def with_bend_blocks(source, law=True, proof=True):
+    text = source.rstrip("\n") + "\n"
+    if law:
+        text += "\n" + LAW_BLOCK
+    if proof:
+        text += "\n" + PROOF_BLOCK
+    return text
+
+
+class BendFences(unittest.TestCase):
+    def test_absent_blocks_are_none_and_canonical_stable(self):
+        bundle = compile_v11(read_program("artifact-design"))
+        self.assertIsNone(bundle.law)
+        self.assertIsNone(bundle.proof)
+        self.assertNotIn(b"bend-law", bundle.canonical)
+        self.assertNotIn(b"bend-proof", bundle.canonical)
+        self.assertEqual(v11.extract_bend(read_program("artifact-design")),
+                         {"law": None, "proof": None})
+
+    def test_law_and_proof_compile_and_extract(self):
+        bundle = compile_v11(with_bend_blocks(read_program("artifact-design")))
+        self.assertTrue(bundle.law.endswith("}\n"))
+        self.assertIn("def Laws.lamp_on", bundle.proof)
+        self.assertIn(b"```bend-law", bundle.canonical)
+        self.assertIn(b"```bend-proof", bundle.canonical)
+        blocks = v11.extract_bend(with_bend_blocks(read_program("artifact-design")))
+        self.assertEqual(blocks["law"], bundle.law)
+        self.assertEqual(blocks["proof"], bundle.proof)
+
+    def test_law_without_proof_is_open(self):
+        bundle = compile_v11(with_bend_blocks(read_program("artifact-design"), proof=False))
+        self.assertIsNotNone(bundle.law)
+        self.assertIsNone(bundle.proof)
+
+    def test_proof_without_law_rejected(self):
+        with self.assertRaises(V11CompileError):
+            compile_v11(with_bend_blocks(read_program("artifact-design"), law=False))
+
+    def test_duplicate_law_rejected(self):
+        doubled = with_bend_blocks(read_program("artifact-design")) + "\n" + LAW_BLOCK
+        with self.assertRaises(V11CompileError):
+            compile_v11(doubled)
+
+    def test_swapped_bend_order_rejected(self):
+        source = read_program("artifact-design").rstrip("\n") + "\n\n" + PROOF_BLOCK + "\n" + LAW_BLOCK
+        with self.assertRaises(V11CompileError):
+            compile_v11(source)
+
+    def test_bend_braces_are_not_templates(self):
+        bundle = compile_v11(with_bend_blocks(read_program("artifact-design")))
+        self.assertIn("{==}", bundle.proof)
+
+    def test_proof_only_edit_keeps_frozen_digest(self):
+        base = compile_v11(with_bend_blocks(read_program("artifact-design")))
+        edited = compile_v11(with_bend_blocks(
+            read_program("artifact-design")).replace("def Laws.lamp_on", "def Laws.lamp_on "))
+        self.assertEqual(edited.frozen_digest, base.frozen_digest)
+        self.assertNotEqual(edited.package_digest, base.package_digest)
+
+    def test_law_edit_moves_both_digests(self):
+        base = compile_v11(with_bend_blocks(read_program("artifact-design")))
+        edited = compile_v11(with_bend_blocks(
+            read_program("artifact-design")).replace("lamp_on", "lamp_off"))
+        self.assertNotEqual(edited.frozen_digest, base.frozen_digest)
+        self.assertNotEqual(edited.package_digest, base.package_digest)
+
+
 if __name__ == "__main__":
     unittest.main()

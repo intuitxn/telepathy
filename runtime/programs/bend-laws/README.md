@@ -13,4 +13,4 @@ Status: canonical spec, gated on new toolchain 2026-09-18 (`bend 2.0.5`, see `TO
 2. No `bend check <file>` on 2.0.5 — not a subcommand. Legacy `0.2.38` removed; no fallback.
 3. `agit accept` re-checks proof digest + exact candidate digest before merge. See `TOOLCHAIN.md` for canonical commands; use absolute paths, never bare `bend` in scripts.
 
-Current gap closed 2026-09-18: `bend 2.0.5` at `/Users/a3fckx/.bend/bin/bend` gates the laws; `0.2.38` kept as fallback. `bend-pilot/` removed (owner call). Dual-run Nudge (`nudge.prompt/v1` read-only, new candidates `nudge.transaction/v1.1`) in effect; `lesson-proposal` keeps reserved names `source`/`parentDigest` pending compiler exception or rename (see below).
+Current gap closed 2026-09-18: `bend 2.0.5` at `/Users/a3fckx/.bend/bin/bend` gates the laws (`bend PROOF.bend` → `All terms check.`). Dual-run Nudge (`nudge.prompt/v1` read-only, new candidates `nudge.transaction/v1.1`) in effect; `lesson-proposal` keeps reserved inputs `source`/`parentDigest` under the one-release exception in `../v11.py`.

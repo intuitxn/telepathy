@@ -21,3 +21,6 @@ dist/
 # Python runtime caches
 __pycache__/
 *.pyc
+
+# generated per-program runners (absolute paths; regenerate via gen-runner)
+runtime/programs/runners/

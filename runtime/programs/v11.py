@@ -1,16 +1,14 @@
 """nudge.transaction/v1.1 compiler: thin outer transaction.
 
-Implements ``docs/designs/nudge-simplify.md`` §2.
-
-Dual-run note: v1.0 (``nudge.prompt/v1`` via the external ``nudge.program_dsl``
-package, used by ``cli.py``) is untouched and stays compilable read-only. This
-module is the new v1.1 path. The ``schema`` string plus closed tables keep the
-two worlds apart: v1.1 sources are rejected by shape (unknown ``[runtime]`` /
+Implements ``docs/designs/nudge-simplify.md`` §2. Single-run v1.1 only:
+``nudge.prompt/v1`` sources are rejected by shape (unknown ``[runtime]`` /
 ``[goal]`` / ``[optimization]`` tables, ``array`` type, ...).
 
 Closed shape (§2.1/§2.2)
-  File = ``+++`` TOML frontmatter ``+++`` then exactly two fences, ``system``
-  then ``user``. Top-level ``schema`` must be ``"nudge.transaction/v1.1"``.
+  File = ``+++`` TOML frontmatter ``+++`` then exactly two prompt fences,
+  ``system`` then ``user``, optionally followed by ``bend-law`` then
+  ``bend-proof`` (each at most once, in that order). Top-level ``schema``
+  must be ``"nudge.transaction/v1.1"``.
   Allowed top-level keys: ``schema`` + tables ``program`` / ``inputs`` /
   ``outputs`` / ``limits``. Anything else (``[goal]``, ``[runtime]``,
   ``[optimization]``, ``steps``, ``delegation``, pipelines, ...) is a compile
@@ -50,9 +48,11 @@ are compile errors. ``max_turns``/``max_model_calls`` are fixed at 1: one
 model call per transaction.
 
 Frozen vs mutable (§2.6): frozen = every byte except the inner text of the
-two fences. :func:`frozen_source_v11` masks both bodies with
-``<PROMPT-CONTENT>\\n``; byte-exact comparison of that projection is the
-frozen-contract check. Note the deliberate §2.6/§2.7 tension this implements:
+mutable fences (``system``, ``user``, ``bend-proof``). ``bend-law`` is
+human-owned contract: its bytes are frozen. :func:`frozen_source_v11`
+masks the three mutable bodies with ``<PROMPT-CONTENT>\\n``; byte-exact
+comparison of that projection is the frozen-contract check. Note the
+deliberate §2.6/§2.7 tension this implements:
 the masked projection is byte-exact (a TOML key reorder or an
 omitted→explicit-default limit rewrite changes ``frozen_digest``) while
 ``package_digest`` is canonical (those rewrites keep it). Only fence-inner
@@ -63,9 +63,21 @@ Canonical bytes (§2.7): UTF-8 no BOM, ``\\n`` endings, exactly one trailing
 ``name,version,description``, ``[inputs]``/``[outputs]`` sorted
 lexicographically, ``[limits]`` with effective (default-filled) values sorted,
 one ``key = value`` per line, double-quoted strings; exact fence headers and
-`` ``` `` closers; fence bodies verbatim. ``package_digest`` is sha256 over
-those bytes; ``frozen_digest`` is sha256 over the normalized masked
-projection. Both render as ``sha256:<hex>``.
+`` ``` `` closers; fence bodies verbatim. Optional ``bend-law`` /
+``bend-proof`` sections append after the user fence, in order. Files
+without bend blocks canonicalize byte-identically to before (digests
+stable). ``package_digest`` is sha256 over those bytes; ``frozen_digest``
+is sha256 over the normalized masked projection. Both render as
+``sha256:<hex>``.
+
+Bend fences (program laws, inline): ``bend-law`` holds human-owned Bend
+claims over the program; ``bend-proof`` holds the AI-owned proofs using
+the ``Laws.`` qualifier (same convention as ``bend-laws/``: the gate
+synthesizes ``PROOF.bend`` as ``import ./LAWS.bend as Laws`` + proof
+body). A missing proof fence means the law is open. ``{{ }}``
+template rules do not apply inside bend fences (Bend owns its braces);
+stray ````` `` lines are still rejected. :func:`extract_bend` returns
+the blocks for the ``bend-gate`` step.
 """
 
 from __future__ import annotations
@@ -89,6 +101,7 @@ __all__ = [
     "V11Bundle",
     "compile_v11",
     "compile_file",
+    "extract_bend",
     "frozen_source_v11",
     "canonical_bytes_v11",
     "validate_inputs",
@@ -136,6 +149,8 @@ _TEMPLATE_RE = re.compile(r"\{\{([^{}]*)\}\}")
 _MASK_LINE = "<PROMPT-CONTENT>"
 _SYSTEM_HEADER = "```nudge-prompt system"
 _USER_HEADER = "```nudge-prompt user"
+_LAW_HEADER = "```bend-law"
+_PROOF_HEADER = "```bend-proof"
 _FENCE_CLOSE = "```"
 
 
@@ -165,10 +180,12 @@ class V11Bundle:
     limits: dict  # effective values, defaults filled
     system: str  # verbatim system fence body (ends with "\n")
     user: str  # verbatim user fence body (ends with "\n")
-    canonical: bytes
-    package_digest: str
-    frozen_digest: str
-    frozen_source: str
+    law: str | None = None  # verbatim bend-law body (ends with "\n"), None when absent
+    proof: str | None = None  # verbatim bend-proof body (ends with "\n"), None when absent
+    canonical: bytes = b""
+    package_digest: str = ""
+    frozen_digest: str = ""
+    frozen_source: str = ""
 
 
 def _fail(message: str, code: str) -> V11CompileError:
@@ -267,28 +284,51 @@ def _body_of(lines: list, header_index: int, close_index: int, role: str) -> str
     return "\n".join(lines[header_index + 1 : close_index]) + "\n"
 
 
-def _parse_fences(lines: list, start: int):
-    total = len(lines)
-    index = start
-    while index < total and lines[index].strip() == "":
+def _skip_blanks(lines: list, index: int) -> int:
+    while index < len(lines) and lines[index].strip() == "":
         index += 1
-    if index >= total or lines[index] != _SYSTEM_HEADER:
+    return index
+
+
+def _parse_fences(lines: list, start: int):
+    index = _skip_blanks(lines, start)
+    if index >= len(lines) or lines[index] != _SYSTEM_HEADER:
         raise _fail("expected exactly '```nudge-prompt system' first", "missing_fences")
     sys_header = index
     sys_close = _find_closer(lines, sys_header)
     system = _body_of(lines, sys_header, sys_close, "system")
-    index = sys_close + 1
-    while index < total and lines[index].strip() == "":
-        index += 1
-    if index >= total or lines[index] != _USER_HEADER:
+    index = _skip_blanks(lines, sys_close + 1)
+    if index >= len(lines) or lines[index] != _USER_HEADER:
         raise _fail("expected exactly '```nudge-prompt user' second, in order", "unexpected_fence")
     user_header = index
     user_close = _find_closer(lines, user_header)
     user = _body_of(lines, user_header, user_close, "user")
-    for rest in range(user_close + 1, total):
+    index = _skip_blanks(lines, user_close + 1)
+    law = proof = None
+    law_header = law_close = proof_header = proof_close = None
+    if index < len(lines) and lines[index] == _LAW_HEADER:
+        law_header = index
+        law_close = _find_closer(lines, law_header)
+        law = _body_of(lines, law_header, law_close, "bend-law")
+        index = _skip_blanks(lines, law_close + 1)
+    if index < len(lines) and lines[index] == _PROOF_HEADER:
+        if law is None:
+            raise _fail("```bend-proof without a preceding ```bend-law", "proof_without_law")
+        proof_header = index
+        proof_close = _find_closer(lines, proof_header)
+        proof = _body_of(lines, proof_header, proof_close, "bend-proof")
+        index = _skip_blanks(lines, proof_close + 1)
+    for rest in range(index, len(lines)):
         if lines[rest].strip() != "":
             raise _fail(f"content outside prompt fences at line {rest + 1}", "content_outside_fences")
-    return system, user, sys_header, sys_close, user_header, user_close
+    return {
+        "system": system,
+        "user": user,
+        "law": law,
+        "proof": proof,
+        "fence_index": (sys_header, sys_close, user_header, user_close,
+                        law_header, law_close, proof_header, proof_close),
+    }
 
 
 def _check_templates(body: str, declared: dict, role: str) -> None:
@@ -356,7 +396,8 @@ def _parse(source, expected_name=None):
     outputs = _parse_fields("outputs", doc["outputs"], name)
     limits = _parse_limits(doc.get("limits"))
 
-    system, user, sys_header, sys_close, user_header, user_close = _parse_fences(lines, close + 1)
+    fences = _parse_fences(lines, close + 1)
+    system, user = fences["system"], fences["user"]
     _check_templates(system, inputs, "system")
     _check_templates(user, inputs, "user")
 
@@ -369,21 +410,34 @@ def _parse(source, expected_name=None):
         "limits": limits,
         "system": system,
         "user": user,
+        "law": fences["law"],
+        "proof": fences["proof"],
         "lines": lines,
-        "fence_index": (sys_header, sys_close, user_header, user_close),
+        "fence_index": fences["fence_index"],
     }
 
 
 def _frozen_text(lines: list, fence_index) -> str:
-    sys_header, sys_close, user_header, user_close = fence_index
-    masked = (
+    sys_header, sys_close, user_header, user_close, law_header, law_close, proof_header, proof_close = fence_index
+    out = (
         lines[: sys_header + 1]
         + [_MASK_LINE]
         + lines[sys_close : user_header + 1]
         + [_MASK_LINE]
-        + lines[user_close:]
+        + [lines[user_close]]
     )
-    return "\n".join(masked).rstrip("\n") + "\n"
+    index = user_close + 1
+    for header, close, mutable in ((law_header, law_close, False), (proof_header, proof_close, True)):
+        if header is None:
+            continue
+        out += lines[index:header]  # inter-fence blanks stay literal
+        if mutable:
+            out += [lines[header], _MASK_LINE, lines[close]]
+        else:
+            out += lines[header : close + 1]  # law bytes are frozen contract
+        index = close + 1
+    out += lines[index:]
+    return "\n".join(out).rstrip("\n") + "\n"
 
 
 def _digest(text: str) -> str:
@@ -401,7 +455,7 @@ def frozen_source_v11(source) -> str:
     return _frozen_text(parsed["lines"], parsed["fence_index"])
 
 
-def _canonical_text(name, version, description, inputs, outputs, limits, system, user) -> str:
+def _canonical_text(name, version, description, inputs, outputs, limits, system, user, law=None, proof=None) -> str:
     head = [
         "+++",
         f'schema = "{SCHEMA}"',
@@ -431,6 +485,12 @@ def _canonical_text(name, version, description, inputs, outputs, limits, system,
         user += "\n"
     text += _SYSTEM_HEADER + "\n" + system + _FENCE_CLOSE + "\n\n"
     text += _USER_HEADER + "\n" + user + _FENCE_CLOSE + "\n"
+    if law is not None:
+        text += "\n" + _LAW_HEADER + "\n" + law + _FENCE_CLOSE + "\n"
+        if proof is not None:
+            text += "\n"
+    if proof is not None:
+        text += _PROOF_HEADER + "\n" + proof + _FENCE_CLOSE + "\n"
     return text
 
 
@@ -446,7 +506,21 @@ def canonical_bytes_v11(source) -> bytes:
         parsed["limits"],
         parsed["system"],
         parsed["user"],
+        parsed["law"],
+        parsed["proof"],
     ).encode("utf-8")
+
+
+def extract_bend(source) -> dict:
+    """Program-law blocks: ``{"law": str | None, "proof": str | None}``.
+
+    Verbatim fence bodies (each ends with ``"\\n"`` when present). A missing
+    proof fence means the law is open. Proofs use the ``Laws.`` qualifier:
+    the gate synthesizes ``PROOF.bend`` as ``import ./LAWS.bend as Laws``
+    plus this body.
+    """
+    parsed = _parse(source)
+    return {"law": parsed["law"], "proof": parsed["proof"]}
 
 
 def compile_v11(source, expected_name=None) -> V11Bundle:
@@ -461,6 +535,8 @@ def compile_v11(source, expected_name=None) -> V11Bundle:
         parsed["limits"],
         parsed["system"],
         parsed["user"],
+        parsed["law"],
+        parsed["proof"],
     ).encode("utf-8")
     frozen = _frozen_text(parsed["lines"], parsed["fence_index"])
     return V11Bundle(
@@ -472,6 +548,8 @@ def compile_v11(source, expected_name=None) -> V11Bundle:
         limits=dict(parsed["limits"]),
         system=parsed["system"],
         user=parsed["user"],
+        law=parsed["law"],
+        proof=parsed["proof"],
         canonical=canonical,
         package_digest="sha256:" + hashlib.sha256(canonical).hexdigest(),
         frozen_digest=_digest(frozen),
