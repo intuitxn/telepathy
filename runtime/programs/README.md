@@ -12,8 +12,9 @@ runtime/programs/telepathy-program compile artifact-design
 printf '%s' '{"title":"Notes","body":"We will test shared pages.","sourceIds":[]}' | runtime/programs/telepathy-program run artifact-design --input -
 ```
 
-The executable defaults to sibling `../nudge/.venv/bin/python3.12`; `NUDGE_ROOT`
-overrides that checkout. `OC2_BINARY` overrides the installed fork binary path.
+The executable prefers `TELEPATHY_PYTHON` when set, then the sibling
+`../nudge/.venv/bin/python3.12` when that checkout exists, then `python3`;
+`NUDGE_ROOT` overrides the checkout location when one exists. `OC2_BINARY` overrides the installed fork binary path.
 The explicit host model defaults to `opencode-go/deepseek-v4-flash`; override with
 `--model` or `TELEPATHY_PROGRAM_MODEL`. Authentication stays in the existing work
 profile; no credentials are copied into bundles, results or receipts.
@@ -65,7 +66,7 @@ owns feedback and review persistence; these programs cannot modify their source.
 Run focused contract tests:
 
 ```sh
-../nudge/.venv/bin/python3.12 -m unittest discover -s runtime/programs -p 'test_*.py'
+python3 -m unittest discover -s runtime/programs -p 'test_*.py'
 ```
 
 Fixture-adapter tests verify wiring and rejection only. See `LIVE_RUN.md` for the

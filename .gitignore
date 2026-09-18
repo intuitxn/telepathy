@@ -24,3 +24,6 @@ __pycache__/
 
 # generated per-program runners (absolute paths; regenerate via gen-runner)
 runtime/programs/runners/
+
+# autonomous loop transcripts (transient; record lives in agit notes)
+ops/runs/

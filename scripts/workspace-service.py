@@ -19,9 +19,14 @@ PUBLIC = 'https://telepathy.intuitxn.com'
 PORT = 4110
 
 def config():
-    python = Path(os.environ.get('TELEPATHY_PYTHON', str(ROOT.parent / 'nudge/.venv/bin/python')))
+    override = os.environ.get('TELEPATHY_PYTHON')
+    if override:
+        python = Path(override)
+    else:
+        legacy = ROOT.parent / 'nudge/.venv/bin/python'
+        python = legacy if legacy.is_file() else Path(sys.executable)
     if not python.is_file():
-        raise SystemExit('Set TELEPATHY_PYTHON to a Python 3.11+ interpreter with Nudge available.')
+        raise SystemExit('Set TELEPATHY_PYTHON to a Python 3.11+ interpreter.')
     return [str(python.resolve()), str(ROOT / 'runtime/workspace/server.py')]
 
 def args(command):
@@ -58,19 +63,25 @@ def main():
         'TELEPATHY_PROGRAM_PYTHON':config()[0],
     }
     # Launchd must not depend on Desktop's protected paths or mutable checkouts.
+    # The nudge checkout is optional legacy packaging: include it in the
+    # release only when it exists, so install works without it.
+    nudge_src = ROOT.parent / 'nudge/src'
+    has_nudge = nudge_src.is_dir()
     digest = hashlib.sha256()
     sources = ['runtime/workspace', 'runtime/programs', 'programs', 'site/dist', 'artifacts/assets']
     for source in sources:
         for file in sorted((ROOT/source).rglob('*')):
             if file.is_file() and '__pycache__' not in file.parts:
                 digest.update(str(file.relative_to(ROOT)).encode()); digest.update(file.read_bytes())
-    for file in sorted((ROOT.parent/'nudge/src').rglob('*.py')):
-        digest.update(str(file.relative_to(ROOT.parent/'nudge')).encode()); digest.update(file.read_bytes())
+    if has_nudge:
+        for file in sorted(nudge_src.rglob('*.py')):
+            digest.update(str(file.relative_to(ROOT.parent/'nudge')).encode()); digest.update(file.read_bytes())
     release = STATE/'releases'/digest.hexdigest()[:16]
     for source in sources:
         shutil.copytree(ROOT/source, release/source, dirs_exist_ok=True, ignore=shutil.ignore_patterns('__pycache__'))
-    shutil.copytree(ROOT.parent/'nudge/src', release/'nudge/src', dirs_exist_ok=True, ignore=shutil.ignore_patterns('__pycache__'))
-    env['NUDGE_ROOT'] = str(release/'nudge')
+    if has_nudge:
+        shutil.copytree(nudge_src, release/'nudge/src', dirs_exist_ok=True, ignore=shutil.ignore_patterns('__pycache__'))
+        env['NUDGE_ROOT'] = str(release/'nudge')
     env['TELEPATHY_PROGRAM_PYTHON'] = config()[0]
     command = ['/usr/bin/env','-i'] + [k+'='+v for k,v in env.items()] + [config()[0], str(release/'runtime/workspace/server.py')] + args('serve')
     command[-1] = str(release/'site/dist')
