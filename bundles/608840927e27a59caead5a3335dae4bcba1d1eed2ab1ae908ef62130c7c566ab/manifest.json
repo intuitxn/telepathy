@@ -1,0 +1,25 @@
+{
+  "schema": "intuitxn-learning-bundle/v2",
+  "core": "adaptive-max",
+  "contract": "adaptive-max-v1",
+  "evaluator": "adaptive-chunked-max-50-v1",
+  "evaluator_sha256": "307535b054e84ab0ba8f3057c16cb8f5c0d46258957bd47d81df15061feb443f",
+  "adapter_sha256": "2c6c071b0595c34b11a970d8f8d41297ada86485793dafee2ad15b9e32b1ba7e",
+  "scope": "Bend checked source terms and independently compared chunked_max on 50 public fixed cases; adaptation outcomes remain author-controlled runtime reports",
+  "source_sha256": "7bda501e462c2ef0505ba58e11a83f9539f538bfee5b5aeebccb8d9e3027ac33",
+  "bend": {
+    "version": "bend 2.0.21",
+    "sha256": "b4fae4ed28c5ca1549270ebd9dad00c54a70a24d6cc193c8d2a5b0f022740fb2"
+  },
+  "findings": "agent-authored-unverified-narrative",
+  "files": {
+    "system.bend": "7bda501e462c2ef0505ba58e11a83f9539f538bfee5b5aeebccb8d9e3027ac33",
+    "check.txt": "3155557f2fa6b6fe55b661347e56893dc0b52fa1977b6800a8d26dbff1d3db84",
+    "report.json": "2fc4da154762023480d3ee0c58670f399510ad108c0d71886acf950321741a55",
+    "record.txt": "f65613e757b5f79326c57cb11cfa6622b80d3a67b32e5ed64c45afc5797740ac",
+    "replay.txt": "4ce663a2e73a4701e5c71ab8e07971257dbc0c94148e85af45847e9beb94c4b8",
+    "blocks.evidence": "2c5942ec79c6409580b7840cd7736dc529d4dd4f4c11449fb31524d015c700f5",
+    "probe.json": "1281a30d37b43ba42dbf7aae17b923c62bb933f825eddbcfb907c5c8b3c4c2e4",
+    "findings.md": "bc5c75f63e2a26cfcd94025a8858e1def409dba6e3eb24174ad61b11ba300ef0"
+  }
+}
