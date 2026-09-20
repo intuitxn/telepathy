@@ -1,0 +1,22 @@
+{
+  "schema": "intuitxn-learning-bundle/v2",
+  "core": "lorenz-memory",
+  "contract": "lorenz-memory-v1",
+  "evaluator": "lorenz-memory-cli-v1",
+  "evaluator_sha256": "0d0a433cd5a89560cfaa2625987e0db3fe6f79df11e8bad9683ade0dda828c43",
+  "adapter_sha256": "2c6c071b0595c34b11a970d8f8d41297ada86485793dafee2ad15b9e32b1ba7e",
+  "scope": "Bend checked source terms and exercised fixed public Lorenz CLI fixtures; no universal memory quality claim",
+  "source_sha256": "64e1ebf7c5937ccec96697dddeb7bf62c621c545af0c4ed7485b9038524fe15d",
+  "bend": {
+    "version": "bend 2.0.21",
+    "sha256": "b4fae4ed28c5ca1549270ebd9dad00c54a70a24d6cc193c8d2a5b0f022740fb2"
+  },
+  "findings": "agent-authored-unverified-narrative",
+  "files": {
+    "system.bend": "64e1ebf7c5937ccec96697dddeb7bf62c621c545af0c4ed7485b9038524fe15d",
+    "check.txt": "3155557f2fa6b6fe55b661347e56893dc0b52fa1977b6800a8d26dbff1d3db84",
+    "report.json": "ef156e4c0932096642545d151e6b774c7b196b29803477759eb6f7900c941f37",
+    "probe.json": "ef156e4c0932096642545d151e6b774c7b196b29803477759eb6f7900c941f37",
+    "findings.md": "ba4c2fa1060ae86e2c7917e78b0b4ccaf3bd637e7632275cb38f3c331a97e8b9"
+  }
+}

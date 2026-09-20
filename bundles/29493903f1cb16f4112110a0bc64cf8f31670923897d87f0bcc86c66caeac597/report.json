@@ -1,0 +1,29 @@
+{
+  "schema": "intuitxn-lorenz-evaluation/v1",
+  "core": "lorenz-memory",
+  "contract": "lorenz-memory-v1",
+  "evaluator": "lorenz-memory-cli-v1",
+  "checks": [
+    "empty-state",
+    "explicit-retention",
+    "memory-promotion",
+    "transitive-invalidation",
+    "history-preserved",
+    "active-only-retrieval",
+    "dependency-repair",
+    "work-queue",
+    "work-deduplication",
+    "no-implicit-retention",
+    "missing-conversation",
+    "missing-dependency",
+    "self-dependency",
+    "descendant-dependency",
+    "already-superseded",
+    "multiline-rejected",
+    "output-not-overwritten",
+    "malformed-state",
+    "noncanonical-id"
+  ],
+  "passed": 19,
+  "scope": "Public fixed CLI transition examples; only named Bend laws are proofs; supplied actor labels are not authentication."
+}
