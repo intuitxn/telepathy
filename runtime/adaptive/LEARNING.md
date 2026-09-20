@@ -51,28 +51,32 @@ next evaluation must use executable tasks rather than factual recall.
 
 ### Remaining implementation
 
-The first local shared registry is now implemented in `registry.mjs` (see
-`SHARED.md`). It snapshots source, runs fresh Bend checks plus 50 independent
-fixed maximum examples, saves optional findings, and publishes complete bundles.
-Import stages without execution by default; explicit execution repeats admission.
-This implements part of the admission/storage/transfer sequence below. Structured
-general episodes, semantic retrieval, authenticated remote synchronization, and
-unseen-task learning evaluation remain outstanding.
+The shared registry now dispatches two cores: adaptive maximum and Lorenz memory.
+It snapshots source, runs fresh Bend checks and the selected external evaluator,
+saves optional findings, and publishes complete bundles. Retrieval uses bounded
+lexical matching. Compaction hardlinks identical payloads without deleting history.
+Signed Git sync stages trusted bundles and applies exact-ID revocations; explicit
+execution repeats admission. It rejects remote rollback after a local checkpoint.
+Structured general episodes, semantic retrieval, live conversation merging,
+and a replicated coding-agent learning study remain outstanding.
+
+The recorded transfer run (seed 2571500135) scored 128/128 with compatible evidence
+versus 14/128 for frozen/no-memory/stale/irrelevant controls. The always-exact
+no-memory control also scored 128/128. This establishes bounded policy transfer
+on subsequently generated inputs, not new capability beyond the authored kernels.
+See `runtime/evaluation/README.md` for resource caps, hashes, and reproduction.
 
 1. Define an episode schema: problem/contract revision, candidate source digest,
    prediction, observation, intervention/control, counterexample, checker result,
    evaluator/toolchain versions, costs, and provenance. Keep raw conversations
    separate; extract specific claims with supporting evidence.
-2. Add an admission boundary that executes the checker on immutable candidate
-   bytes and runs the agreed evaluator. Imported proof JSON is insufficient.
-   A failed, stale, or incomplete receipt must never enter the accepted registry.
-3. Index accepted blocks by contract compatibility and exact revision, retaining
-   failures and superseded versions. Retrieval proposes a candidate; local
-   revalidation decides whether it is usable in the new context.
-4. Connect that registry to an explicitly configured shared repository or service.
-   Handle concurrent submissions, authenticated provenance, deduplication,
-   revocation, and read-only import before automatic adoption.
-5. Evaluate learning on new tasks: compare a fresh agent against one given prior
+2. Extend the implemented core-specific admission/evaluators as new contracts
+   become available. Preserve independent checks and counterexamples.
+3. Scale the implemented lexical retrieval beyond full registry scans, preserving
+   core compatibility and exact-revision filtering.
+4. Extend the implemented signed Git synchronization with publisher roles and
+   key rotation, operational monitoring, and managed retention if needed.
+5. Evaluate agent learning on new tasks: compare a fresh agent against one given prior
    evidence at equal resource budgets. Measure correctness, cost, reuse, and
    regressions. Keep evaluation tasks independent of selection decisions.
 

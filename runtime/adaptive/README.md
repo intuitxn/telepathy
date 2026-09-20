@@ -58,6 +58,12 @@ The [shared registry adapter](SHARED.md) adds explicit admission, retrieval,
 and bundle transfer with fresh Bend checks. Its gate applies to registry
 admission; it does not intercept all Codex edits.
 
+The registry now dispatches this `adaptive-max` core and the separate
+[`lorenz-memory` core](../lorenz/README.md). It supports bounded lexical
+retrieval, payload deduplication, revocation, and signed Git synchronization.
+The [transfer experiment](../evaluation/README.md) measures reuse on new inputs
+with no-memory and always-exact controls; it does not establish LLM learning.
+
 ## Mathematical pieces
 
 - Maximum is associative, commutative, and idempotent.
