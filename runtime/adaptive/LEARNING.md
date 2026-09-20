@@ -66,6 +66,13 @@ no-memory control also scored 128/128. This establishes bounded policy transfer
 on subsequently generated inputs, not new capability beyond the authored kernels.
 See `runtime/evaluation/README.md` for resource caps, hashes, and reproduction.
 
+A separate fresh coding-agent pilot tested dependency-aware evidence selection.
+Both agents passed 136/136 pre-frozen cases, with zero input mutations; only one
+received retained findings. The observed memory benefit was zero. This single
+paired task does not demonstrate that memory improves coding performance.
+The original synthetic answers, protocol, and evaluator are retained under
+`runtime/evaluation/agent-transfer*` rather than selecting only positive results.
+
 1. Define an episode schema: problem/contract revision, candidate source digest,
    prediction, observation, intervention/control, counterexample, checker result,
    evaluator/toolchain versions, costs, and provenance. Keep raw conversations

@@ -140,6 +140,8 @@ and explicit Git synchronization are implemented. The [transfer evaluation](../e
 measures bounded policy reuse on subsequently generated inputs, including stale
 and irrelevant memory ablations and an always-exact control. It does not show
 LLM training, better agent coding, or discovery of new algorithms.
+A separate [coding pilot](../evaluation/agent-transfer.md) scored 136/136 in
+both fresh-agent arms; adding retained findings produced no measured gain.
 
 There is no semantic index, live merged conversation database, background
 network service, authenticated Lorenz actor identity, or general neural learner.

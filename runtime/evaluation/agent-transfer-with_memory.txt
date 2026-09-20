@@ -1,0 +1,75 @@
+function selectEvidence(records, request, revoked) {
+  if (request.limit === 0) return [];
+
+  const counts = new Map();
+  for (const record of records) {
+    if (
+      record !== null &&
+      typeof record === "object" &&
+      typeof record.id === "string" &&
+      record.id.length > 0
+    ) {
+      counts.set(record.id, (counts.get(record.id) || 0) + 1);
+    }
+  }
+
+  const revokedIds = new Set(
+    revoked.filter(id => typeof id === "string")
+  );
+  const candidates = new Map();
+
+  for (const record of records) {
+    if (
+      record === null ||
+      typeof record !== "object" ||
+      Array.isArray(record) ||
+      typeof record.id !== "string" ||
+      record.id.length === 0 ||
+      counts.get(record.id) !== 1 ||
+      revokedIds.has(record.id) ||
+      !Array.isArray(record.deps) ||
+      !record.deps.every(id => typeof id === "string" && id.length > 0) ||
+      !Number.isSafeInteger(record.seq) ||
+      record.seq < 0 ||
+      record.state !== "verified" ||
+      record.core !== request.core ||
+      record.contract !== request.contract ||
+      record.evaluator !== request.evaluator ||
+      record.source !== request.source
+    ) {
+      continue;
+    }
+    candidates.set(record.id, record);
+  }
+
+  const remaining = new Map();
+  const dependents = new Map();
+  const ready = [];
+
+  for (const [id, record] of candidates) {
+    const dependencies = new Set(record.deps);
+    remaining.set(id, dependencies.size);
+    if (dependencies.size === 0) ready.push(id);
+
+    for (const dependency of dependencies) {
+      if (!candidates.has(dependency)) continue;
+      if (!dependents.has(dependency)) dependents.set(dependency, []);
+      dependents.get(dependency).push(id);
+    }
+  }
+
+  for (let index = 0; index < ready.length; index++) {
+    for (const dependent of dependents.get(ready[index]) || []) {
+      const count = remaining.get(dependent) - 1;
+      remaining.set(dependent, count);
+      if (count === 0) ready.push(dependent);
+    }
+  }
+
+  ready.sort((a, b) => {
+    const difference = candidates.get(b).seq - candidates.get(a).seq;
+    return difference || (a < b ? -1 : a > b ? 1 : 0);
+  });
+
+  return ready.slice(0, request.limit);
+}
