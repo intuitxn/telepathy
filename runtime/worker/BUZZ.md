@@ -93,10 +93,11 @@ approval gate. Do not deploy the historical JTBD YAML as automatic acceptance.
 Native PR reviews have separate commit/reviewer semantics, documented in the guide.
 
 Standard OpenCode provides `opencode acp` directly. On the inspected machine,
-`$HOME/.opencode/bin/opencode --version` returns **1.18.32**, while the Homebrew
-executable on PATH returns **1.14.20**. Select the intended executable explicitly:
-PATH resolution can differ by login shell or service environment; the explicit
-path makes the selected installation deterministic.
+`command -v opencode` resolves to `$HOME/.opencode/bin/opencode` (**1.18.32**);
+a Homebrew install (`/opt/homebrew/bin/opencode`) is **1.14.20**. PATH resolution
+can differ by login shell or service environment, so select the intended
+executable explicitly; the explicit path makes the selected installation
+deterministic.
 
 ```sh
 OPENCODE="$HOME/.opencode/bin/opencode"
