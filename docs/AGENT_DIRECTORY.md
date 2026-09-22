@@ -9,10 +9,10 @@ Authority and status:
 
 - Charters in `.opencode/agents/` are the single source of truth for agent
   names and behaviour.
-- `plugins/telepathy-meta-agents/registry.json` mirrors five of the eight
-  charters as a declarative catalog. `@telepathy`, `@bend-forge` and
-  `@relay-keeper` are charter-only and have no registry entry; nothing here is
-  invented to fill a gap.
+- `plugins/telepathy-meta-agents/registry.json` mirrors five of the nine
+  charters as a declarative catalog. `@telepathy`, `@bend-forge`,
+  `@relay-keeper` and `@meta` are charter-only and have no registry entry;
+  nothing here is invented to fill a gap.
 - `plugins/telepathy-meta-agents/bend-specialist.md` is an unmerged draft whose
   own text says registry wiring is an owner edit. It is **not** a canonical
   agent and is not listed below.
@@ -38,11 +38,12 @@ Related: [`AGENT_MAP.md`](AGENT_MAP.md) · [`AGENT_ROLES.md`](AGENT_ROLES.md) ·
 | A1.6 | `@relationships` | `.opencode/agents/relationships.md` | draft-external | subagent | desk |
 | A1.7 | `@bend-forge` | `.opencode/agents/bend-forge.md` | prove (Bend) | subagent | local Bend |
 | A1.8 | `@relay-keeper` | `.opencode/agents/relay-keeper.md` | infra health | subagent | local / host |
+| A1.9 | `@meta` | `.opencode/agents/meta.md` | orchestrate | primary | opencode |
 
 Registry mirror status (from `plugins/telepathy-meta-agents/registry.json`):
 `prime` (:4), `build` (:29), `steward` (:54), `research` (:81),
 `relationships` (:104). All five are `status: planned` and point at the same
-charter paths. No registry entry exists for A1.1, A1.7, A1.8.
+charter paths. No registry entry exists for A1.1, A1.7, A1.8, A1.9.
 
 Retired names (do not use): `@atlas`→`@prime`, `@forge`→`@build`,
 `@ledger`→`@steward`, `@scout`→`@research`, `@diplomat`→`@relationships`
