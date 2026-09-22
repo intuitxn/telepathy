@@ -39,28 +39,16 @@ revision ([SOP.md](./SOP.md), [HARNESS.md](../runtime/adaptive/HARNESS.md)).
 Reject means discard the branch and remove the worktree: an experiment that
 scored zero.
 
-A candidate may **auto-merge** once it is in a mergeable state: checks green on an
-up-to-date branch, one independent approving review, and no unresolved
-conversations. Native auto-merge is enabled per PR and pinned to the reviewed
-head (`gh pr merge <n> --auto --merge --match-head-commit <sha>`); a new commit
-re-runs checks and invalidates the stale review. Auto-merge lands the *reviewed
-state*; it is not self-approval and not acceptance. A reviewer identity and the
-check workflow are defined separately (native review and auto-merge; see
-`docs/AUTO_MERGE.md`). A green gate alone is never enough.
+A candidate may **auto-merge** once it is mergeable: checks green on an up-to-date
+branch, one independent approving review, no unresolved conversations. Auto-merge
+lands the *reviewed state*, pinned to the reviewed head; a new commit re-runs
+checks and invalidates the stale review. It is not self-approval ([AUTO_MERGE.md](./AUTO_MERGE.md)).
 
 ## Guard
 
-`scripts/worktree-guard.sh` enforces the disposable half:
-
-```sh
-scripts/worktree-guard.sh status   # mark each worktree: stable / DISPOSABLE / active
-scripts/worktree-guard.sh guard .  # fail if the current worktree's branch already merged
-scripts/worktree-guard.sh prune 2  # remove clean, idle (>=2m) disposable worktrees
-```
-
-`guard` is the preflight that stops reuse of a merged worktree; it exits nonzero
-before any work starts. `prune` never touches the stable checkout or a worktree
-that is dirty or has writes in the last `MIN` minutes.
+`scripts/worktree-guard.sh` fails before work starts if the current branch already
+merged into `origin/main`. Run it as a preflight; if it fails, make a fresh
+worktree instead of reusing the merged one. Nothing to prune by hand.
 
 ## Limits
 
