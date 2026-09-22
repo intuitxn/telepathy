@@ -6,6 +6,27 @@ and how a Job To Be Done (JTBD) moves through them.
 Authoritative sources: `.opencode/agents/` (charters), `plugins/telepathy-meta-agents/registry.json`
 (declarative catalog), `runtime/desk/` (job engine), `docs/PROJECTS.md` (job lifecycle).
 
+Full inventory of canonical agents, session kinds, and the numbered
+information-flow map: [`AGENT_DIRECTORY.md`](AGENT_DIRECTORY.md).
+
+## Canonical agent names
+
+The charters in `.opencode/agents/` are the single source of truth for agent names,
+while `plugins/telepathy-meta-agents/registry.json` catalogs five product interfaces.
+It does not register every charter or deploy a Buzz identity. Earlier aliases remain
+in historical documents; use the canonical names for new work.
+
+| Canonical (use this) | Retired name | JTBD |
+|---|---|---|
+| `@telepathy` | — | route |
+| `@prime` | `@atlas` | propose, scope |
+| `@build` | `@forge` | implement, verify |
+| `@steward` | `@ledger` | resolve, project, learn |
+| `@research` | `@scout` | research |
+| `@relationships` | `@diplomat` | draft-external |
+| `@bend-forge` | — | prove (Bend) |
+| `@relay-keeper` | — | infra health |
+
 ## People — visible authors, accountable owners
 
 | Person | Role |
@@ -44,14 +65,16 @@ thread.
 
 | Agent | JTBD stage | May | Must not | Runtime |
 |---|---|---|---|---|
-| `@telepathy` (primary) | route | Route intent to the narrowest agent | Publish without approval; invent interfaces | opencode2 / desk |
-| `@atlas` | propose, scope | Draft a job proposal (owner, reviewer, acceptance) | Execute, activate, publish, accept, resolve | desk |
-| `@forge` | implement, verify | Implement in worktree, record verification evidence, draft artifact review | Accept own work, merge, resolve, publish | desk (codex or opencode2) |
-| `@ledger` | resolve, project | Draft resolutions, changelog, activity projections | Author posts, change accepted history, send | desk |
-| `@scout` | research | Retrieve sources, draft dossiers with source maps | Assert unverified claims, publish | desk |
-| `@diplomat` | draft-external | Draft external messages from approved context | Send, record sent without delivery evidence | desk |
+| `@telepathy` (primary) | route | Route intent to the narrowest agent | Publish without approval; invent interfaces | opencode / desk |
+| `@prime` | propose, scope | Draft a job proposal (owner, reviewer, acceptance) | Execute, activate, publish, accept, resolve | desk |
+| `@build` | implement, verify | Implement in worktree, record verification evidence, draft artifact review | Accept own work, merge, resolve, publish | desk (codex or opencode) |
+| `@steward` | resolve, project, learn | Draft resolutions, changelog, activity projections, lesson entries | Author posts, change accepted history, send | desk |
+| `@research` | research | Retrieve sources, draft dossiers with source maps | Assert unverified claims, publish | desk |
+| `@relationships` | draft-external | Draft external messages from approved context | Send, record sent without delivery evidence | desk |
+| `@bend-forge` | prove | Draft `PROOF.bend` defs, laws, proofs; gate with `bend` | Self-accept, merge, resolve, publish | local Bend |
+| `@relay-keeper` | infra | Read-only health checks; draft infra proposals; restart only within explicit operational authorization | Publish, accept, touch credentials, rewire network | local |
 
-Boundary rule (enforced by charters + permission gates): **tools prepare, humans accept.**
+Required boundary (charters are instructions, not an isolation guarantee): **tools prepare, humans accept.**
 No interface may activate its own Job, accept its own artifact, resolve a Job, or speak as a person.
 
 ## Buzz agents — the Nest front desk
@@ -60,9 +83,10 @@ Names as registered in the Buzz Nest (`~/.buzz/AGENTS.md`). Personas are owned i
 
 | Buzz agent | Proposed pairing | Notes |
 |---|---|---|
-| Pollen | `@atlas` + `@scout` | Gather context, scope proposals, research |
-| Fizz | `@forge` | Execution energy, candidate production |
-| Honey | `@ledger` | Consolidation, receipts, projections |
+| Pollen | `@prime` + `@research` | Gather context, scope proposals, research |
+| Fizz | `@build` | Execution energy, candidate production |
+| Honey | `@steward` | Consolidation, receipts, projections |
+| (no persona) | `@telepathy`, `@relationships`, `@bend-forge`, `@relay-keeper` | Route, external drafts, proofs, infra — no named Desktop persona |
 
 This pairing is a proposal, not yet authoritative — confirm each agent's persona in Buzz Desktop,
 then either keep this table or replace it with the real split.
@@ -72,8 +96,11 @@ then either keep this table or replace it with the real split.
 | Runtime | What it runs | Where |
 |---|---|---|
 | `runtime/desk` | The job engine: SQLite jobs/artifacts/outbox/cursors, Buzz poll + ingest, worktrees, dispatch | `telepathy/runtime/desk` |
-| opencode (fork runtime) | Desk job execution — runs the oc2 fork binary headlessly with the authenticated `opencode-go` provider (`opencode run -m opencode-go/deepseek-v4-flash`); the upstream beta's free zen models stay interactive-only | `~/opencode2` fork build via `runtime/desk/src/runtime.js` (`FORK_BIN`) |
+| opencode | Standard OpenCode — native `opencode run` with the user-configured provider/model, and `opencode acp` for Buzz. No fork or beta build is required. | local install (`runtime/desk/src/runtime.js`) |
 | codex CLI | Sandboxed execution worker (`codex exec --json`) | local install |
+
+The active baseline runs roles through native OpenCode/Buzz; the Desk flow below
+is an optional implementation, not another required orchestrator.
 
 ## JTBD lifecycle
 
@@ -81,7 +108,7 @@ then either keep this table or replace it with the real split.
 Proposed -> Ready -> Active -> Waiting -> Review -> Resolved | Cancelled
 ```
 
-Buzz is the human surface; the desk ledger is execution truth; git holds accepted revisions.
+Buzz is the human surface; optional Desk owns its own jobs; Git holds accepted revisions.
 
 | Stage | Buzz surface | Desk ledger |
 |---|---|---|
@@ -95,7 +122,7 @@ Buzz is the human surface; the desk ledger is execution truth; git holds accepte
 
 1. **Human asks** in the program's home channel: either an issue on the program repo, or a message starting with `/intuitxn ` followed by JSON (`repository`, `request`, `acceptance`, optional `runtime`).
 2. **desk polls** the configured channels, deduplicates by source event id, and creates a job.
-3. **Runtime executes** in a git worktree at the accepted base revision (codex or opencode2 per job).
+3. **Runtime executes** in a git worktree at the accepted base revision (codex or opencode per job).
 4. **Candidate + evidence** returns: changed files, verification results, unresolved issues, exact revision.
 5. **Human reviews and accepts** in the Buzz thread — acceptance is a named human at an exact revision.
 6. **Ledger projects** the outcome: resolution, changelog, activity; the outbox replies to the original thread.

@@ -1,6 +1,5 @@
 ---
 mode: subagent
-model: opencode/deepseek-v4-pro
 description: Relay-keeper — node networking and infra health. Keep the workspace reachable: service, tunnel, ports, node routes, doctor checks. Use when the service is down, the tunnel drops, a node is unreachable, or infra needs a proposal.
 ---
 

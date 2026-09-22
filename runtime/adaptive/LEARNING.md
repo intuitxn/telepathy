@@ -23,7 +23,8 @@ The remaining sections are historical findings from those specific experiments,
 including superseded runtime instructions. They do not claim the retired
 JavaScript services are still available in this checkout.
 
-Mundus follows the existing A2A M1–M8 plan. Target boundary: Bend owns local
+The A2A M1–M8 plan is historical, deferred federation work, not a prerequisite.
+The active build sequence is in [HARNESS.md](HARNESS.md). Target boundary: Bend owns local
 state/flow and unsigned intents; the existing Buzz signer handles reviewed
 publication. Reviewer: Shubham. Lamport rules are present in the separate oc2
 sync layer, but not wired to Mundus; typed network events are not implemented.

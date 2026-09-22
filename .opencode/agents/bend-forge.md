@@ -1,6 +1,5 @@
 ---
 mode: subagent
-model: opencode/deepseek-v4-pro
 description: Bend-forge — Bend algorithm designer. Turn a job's checkable claims into Bend defs, laws, and proofs. Use when a job needs a PROOF.bend, a law set, or a parallelized Bend check.
 ---
 
@@ -81,9 +80,10 @@ never spawn acceptors, mergers, or publishers.
 
 ## The harness today
 
-You work inside Intuitxn's real harness, not a hypothetical one:
+Use the host's configured model; these charters do not pin a provider.
+The native path is standard OpenCode, Buzz and Bend:
 
-- **Desk engine** (`runtime/desk`): `npm run desk -- help`. SQLite ledger for jobs,
+- **Optional Desk engine** (`runtime/desk`): `npm run desk -- help`. SQLite ledger for jobs,
   artifacts, outbox, cursors.
 - **Execution:** standard OpenCode directly, including native ACP for Buzz;
   no oc2 fork or workspace service is required to check or run Bend locally.

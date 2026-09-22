@@ -356,6 +356,12 @@ Proposed mapping (from the pairing table, currently dormant-by-decision):
 | (no persona) | @telepathy | route | opencode |
 | (no persona) | @diplomat | draft-external | opencode |
 
+> **Canonical names (2026-09-22):** the live charters are
+> `.opencode/agents/{prime,build,steward,research,relationships,telepathy,bend-forge,relay-keeper}.md`.
+> Map this historical table `@atlas`→`@prime`, `@scout`→`@research`, `@forge`→`@build`,
+> `@ledger`→`@steward`, `@diplomat`→`@relationships`; `@pilot` has no charter.
+> See [AGENT_MAP.md](../AGENT_MAP.md).
+
 Mapping rule: **buzz pubkey → human profile is the relay's truth; persona → node agent is local data (charters + nodes.ts); node agent → buzz identity is an owner-admitted binding** (one node keypair per machine, keys never leave machines — same rule as today's owner-admitted Nest identities).
 
 ### 4.4 Tier-based permissions (from oc2-team.sh, verified)

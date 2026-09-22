@@ -6,6 +6,8 @@ Telepathy is Intuitxn's shared human context layer.
 
 The existing Desk remains optional for its local jobs and writing records (`npm ci && npm run setup`, then `npm run doctor`). Its OpenCode jobs now use the installed CLI and normal provider configuration; `OPENCODE_BIN` selects an explicit executable if multiple versions are installed. Previous profiles and stored records are preserved. Read the [setup guide](./BUZZ_SETUP.md), [forum start page](./forum/START_HERE.md), and [company writing guide](./forum/WRITING.md).
 
+The [active build plan](runtime/adaptive/HARNESS.md#what-the-system-should-build-toward) defines how findings become reusable, corrected, independently evaluated improvements.
+
 **Live internal-alpha preview:** <https://intuitxn.github.io/telepathy/>
 
 It gives Shubham, Om, and Kush one place to publish decisions, updates, questions, asks, and accepted outcomes. People remain the visible authors and owners. Agent Manager, worker agents, routing, summarization, and artifact processing operate beneath that surface.
@@ -41,9 +43,10 @@ These boundaries are tracked in the [Telepathy GitHub Project](https://github.co
 
 ```text
 site/                human communication product
-packages/harness/    internal job, artifact, and runtime contracts
-agents/              hidden runtime charters
-plugins/             integration boundary
+runtime/worker/      one-file Bend worker logic and independent checks
+runtime/desk/        optional local jobs and writing records
+.opencode/agents/    native OpenCode role charters
+plugins/             declarative catalog and historical integrations
 ```
 
 Read [PRODUCT.md](./PRODUCT.md) for the product contract, [SOP.md](./SOP.md) for the team operating model, and [CHANGELOG.md](./CHANGELOG.md) for release history.

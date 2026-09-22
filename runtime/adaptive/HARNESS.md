@@ -42,4 +42,55 @@ time; they do not establish current automatic synchronization.
 
 Offline Node drivers still check Bend transitions and score saved experimental
 answers. They are optional development tools and never run as a learning service.
-Older desk/plugin code is separately maintained and was not part of this removal.
+Desk remains optional and now uses the installed OpenCode CLI. The old custom
+plugin source is historical and excluded from the active install and checks.
+
+## What the system should build toward
+
+The target is a system that improves reusable programs and its working methods
+from checked outcomes. The LLM proposes changes; execution supplies observations;
+independent checks decide which claims survive. Saved text alone is not learning
+performance, and self-editing alone is not intelligence or AGI.
+
+Keep one executable Bend file per kernel, starting with `runtime/worker/system.bend`.
+Multiple cores may have different contracts and evaluators; add a core only when
+an actual task needs it. Host configuration stays ordinary Buzz/OpenCode config.
+Do not recreate a registry service, signer, dispatcher or agent framework merely
+to connect capabilities the host already provides.
+
+The work loop is: problem + acceptance → retrieve relevant evidence → predict
+an outcome → propose a candidate → run independent checks → inspect disagreement
+→ retain a selected finding → reuse it in a fresh task → measure the difference.
+The full loop is a build target; existing Bend learn/correct transitions implement
+only part of it. Session transcripts are not automatically admitted as knowledge.
+
+| Next step | Completion evidence |
+|---|---|
+| 1. One native Buzz → OpenCode → Bend task | Native ACP session completes a bounded task, Bend checks and independent examples pass, result returns to the correct task. The current initialize handshake alone is insufficient. |
+| 2. One finding reused in a fresh session | Capture source revision, contract, evidence and limits; retain the reviewed selection through native Buzz memory; a fresh worker retrieves it without the original conversation and produces a checked result. Record which memory was actually supplied. |
+| 3. Correction and stale-memory handling | Introduce a counterexample, correct the local finding, verify dependent local records are invalidated, then verify the published replacement is what the next session retrieves. Buzz and Bend are not automatically synchronized. |
+| 4. Independent improvement evaluation | Compare repeated fresh tasks with and without selected memory under matched models, tools and budgets. Hold back test cases; report failures, accuracy, time, tokens and cost. Keep negative results. |
+| 5. Bounded self-modification | An agent proposes a kernel, algorithm, routing or problem-formulation change in an isolated candidate. Check source-bound laws and held-out behavior; reject regressions; retain the previous revision for rollback. Human acceptance controls promotion/publication. |
+
+A reusable piece needs its problem/contract, source revision, dependencies,
+evaluator, measured result, counterexamples and supersession status. This is a
+content requirement for selected findings and artifacts, not a new storage
+service. Recheck compatibility before reuse; an old successful receipt does not
+verify a changed program.
+
+Record surprise as a discrepancy between a stated prediction and observation.
+It nominates an investigation, not a causal conclusion. Change the suspected
+factor, compare an unchanged control, repeat on new cases, and state confounders
+before retaining a causal claim. Improving the problem statement or representation
+is a valid candidate, evaluated against the original objective as well.
+
+For parallel work, delegate independent tasks and give each a separate output.
+One coordinator writes each Bend snapshot lineage. Do not claim distributed
+exclusive claims, merge safety or global ordering from current local laws.
+Measure coordination cost before adding more workers; federation/Lamport work
+waits for a concrete multi-node requirement.
+
+Promotion and publication remain separate from proposing and testing. Workers
+must not accept their own changes or acquire signing credentials. Current shell
+environment filtering does not establish filesystem/keychain isolation. Verify
+that deployment boundary before claiming a keyless execution node.
