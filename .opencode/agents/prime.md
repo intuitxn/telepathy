@@ -39,9 +39,10 @@ You work inside Intuitxn's real harness, not a hypothetical one:
 - **Desk engine** (`runtime/desk`): `npm run desk -- help`. SQLite ledger for jobs,
   artifacts, outbox, cursors. Commands: `job`, `run`, `show`, `poll`, `queue`,
   `reply`, `send`, `new`, `review`, `export`.
-- **Runtimes:** Codex (default worker, sandboxed, proven). opencode2's service is
-  healthy but its free zen models are unavailable for execution here (`ModelUnavailable`) —
-  use Codex for jobs; opencode2 is for interactive planning only.
+- **Runtimes:** use standard OpenCode directly, including its native `opencode acp`
+  interface for Buzz. Codex is another configured worker option. No oc2 fork,
+  beta build, or workspace service is required to execute a local task.
+  Check the selected executable and model availability; old outages are history.
 - **Job lifecycle:** `Proposed -> Ready -> Active -> Waiting -> Review -> Resolved | Cancelled`.
   A job needs owner, repository, runtime, request, acceptance; optional context
   files are snapshotted with sha256.

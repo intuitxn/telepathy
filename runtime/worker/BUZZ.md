@@ -1,15 +1,18 @@
 # Mundus: native Buzz memory and Bend workers
 
-Use Bend for checked worker transitions and Buzz for persistent agent memory,
-ACP delegation, and ordinary workflow YAML. No custom JavaScript/Python runtime
-adapter is required for this path. Offline test drivers are separate from it.
+Use standard OpenCode for agent execution, Bend for checked worker transitions,
+and Buzz for persistent memory, native ACP delegation, and ordinary workflow
+YAML. No oc2 fork, beta build, or additional learning adapter is required.
+Offline test drivers are separate from this path.
 
-Follow the existing [A2A design and Mundus alignment](../../docs/designs/a2a-protocol.md).
+See the [baseline and historical A2A design](../../docs/designs/a2a-protocol.md).
 Buzz's relay is coordination; ACP/execution stay node-local. Reviewer is Shubham.
 The target is a keyless execution/kernel process with an owner-controlled Buzz
 signer: draft, review the exact payload, then send. The earlier deployment audit
 found an inherited signing identity, so isolation still needs implementation and
 verification. No new signer or network-intent layer is implemented here.
+The former M1–M8 roadmap, port 4110 service and Lamport/federation work are not
+prerequisites for local execution. Keep existing service state intact.
 
 The installed Buzz Desktop bundle was version **0.5.23** when these interfaces
 were inspected. Its CLI does not expose `--version` or an `experimental`
@@ -82,6 +85,26 @@ entries and cannot remove `core`. Findings are attributed evidence, not proof
 that arbitrary worker answers are correct.
 
 ## Use the existing Buzz harness and YAML
+
+Standard OpenCode provides `opencode acp` directly. On the inspected machine,
+`$HOME/.opencode/bin/opencode --version` returns **1.18.32**, while the Homebrew
+executable on PATH returns **1.14.20**. Select the intended executable explicitly:
+PATH resolution can differ by login shell or service environment; the explicit
+path makes the selected installation deterministic.
+
+```sh
+OPENCODE="$HOME/.opencode/bin/opencode"
+"$OPENCODE" --version
+"$OPENCODE" acp --help
+```
+
+In the existing Buzz host configuration, use that absolute path as
+`--agent-command` and `acp` as `--agent-args`. ACP communicates over stdio;
+do not add a custom bridge or start a second workspace server for local use.
+The CLI/help was checked without a model call; this does not certify provider
+credentials or model availability. Do not pass signing keys into execution
+processes to repair missing configuration.
+
 `buzz-acp` injects the per-session **core** engram by default as `<core-memory>`;
 `--no-memory` disables that injection, not storage. Other slugs require explicit
 retrieval. The harness supports `--agent-command`, `--agent-args`, `--agents`,

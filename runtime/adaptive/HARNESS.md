@@ -1,15 +1,17 @@
 # Mundus: Buzz-native harness
 
-Use Buzz's existing agent harness, memory and workflow DSL. Our executable logic
-stays in Bend; no custom JavaScript lifecycle, delegation or registry process is
-required. Start with [Buzz and Bend](../worker/BUZZ.md), or use the same direct
+Use standard OpenCode directly and its native ACP interface with Buzz's existing
+agent harness, memory and workflow DSL. Our executable logic stays in Bend; no
+oc2 fork, beta build, custom learning service, or port 4110 service is required.
+Start with [Buzz and Bend](../worker/BUZZ.md), or use the same direct
 [worker protocol](META.md) from another process-capable harness.
 
-The [existing A2A plan](../../docs/designs/a2a-protocol.md) owns network milestones.
-Mundus reuses M1–M8, the existing relay and workspace service design; this cleanup
-does not deploy federation. Local Lorenz memory and published NIP-AE engrams are
-distinct. Outbound work is drafted, reviewed by Shubham, then sent by the
-owner-controlled signer. Credential isolation and Lamport wiring remain pending.
+The [A2A plan](../../docs/designs/a2a-protocol.md) preserves the historical oc2
+M1–M8 roadmap; those milestones are not prerequisites for the active baseline.
+Federation and Lamport wiring are deferred until an actual multi-node need.
+Local Lorenz memory and published NIP-AE engrams are distinct. Outbound work is
+drafted, reviewed by Shubham, then sent by the owner-controlled signer.
+Credential isolation remains a target requiring deployment verification.
 
 The installed Buzz 0.5.23 CLI exposes native memory commands and its ACP harness
 injects core memory by default. Other findings require explicit retrieval. Buzz

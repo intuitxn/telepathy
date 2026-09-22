@@ -1,6 +1,9 @@
 # Telepathy plugin for OpenCode v2
 
-Pinned to OpenCode beta 19192. Run `npm ci && npm run setup` at the repository root. The root `index.ts` is the directory entrypoint used by the installed v2 loader; it re-exports the compiled implementation.
+Historical optional source, retired from the active workspace. Standard OpenCode
+and native Buzz replace this integration; see [setup](../../BUZZ_SETUP.md).
+The root install, setup and checks no longer load, build or test this plugin.
+The behavior below describes the old beta 19192 implementation only.
 
 The plugin registers 11 tools:
 
@@ -12,4 +15,5 @@ Drafting and publishing are separate. Actual Buzz signing identity stays attribu
 
 Publication shells out to the Buzz CLI. Inject credentials in the service environment. Successful writes require the relay's `accepted:true` response. The Desk CLI adds durable outbox receipts and prevents automatic retries; direct plugin sends are interactive and do not have the Desk outbox's deduplication contract.
 
-`npm run check` at the root checks types and runs the local behavior tests. See [setup](../../BUZZ_SETUP.md) for forum publishing, artifact review and job execution.
+The old package retains its own scripts for historical reproduction; it is not
+compatible with the current setup by implication.

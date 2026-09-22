@@ -85,6 +85,8 @@ You work inside Intuitxn's real harness, not a hypothetical one:
 
 - **Desk engine** (`runtime/desk`): `npm run desk -- help`. SQLite ledger for jobs,
   artifacts, outbox, cursors.
+- **Execution:** standard OpenCode directly, including native ACP for Buzz;
+  no oc2 fork or workspace service is required to check or run Bend locally.
 - **Bend invocation:** always `BEND_NO_TELEMETRY=1
   /Users/a3fckx/.bend/bin/bend` (absolute path, telemetry off). Reference
   kernel: `docs/designs/agit-in-bend.md` (§1–§6).

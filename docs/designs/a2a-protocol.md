@@ -1,50 +1,45 @@
-> Implementation update (2026-09-08): M2 network configuration is implemented. Live Codex and Buzz tool calls passed. The running node inherits a Buzz identity; the no-key assertion below is not true for this host. See [current verification and limits](../FOUNDATIONS_AND_LIVE_USE.md).
+# Mundus baseline and historical A2A design
 
-> Design proposal — not shipped. Prepared by an agent design pass on 2026-09-08.
-> Every fact in section 0 was verified live (probes, exact outputs). Marked guesses are in section 6.
-> Milestones M1–M8 are ordered and independently testable. Owner review required before any milestone starts.
+## Active baseline — 2026-09-22
 
-# A2A Protocol Design — oc2 / Telepathy Agent Runtime Stack
+Use **standard OpenCode directly**, its native `opencode acp` interface with
+Buzz's existing harness, native Buzz memory/workflow YAML, and checked Bend
+cores. No oc2 fork, beta build, additional agent manager, custom learning
+service, or port 4110 workspace service is required for local execution.
+Reviewer: **Shubham**. See [native setup](../../runtime/worker/BUZZ.md).
 
-## Mundus alignment — 2026-09-22
+- Buzz provides existing identity, relay coordination and selected engrams;
+  OpenCode provides execution and ACP; Bend provides local kernel/worker state.
+  Use those interfaces before adding a missing-operation adapter. Do not recreate
+  the retired registry or add Nostr signing inside Bend.
+- Publication remains **draft → Shubham reviews the exact payload/revision →
+  owner-controlled signer sends**. Keyless execution is a target invariant,
+  not a demonstrated deployment guarantee: the September 8 audit found inherited
+  Buzz identity in its node. Do not inject signing keys into workers to make
+  this integration work. Public verification and signing-key custody differ.
+- Lorenz's local correctable snapshots and agent/owner-scoped NIP-AE engrams
+  remain distinct. Shared content requires a selected audience and review;
+  existing private snapshots and registry evidence have not been migrated.
+- Existing workspace service/tunnel state is preserved for its own use. Do not
+  start a duplicate `:4110` service as an execution prerequisite. Its previous
+  health observations are historical, not a current availability assertion.
+- The oc2 **M1–M8 roadmap below is historical optional federation design**,
+  not the active implementation sequence. Directory bridges, new network-intent
+  schemas and Lamport clocks are deferred until an actual multi-node requirement
+  warrants them. No such federation is claimed here. A lower Lamport timestamp
+  alone would not prove that one event caused another.
 
-Mundus adopts this document's M1–M8 sequence rather than defining a parallel
-network protocol. Reviewer: **Shubham**. This section records the selected
-architecture and verified gaps; it does not mark the milestones complete.
+## Historical proposal and verification — 2026-09-08
 
-- Reuse the existing Buzz relay and workspace service on `:4110`. The relay
-  coordinates identities, directory records and events; ACP and execution stay
-  node-local. The local `:4110/api/health` probe currently returns connection
-  refused, so reuse is an integration target, not a claim of running service.
-- Bend owns Mundus kernel state, scheduler/flow rules and unsigned event intents.
-  Use the existing Buzz CLI as the signing/relay boundary where it suffices. A
-  minimal audited twin is justified only for an actual missing host operation;
-  do not recreate the retired JavaScript registry or implement Nostr signing
-  inside Bend. Typed network intents are not yet implemented in the worker.
-- Publication follows **draft → Shubham reviews the exact payload/revision →
-  owner-controlled signer sends**. Execution/kernel processes must not receive
-  signing keys. This is a target invariant, not a verified deployment property:
-  the September 8 audit above found inherited Buzz identity in the running node.
-  The earlier M4 suggestion to keep a key in the execution node is superseded
-  for Mundus; public-key verification and private-key custody are separate roles.
-- Lorenz holds local correctable memory. NIP-AE holds selected published engrams;
-  these remain scoped by agent/owner and are not automatically readable by every
-  node. Sharing requires an explicitly selected audience and reviewed content.
-  Existing private snapshots and signed registry evidence have not been migrated.
-- Phase 3.5 derives typed payloads for `predict`, `return`, `learn`, `correct`,
-  `artifact` and `accept`, then implements directory registration, routing and
-  delivery through M3–M8. These names are Mundus domain semantics, not a claim
-  that new standardized NIP kinds already exist. Kind/schema mapping, exact
-  revision acceptance, replay deduplication and delivery receipts remain work.
-- Reuse §3.4's Lamport design: local tick, receive `max(local, remote)+1`, and
-  deterministic projection order `(clock, node_id, event_id)`. The existing
-  `oc2` sync implementation contains the primitive; the Bend worker and Mundus
-  network intents are not yet connected to it. A Lamport timestamp does not
-  establish that one event caused another merely because its number is lower.
+The remainder preserves the old oc2 proposal, probes and rollout options for
+reference. Its host versions, outages, paths, milestones and claims of live
+service are dated observations; do not treat them as installation requirements
+or current runtime status. Owner review was required before those milestones.
 
-The current cleanup removes the extra JavaScript learning service and keeps
-native Bend plus Buzz facilities. It does not claim to implement M3–M8 or the
-credential-isolation/review gate. See [current native path](../../runtime/worker/BUZZ.md).
+> Historical update: M2 network configuration was implemented and live Codex
+> and Buzz tool calls passed on the audited host. Its node inherited a Buzz
+> identity, overriding the no-key assertion later in the proposal. See
+> [the historical verification and limits](../FOUNDATIONS_AND_LIVE_USE.md).
 
 **File:** `/Users/a3fckxmini/agent-workspaces/a2a-protocol-design.md`
 **Date:** 2026-09-08 · **Author:** research agent (child of harness session)

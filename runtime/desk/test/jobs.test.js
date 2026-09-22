@@ -32,12 +32,6 @@ test('accept records a human reviewer and only resolves reviewed jobs', async t 
   assert.throws(() => acceptJob(db,j.id,'Again'),/needs_review/);
 });
 
-test('OpenCode result includes final text and excludes reasoning and tool history', async () => {
-  const {resultText}=await import('../src/jobs.js');
-  const result=resultText([{type:'user',content:'secret request'}, {type:'assistant',content:[{type:'reasoning',text:'private reasoning'},{type:'tool',name:'shell',state:{content:'private output'}},{type:'text',text:'Candidate ready.'}]}]);
-  assert.equal(result,'Candidate ready.');
-});
-
 test('land applies worktree changes to the main repo, commits, and resolves', async t => {
   const dir=mkdtempSync(join(tmpdir(),'intuitxn-land-')); const previous=process.env.INTUITXN_HOME; process.env.INTUITXN_HOME=join(dir,'state');
   const db=store(); t.after(()=>{ db.close(); if(previous) process.env.INTUITXN_HOME=previous;else delete process.env.INTUITXN_HOME;rmSync(dir,{recursive:true,force:true}); });

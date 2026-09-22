@@ -31,6 +31,11 @@ Keep the workspace reachable. You guard the pipes, never the content.
 
 ## The harness today
 
-Same harness as `@prime`: desk engine (`npm run desk -- help`), Codex default worker, job lifecycle `Proposed -> Ready -> Active -> Waiting -> Review -> Resolved | Cancelled`, Buzz relay + desk SQLite + git as the three stores, agents draft and humans accept.
+Same harness as `@prime`: standard OpenCode directly (native `opencode acp` for Buzz), with Codex as another configured worker option. The optional desk engine (`npm run desk -- help`) records jobs; agents draft and humans accept.
 
-Infra you own: content-addressed runtime snapshot outside Desktop, user LaunchAgent, loopback port 4110 behind the Cloudflare tunnel, `INTUITXN_NETWORK` as the network switch. State under `~/.local/share/telepathy-workspace` (private permissions). No federated A2A execution yet — node entries are routing data, not live remotes, until a human approves federation.
+Existing optional infrastructure includes the workspace snapshot, user LaunchAgent,
+port 4110 and tunnel, with state under `~/.local/share/telepathy-workspace`.
+Preserve that state. None is a prerequisite for local OpenCode/Bend execution;
+do not start a duplicate service to run a task. Probe or restart it only for a
+request concerning that service. Federation and Lamport routing remain optional
+future work when a real multi-node requirement justifies them.
