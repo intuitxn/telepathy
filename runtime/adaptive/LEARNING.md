@@ -73,6 +73,16 @@ paired task does not demonstrate that memory improves coding performance.
 The original synthetic answers, protocol, and evaluator are retained under
 `runtime/evaluation/agent-transfer*` rather than selecting only positive results.
 
+The real Codex-to-OpenCode trial then completed the lifecycle through a signed
+remote and a separate receiving registry. The OpenCode worker invoked the
+before hook and retrieved the producer's exact bundle; the coordinator scored
+and recorded closeout. Both baseline and memory arms passed 74/74, generating
+identical normalized code. The memory run took 13.773 seconds versus 4.608 seconds.
+This proves the integration path works, not that retrieval improves this task.
+Task-boundary hooks now retain selected outcomes and prevent failed/partial work
+from promoting a core. `/meta` integration can call these hooks; the live server
+did not expose that separately managed command during this trial.
+
 1. Define an episode schema: problem/contract revision, candidate source digest,
    prediction, observation, intervention/control, counterexample, checker result,
    evaluator/toolchain versions, costs, and provenance. Keep raw conversations

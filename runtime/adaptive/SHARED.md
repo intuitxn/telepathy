@@ -8,6 +8,9 @@ hashing, and storage; it is part of the trusted harness, not proved Bend logic.
 The local shared location is `$HOME/.local/share/intuitxn/learning-registry`.
 Codex sessions on this machine can use it from compatible checkouts. Git sync
 uses a dedicated remote branch, signed events, and pinned publisher keys.
+The [harness lifecycle](HARNESS.md) supplies before/after hooks and a tested
+OpenCode delegation adapter, so callers share this store rather than introducing
+another memory database.
 
 ## Commands
 

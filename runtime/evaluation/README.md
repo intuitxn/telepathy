@@ -2,6 +2,9 @@
 
 For the separate fresh coding-agent pilot, see [agent-transfer.md](agent-transfer.md).
 Both agents passed 136/136 held-out cases; the observed memory benefit was zero.
+The [real Codex-to-OpenCode trial](cross-harness.md) exercises publication,
+retrieval, and closeout across harnesses. Both OpenCode arms passed 74/74;
+retrieval added time without improving correctness in that run.
 
 Run from the repository root with Node and Bend 2.0.21 installed:
 

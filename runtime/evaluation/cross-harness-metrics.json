@@ -1,0 +1,59 @@
+{
+  "baseline": {
+    "model": "deepseek-v4-pro",
+    "provider": "opencode",
+    "elapsedMs": 4608,
+    "tokens": {
+      "input": 6705,
+      "output": 88,
+      "reasoning": 71,
+      "cacheRead": 0,
+      "cacheWrite": 0
+    },
+    "cost": 0.01227726,
+    "toolCalls": 0,
+    "calls": []
+  },
+  "memory": {
+    "model": "deepseek-v4-pro",
+    "provider": "opencode",
+    "elapsedMs": 13773,
+    "tokens": {
+      "input": 7945,
+      "output": 239,
+      "reasoning": 321,
+      "cacheRead": 6819,
+      "cacheWrite": 0
+    },
+    "cost": 0.016963455,
+    "toolCalls": 1,
+    "calls": [
+      {
+        "tool": "bash",
+        "status": "completed"
+      }
+    ]
+  },
+  "integration": {
+    "producer_harness": "Codex",
+    "consumer_harness": "OpenCode",
+    "failure_replayed": {
+      "input": [
+        1,
+        2
+      ],
+      "shortcut_observed": 1,
+      "expected": 2,
+      "corrected_observed": 2
+    },
+    "bundle_id": "081c93cffe35ecc0b506a88c9b2598d431bbbbec629fa0e69bac35ed7e60da41",
+    "source_sha256": "7bda501e462c2ef0505ba58e11a83f9539f538bfee5b5aeebccb8d9e3027ac33",
+    "published": true,
+    "receiver_independently_admitted": true,
+    "consumer_lifecycle_before_executed": true,
+    "consumer_retrieved_producer_bundle": true,
+    "consumer_after_recorded": true,
+    "raw_session_artifacts": "private; not included in repository",
+    "consumer_closeout_by": "Codex coordinator after independent scoring"
+  }
+}

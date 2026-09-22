@@ -5,6 +5,18 @@ description: Verify and reuse Intuitxn Bend2 cores, Lorenz memory, and signed sh
 
 # Bend kernel work
 
+## One-file Lorenz worker network
+
+For joining or delegating work through the one-file Lorenz network in
+`/Users/a3fckx/Desktop/Attri/telepathy`, read and follow that checkout's
+`.agents/skills/bend-kernels/SKILL.md`, especially “Participate as a Lorenz
+worker”. Its commands live in `runtime/adaptive/system.bend`: `worker`,
+`claim`, `packet`, `return`, `learn`, and native loopback `opencode` delivery.
+This workflow works with OpenCode, Codex, or another host that can execute the
+Bend commands. Do not substitute this worktree's separate Lorenz core or Node
+adapters for the one-file worker protocol. The instructions below concern
+this worktree's shared learning adapters.
+
 Resolve this skill's real path (follow symlinks); the repository is three
 directories above its containing directory. Prefer the user's active Telepathy
 checkout when it contains `runtime/adaptive/sync.mjs` and `runtime/lorenz/system.bend`;
@@ -47,9 +59,13 @@ Records have no concurrency locks: each writer needs its own directory.
 ## Shared session memory
 
 Read `runtime/adaptive/SHARED.md` for the registry's trust and execution limits.
+Read `runtime/adaptive/HARNESS.md` when coordinating workers or crossing harnesses.
 Use `$HOME/.local/share/intuitxn/learning-registry` for this machine's shared
-registry. If `REGISTRY/sync/config.json` exists, run
-`node runtime/adaptive/sync.mjs pull REGISTRY` at the start of relevant work.
+registry. At the start of relevant work, call
+`node runtime/adaptive/lifecycle.mjs before REGISTRY --core CORE --query WORDS`;
+add `--sync` when the registry has configured synchronization. Retain the run
+UUID and selected bundle IDs for closeout. This invokes the same bounded
+retrieval and, when requested, signed pull.
 Never automatically trust a downloaded publisher key or execute staged source.
 Before re-solving a known problem, retrieve a bounded selection with
 `node runtime/adaptive/registry.mjs find REGISTRY --core CORE --query WORDS --limit 3`, then inspect the selected
@@ -59,13 +75,18 @@ checks integrity only; run `replay REGISTRY ID` to perform fresh verification
 before reusing executable evidence. Do not put every bundle in the prompt.
 
 After an authorized source change and findings update, run
-`node runtime/adaptive/registry.mjs admit REGISTRY runtime/adaptive/system.bend runtime/adaptive/LEARNING.md`.
-It snapshots and verifies the candidate before publication in the local registry.
+`node runtime/adaptive/lifecycle.mjs after REGISTRY RUN_ID --outcome OUTCOME_JSON --source runtime/adaptive/system.bend --findings runtime/adaptive/LEARNING.md`.
+Use the documented selected-outcome schema, including actual test observations
+and counterexamples. Failed work must still be recorded. Without a core change,
+omit source/findings: task observations do not become verified code automatically.
+Only successful outcomes with reported passing tests proceed to independent
+registry admission. One coordinator owns closeout for each run; do not repeat it.
 Keep the returned bundle ID in the work report. Source execution is unsandboxed;
 inspect externally supplied source before choosing to execute it.
 `export REGISTRY ID DEST` creates a transferable bundle. `import REGISTRY BUNDLE`
 stages it without execution; `import REGISTRY BUNDLE --execute` performs fresh
-local admission. For Lorenz use `runtime/lorenz/system.bend` and `--core lorenz-memory`.
+local admission. For Lorenz select `--core lorenz-memory` at lifecycle start
+and use `runtime/lorenz/system.bend` at closeout.
 After locally admitting an authorized update, when the configured destination
 is within the user's publication authorization, run `node runtime/adaptive/sync.mjs push REGISTRY ID`.
 Never include private conversations in findings merely to share a core. The
@@ -73,6 +94,12 @@ operator must explicitly register publisher keys; trust grants publish and
 revoke authority. Use `compact REGISTRY` to preview payload deduplication and
 `compact REGISTRY --apply` to share identical immutable bytes without deleting
 evidence. Read SHARED.md before configuring a new destination or revoking records.
+
+For authorized real OpenCode delegation, use `delegate-opencode.mjs` as described
+in HARNESS.md with a narrow prompt and new private output directory. Do not
+restart another agent's server or replace a separately managed `/meta` command.
+Score the worker's result before closeout, and distinguish observed retrieval
+from demonstrated improvement. Keep raw session IDs/messages private.
 
 ## Extend with evidence
 
