@@ -49,8 +49,13 @@ Do not turn a bounded task into an indefinite background loop.
    criteria if absent. No extra accepted-job ceremony is required.
 2. Implement in the owning repo; keep the change reviewable.
 3. Verify — tests, typecheck, or the job's acceptance steps — and keep the evidence.
-4. Obtain independent review where needed, fix failures, and record verified
-   completion with the exact SHA or content digest and remaining limits.
+4. Obtain independent review where needed. Draft the local review request with
+   the exact SHA and hand the full base/head diff, matching source, acceptance
+   criteria and actual check evidence to `@reviewer` for independent read-only
+   inspection. Address findings and request a new review whenever the head
+   changes. Do not treat `no_findings` as human acceptance or merge authorization.
+5. Fix failures and record verified completion with the exact SHA or content
+   digest and remaining limits.
 
 Identify the checked revision by commit or content digest. Completion requires
 evidence that the criteria are met; human acceptance is a separate recorded event.
