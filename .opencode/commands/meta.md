@@ -1,9 +1,10 @@
 ---
 description: Coordinate Lorenz workers and retain evaluated task outcomes
-agent: general
+agent: meta
 ---
 
-Execute the requested meta-agent task using runtime/adaptive/META.md in the
+Execute the requested meta-agent task using runtime/AUTONOMY.md and
+runtime/adaptive/META.md in the
 Telepathy checkout. Prefer the current checkout when that document and
 runtime/worker/system.bend exist. Otherwise resolve the real path of this
 command at ~/.config/opencode/commands/meta.md (it may be a symlink); the
@@ -17,6 +18,12 @@ This command accepts:
 
 Request supplied by the user:
 $ARGUMENTS
+
+Carry the authorized goal through implementation, checks, correction and internal
+relay-memory maintenance. Derive acceptance checks when absent; state assumptions
+and continue. Do not require per-step human approval or conflate agent verification
+with human sign-off. Ask only at AUTONOMY.md boundaries; preserve authority already
+granted and continue independent work while awaiting a necessary decision.
 
 Resolve the one-file Lorenz worker source as documented. Before acting, retrieve
 relevant durable memory from the relay with

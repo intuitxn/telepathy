@@ -6,6 +6,11 @@ another process-capable harness can follow this same document directly. The
 command provides instructions to the host agent; it is not an enforced hook,
 background daemon or automatic authorization to publish.
 
+Follow [AUTONOMY.md](../AUTONOMY.md): execute the authorized goal continuously
+through checks, corrections and relevant internal memory updates. Derive concrete
+acceptance from the goal when needed. Human review is not a per-transition gate;
+preserve existing authorization and escalate only an actual missing boundary.
+
 To make the command discoverable from other local projects, install a symlink
 at `~/.config/opencode/commands/meta.md` pointing to this checkout's
 `.opencode/commands/meta.md`. Preserve any existing command and coordinate its
@@ -100,8 +105,9 @@ single-line summaries referencing private artifacts for longer evidence:
 ```
 
 Record failures too. Return checks ownership and provenance, not correctness.
-When the operator has authorized retaining a supported finding for reuse,
-explicitly select that finding and use its result identifier:
+Routine supported learning within the authorized task is covered by the execution
+policy; do not request separate approval for each finding. Evaluate the evidence,
+explicitly select the finding and use its result identifier:
 
 ```sh
 "$BEND" "$WORKER_SOURCE" -- learn IN OUT RESULT_ID DEPENDENCY_ID ACTOR TEXT
@@ -111,10 +117,13 @@ Dependency 0 means none. Learning is attributed memory, not human acceptance
 or executable admission. A subsequent packet includes active learned memory.
 Corrections can invalidate dependent findings; inspect original evidence.
 
-For a selected finding that should survive beyond the local snapshot, draft its
-Buzz memory update for Shubham's review of the exact content/revision. The
-owner-controlled Buzz signer sends the reviewed update. Record the relevant
-source revision, actual checks, outcome and counterexamples. Buzz stores the
+For a selected finding that should survive beyond the local snapshot, prepare
+and verify its Buzz update and apply it through the existing owning-agent signer
+in the authorized scope. Routine findings, corrections and core indexes do not
+require per-write human review. Preserve unrelated content, check conflicts and
+read back the stored value; unavailable signing access is a blocker, not authority
+to extract keys. Record the source revision, checks, outcome and counterexamples.
+Buzz stores the
 finding; it does not rerun Bend or prove a worker answer automatically. Keep
 private execution details out of shared summaries.
 
