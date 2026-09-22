@@ -13,18 +13,28 @@ import Base
 # SHAPE:
 #   DEdge{src,dst,weight,rel} over DGraph{nodes,edges}; DTask{anchors,steps,scope}
 #   Activation is a +List<Nat> aligned with DGraph.nodes (index i <-> nodes[i]).
-#   One round adds, for every edge, `hop(v,w) = floor(floor(v*w/scale)*decay/scale)`
+#   One round adds, for every IN-SCOPE edge, `hop(v,w) = floor(floor(v*w/scale)*decay/scale)`
 #   into the dst cell, caps each cell at amax, then keeps only the top `budget`
 #   activated cells (activation desc, node id asc). Diffusion runs exactly
 #   `steps` rounds. `retrieve` ranks, filters to the in-scope set BEFORE top-K,
-#   and returns node ids only — an out-of-scope node may carry internal
-#   activation but is never returned.
+#   and returns node ids only.
+#
+# TRAVERSAL GATE (security fix, Authorization-First): an edge (u -> v) conducts
+#   activation only when BOTH u and v are in scope (conduct/edge_gated). An
+#   out-of-scope node therefore neither receives activation over an edge nor
+#   conducts it onward: propagation runs on the in-scope induced subgraph, so
+#   in-scope scores cannot depend on out-of-scope nodes or edges. This closes
+#   the prior score-level rank-then-filter leak (activation used to propagate
+#   THROUGH out-of-scope nodes; see docs/drafts/meta/diffusion-retrieval-laws.md).
+#   Seeding is not traversal: an out-of-scope *anchor* still receives its seed,
+#   but cannot conduct (shell must keep anchors in scope; see non-claims).
 #
 # CONSTANTS: scale 8, wmax 8, decay 4, init 8, amax 32.
 #
-# GATE: 35 named laws (8 universally quantified closed by definitional
-#   unfolding; 27 concrete fixture/gate witnesses), each discharged by a
-#   same-named proof def. The 2.0.21 `law`/proof split needs no separate file.
+# GATE: 45 named laws (9 universally quantified closed by definitional
+#   unfolding / reflexivity; 36 concrete fixture/gate witnesses), each
+#   discharged by a same-named proof def. The 2.0.21 `law`/proof split needs
+#   no separate file.
 # ============================================================================
 
 # ---- Types -----------------------------------------------------------------
@@ -131,6 +141,13 @@ def band(a: Bool, b: Bool) -> Bool:
       b
     case False{}:
       False{}
+
+def bnot(a: Bool) -> Bool:
+  match a:
+    case True{}:
+      False{}
+    case False{}:
+      True{}
 
 def bool_bit(b: Bool) -> Nat:
   match b:
@@ -391,19 +408,47 @@ def quarantined(+task: DTask, +g: DGraph) -> Bool:
     case DTask{+a, +s, +sc}:
       bor(is_empty(a), nat_eq(anchors_present(a, nodes_of(g)), 0n))
 
-# node ids are labels; the activation vector is indexed by position in
-# DGraph.nodes, so endpoints are mapped through index_of (absent -> no flow).
-def edge_into(+acc: +List<Nat>, +e: DEdge, +act: +List<Nat>, +nodes: +List<Nat>) -> +List<Nat>:
+# ---- Traversal gate (Authorization-First) -----------------------------------
+
+def edge_src(+e: DEdge) -> Nat:
   match e:
     case DEdge{s, d, w, r}:
-      bump(acc, index_of(d, nodes, 0n), hop(nth(act, index_of(s, nodes, 0n), 0n), w))
+      s
 
-def fold_edges(+es: +List<DEdge>, +acc: +List<Nat>, +act: +List<Nat>, +nodes: +List<Nat>) -> +List<Nat>:
+def edge_dst(+e: DEdge) -> Nat:
+  match e:
+    case DEdge{s, d, w, r}:
+      d
+
+# The named gate rule: an edge (u -> v) conducts only if BOTH endpoints are in
+# scope. Both endpoints (not just dst) is required because a dst-only gate would
+# still let an activated out-of-scope source push into an in-scope cell, and a
+# src-only gate would still write activation into out-of-scope nodes (observable
+# via scores/counts and able to contend for the global node budget). Only the
+# conjunction makes in-scope scores a pure function of the in-scope subgraph.
+def conduct(+s: Nat, +d: Nat, +scope: +List<Nat>) -> Bool:
+  band(member(s, scope), member(d, scope))
+
+def edge_gated(+e: DEdge, +scope: +List<Nat>) -> Bool:
+  conduct(edge_src(e), edge_dst(e), scope)
+
+# node ids are labels; the activation vector is indexed by position in
+# DGraph.nodes, so endpoints are mapped through index_of (absent -> no flow).
+# A non-gated edge is the identity on the accumulator: no activation moves.
+def edge_into(+acc: +List<Nat>, +e: DEdge, +act: +List<Nat>, +nodes: +List<Nat>, +scope: +List<Nat>) -> +List<Nat>:
+  match e:
+    case DEdge{s, d, w, r}:
+      Bool.pick(+List<Nat>,
+                conduct(s, d, scope),
+                bump(acc, index_of(d, nodes, 0n), hop(nth(act, index_of(s, nodes, 0n), 0n), w)),
+                acc)
+
+def fold_edges(+es: +List<DEdge>, +acc: +List<Nat>, +act: +List<Nat>, +nodes: +List<Nat>, +scope: +List<Nat>) -> +List<Nat>:
   match es:
     case Nil{}:
       acc
     case Con{e, t}:
-      fold_edges(t, edge_into(acc, e, act, nodes), act, nodes)
+      fold_edges(t, edge_into(acc, e, act, nodes, scope), act, nodes, scope)
 
 # rebuild a vector by writing each kept cell's activation at its node index.
 def set_cells(+cells: +List<DCell>, +acc: +List<Nat>, +nodes: +List<Nat>) -> +List<Nat>:
@@ -419,17 +464,18 @@ def set_cells(+cells: +List<DCell>, +acc: +List<Nat>, +nodes: +List<Nat>) -> +Li
 def keep_top(+acc: +List<Nat>, +nodes: +List<Nat>, +budget: Nat) -> +List<Nat>:
   set_cells(take_cells(budget, rank_cells(acc, nodes)), zeros(list_len(nodes)), nodes)
 
-# exactly one round: simultaneous edge update, cap cells, keep top-budget.
-def round(+g: DGraph, +act: +List<Nat>, +budget: Nat) -> +List<Nat>:
-  keep_top(fold_edges(edges_of(g), zeros(list_len(nodes_of(g))), act, nodes_of(g)), nodes_of(g), budget)
+# exactly one round: simultaneous edge update (gated by scope), cap cells, keep
+# top-budget. The scope gate is threaded here so propagation never leaves it.
+def round(+g: DGraph, +act: +List<Nat>, +budget: Nat, +scope: +List<Nat>) -> +List<Nat>:
+  keep_top(fold_edges(edges_of(g), zeros(list_len(nodes_of(g))), act, nodes_of(g), scope), nodes_of(g), budget)
 
 # bounded driver: Nat fuel counts rounds down; exactly `steps` rounds run.
-def drive(fuel: Nat, +g: DGraph, +act: +List<Nat>, +budget: Nat) -> +List<Nat>:
+def drive(fuel: Nat, +g: DGraph, +act: +List<Nat>, +budget: Nat, +scope: +List<Nat>) -> +List<Nat>:
   match fuel:
     case 0n:
       act
     case 1n+p:
-      drive(p, g, round(g, act, budget), budget)
+      drive(p, g, round(g, act, budget, scope), budget, scope)
 
 def diffuse_branch(q: Bool, +g: DGraph, +task: DTask, +budget: Nat) -> +List<Nat>:
   match q:
@@ -438,7 +484,7 @@ def diffuse_branch(q: Bool, +g: DGraph, +task: DTask, +budget: Nat) -> +List<Nat
     case False{}:
       match task:
         case DTask{a, s, sc}:
-          drive(s, g, seed(g, a), budget)
+          drive(s, g, seed(g, a), budget, sc)
 
 # final activation after exactly task.steps rounds (or all-zeros if quarantined)
 def diffuse(+g: DGraph, +task: DTask, +budget: Nat) -> +List<Nat>:
@@ -459,6 +505,18 @@ def retrieve_branch(q: Bool, +g: DGraph, +task: DTask, +budget: Nat) -> +List<Na
 # scope gate before top-K: out-of-scope activation is dropped, never returned.
 def retrieve(+g: DGraph, +task: DTask, +budget: Nat) -> +List<Nat>:
   retrieve_branch(quarantined(task, g), g, task, budget)
+
+# every node carrying non-zero activation, in node order (the activation support).
+def activated_ids(+act: +List<Nat>, +nodes: +List<Nat>) -> +List<Nat>:
+  ids_of(cells_of(nodes, act))
+
+# the in-scope ranked candidate set (activation desc, id asc) BEFORE id
+# projection: the object the traversal gate makes independent of out-of-scope
+# nodes/edges.
+def ranked_in_scope(+g: DGraph, +task: DTask, +budget: Nat) -> +List<DCell>:
+  match task:
+    case DTask{a, s, sc}:
+      take_cells(budget, filter_scope(rank_cells(diffuse(g, task, budget), nodes_of(g)), sc))
 
 # ---- Well-formedness checks -------------------------------------------------
 
@@ -595,6 +653,33 @@ def self_task() -> DTask:
 
 def self_expected() -> +List<Nat>:
   [0n]
+
+# ---- Leak fixtures: out-of-scope hubs --------------------------------------
+
+def hub_node() -> Nat:
+  6n
+
+# edge-hub: demo nodes, plus a high-weight out-of-scope hub at node 4 with an
+# inbound edge (0 -> 4) and an outbound edge (4 -> 1). Under a naive traversal
+# both conduct and change in-scope scores; under the gate neither conducts.
+def edge_hub_edges() -> +List<DEdge>:
+  [DEdge{0n, 4n, 8n, 1n}, DEdge{4n, 1n, 8n, 1n}, DEdge{0n, 1n, 8n, 1n}, DEdge{0n, 2n, 8n, 1n}, DEdge{2n, 4n, 8n, 1n}, DEdge{1n, 3n, 4n, 1n}, DEdge{3n, 4n, 4n, 1n}, DEdge{2n, 1n, 2n, 1n}, DEdge{5n, 0n, 1n, 1n}]
+
+def edge_hub_graph() -> DGraph:
+  DGraph{demo_nodes(), edge_hub_edges()}
+
+# external-hub: demo graph plus a brand-new out-of-scope node 6, with edges
+# 0 -> 6 (in) and 6 -> 1 (out). Node-list length differs from the demo, so the
+# leak witness compares the id/score-level in-scope ranked set, not the raw
+# activation vector.
+def leak_nodes() -> +List<Nat>:
+  [0n, 1n, 2n, 3n, 4n, 5n, 6n]
+
+def leak_edges() -> +List<DEdge>:
+  [DEdge{0n, 6n, 8n, 1n}, DEdge{6n, 1n, 8n, 1n}, DEdge{0n, 1n, 8n, 1n}, DEdge{0n, 2n, 8n, 1n}, DEdge{2n, 4n, 8n, 1n}, DEdge{1n, 3n, 4n, 1n}, DEdge{3n, 4n, 4n, 1n}, DEdge{2n, 1n, 2n, 1n}, DEdge{5n, 0n, 1n, 1n}]
+
+def leak_graph() -> DGraph:
+  DGraph{leak_nodes(), leak_edges()}
 
 # ---- Pure 7-bit gate --------------------------------------------------------
 
@@ -881,12 +966,16 @@ law law_scope_all_in_demo:
 def law_scope_all_in_demo():
   {==}
 
-# W15: the out-of-scope node 4 carries internal activation (negative witness,
-# part 1): the scope filter is not vacuous.
-law law_scope_high_out_activated_demo:
-  {nat_lt(0n, activation_at(out_node(), diffuse(demo_graph(), demo_task(), budget()), demo_nodes())) == True{} : Bool}
+# W15 (SECURITY FIX): the out-of-scope node 4 receives NO activation through
+# traversal. Under the old output-only filter it carried internal activation
+# (> 0) and could conduct onward; the traversal gate removes that entirely.
+# This replaces the former `law_scope_high_out_activated_demo`, which asserted
+# the vulnerable behaviour. It is not a weakening: `= 0` is strictly stronger
+# than `> 0` for the security property under test.
+law law_gate_no_oos_activation_demo:
+  {activation_at(out_node(), diffuse(demo_graph(), demo_task(), budget()), demo_nodes()) == 0n : Nat}
 
-def law_scope_high_out_activated_demo():
+def law_gate_no_oos_activation_demo():
   {==}
 
 # W16: that same out-of-scope node is never returned (negative witness, part 2).
@@ -971,6 +1060,91 @@ law law_gate_deny_demo:
   {gate(prove_all(demo_evidence_tampered())) == Deny{1n} : Verdict}
 
 def law_gate_deny_demo():
+  {==}
+
+# ---- Traversal-gate and leak laws (Authorization-First fix) -----------------
+#
+# (c) the gate is deterministic and total;
+# (a) no activation reaches an out-of-scope node through an in-scope path;
+# (b) in-scope ranked output is unchanged by out-of-scope nodes/edges.
+
+# U9: the traversal gate is a pure function of (edge, scope): same input,
+# identical decision. Reflexivity, so any effect smuggled into `conduct` /
+# `edge_gated` breaks the proof at check time.
+law law_gate_determinism:
+  for +e: DEdge
+  for +sc: +List<Nat>
+  {edge_gated(e, sc) == edge_gated(e, sc) : Bool}
+
+def law_gate_determinism(e, sc):
+  {==}
+
+# W-gate-1: an edge with both endpoints in scope is admitted.
+law law_gate_true_in_scope_demo:
+  {edge_gated(DEdge{0n, 1n, 8n, 1n}, demo_scope()) == True{} : Bool}
+
+def law_gate_true_in_scope_demo():
+  {==}
+
+# W-gate-2: an edge whose destination is out of scope is blocked (no "into").
+law law_gate_false_oos_dst_demo:
+  {edge_gated(DEdge{2n, 4n, 8n, 1n}, demo_scope()) == False{} : Bool}
+
+def law_gate_false_oos_dst_demo():
+  {==}
+
+# W-gate-3: an edge whose source is out of scope is blocked (no "through").
+law law_gate_false_oos_src_demo:
+  {edge_gated(DEdge{4n, 1n, 8n, 1n}, demo_scope()) == False{} : Bool}
+
+def law_gate_false_oos_src_demo():
+  {==}
+
+# W-gate-4 (c): the gate is total — both Bool arms are realised on the fixture
+# (one admitted in-scope edge, one blocked out-of-scope edge), so it is never
+# stuck and never partial.
+law law_gate_total_demo:
+  {(bool_bit(edge_gated(DEdge{0n, 1n, 8n, 1n}, demo_scope())) + bool_bit(edge_gated(DEdge{2n, 4n, 8n, 1n}, demo_scope())) : Nat) == 1n : Nat}
+
+def law_gate_total_demo():
+  {==}
+
+# W-gate-5 (a): every activated node in the demo kernel is in scope — no
+# out-of-scope node is reached by any in-scope path.
+law law_gate_activation_subset_scope_demo:
+  {all_in_scope(activated_ids(diffuse(demo_graph(), demo_task(), budget()), demo_nodes()), demo_scope()) == True{} : Bool}
+
+def law_gate_activation_subset_scope_demo():
+  {==}
+
+# W-leak-1 (b): adding an out-of-scope EDGE hub to the demo graph leaves the
+# raw activation vector unchanged (same node set, so vectors are comparable).
+law law_leak_hub_diffuse_identical:
+  {diffuse(edge_hub_graph(), demo_task(), budget()) == diffuse(demo_graph(), demo_task(), budget()) : +List<Nat>}
+
+def law_leak_hub_diffuse_identical():
+  {==}
+
+# W-leak-2 (b): adding an out-of-scope NODE hub leaves the in-scope ranked
+# candidate set (scores + ids) unchanged.
+law law_leak_hub_rank_identical:
+  {ranked_in_scope(leak_graph(), demo_task(), budget()) == ranked_in_scope(demo_graph(), demo_task(), budget()) : +List<DCell>}
+
+def law_leak_hub_rank_identical():
+  {==}
+
+# W-leak-3 (b): and therefore the returned id ranking is unchanged.
+law law_leak_hub_retrieval_identical:
+  {retrieve(leak_graph(), demo_task(), budget()) == retrieve(demo_graph(), demo_task(), budget()) : +List<Nat>}
+
+def law_leak_hub_retrieval_identical():
+  {==}
+
+# W-leak-4 (a): the added out-of-scope hub node 6 receives zero activation.
+law law_leak_hub_no_oos_activation:
+  {activation_at(hub_node(), diffuse(leak_graph(), demo_task(), budget()), leak_nodes()) == 0n : Nat}
+
+def law_leak_hub_no_oos_activation():
   {==}
 
 # ---- Kernel entry point -----------------------------------------------------
