@@ -1,0 +1,91 @@
+function schedule(events) {
+  const items = new Map();
+
+  function closure(start) {
+    const out = new Set();
+    const stack = [start];
+    while (stack.length) {
+      const cur = stack.pop();
+      if (out.has(cur)) continue;
+      out.add(cur);
+      for (const [id, it] of items) {
+        if (!out.has(id) && it.deps.indexOf(cur) !== -1) stack.push(id);
+      }
+    }
+    return out;
+  }
+
+  function depsDone(it) {
+    for (let i = 0; i < it.deps.length; i++) {
+      const d = items.get(it.deps[i]);
+      if (!d || d.status !== 'done') return false;
+    }
+    return true;
+  }
+
+  for (let e = 0; e < events.length; e++) {
+    const ev = events[e];
+    const t = ev.type;
+
+    if (t === 'work') {
+      if (items.has(ev.id)) continue;
+      items.set(ev.id, { status: 'pending', worker: null, deps: ev.deps.slice(), priority: ev.priority });
+    }
+    else if (t === 'claim') {
+      const it = items.get(ev.id);
+      if (!it || it.status !== 'pending') continue;
+      if (!depsDone(it)) continue;
+      let conflict = false;
+      for (const o of items.values()) {
+        if (o.status === 'claimed' && o.worker === ev.worker) { conflict = true; break; }
+      }
+      if (conflict) continue;
+      it.status = 'claimed';
+      it.worker = ev.worker;
+    }
+    else if (t === 'return') {
+      const it = items.get(ev.id);
+      if (!it || it.status !== 'claimed' || it.worker !== ev.worker) continue;
+      if (!depsDone(it)) continue;
+      it.status = ev.ok ? 'done' : 'pending';
+      it.worker = null;
+    }
+    else if (t === 'correct' || t === 'revoke') {
+      const target = items.get(ev.id);
+      if (!target) continue;
+      const affected = closure(ev.id);
+      for (const id of affected) {
+        const it = items.get(id);
+        if (!it || it.status === 'revoked') continue;
+        if (t === 'revoke' && id === ev.id) {
+          it.status = 'revoked';
+          it.worker = null;
+        } else {
+          it.status = 'pending';
+          it.worker = null;
+        }
+      }
+    }
+  }
+
+  const ids = Array.from(items.keys()).sort();
+  const states = ids.map(function (id) {
+    const it = items.get(id);
+    return { id: id, status: it.status, worker: it.worker };
+  });
+
+  const ready = [];
+  for (let i = 0; i < ids.length; i++) {
+    const id = ids[i];
+    const it = items.get(id);
+    if (it.status === 'pending' && depsDone(it)) ready.push(id);
+  }
+  ready.sort(function (a, b) {
+    const pa = items.get(a).priority;
+    const pb = items.get(b).priority;
+    if (pa !== pb) return pb - pa;
+    return a < b ? -1 : a > b ? 1 : 0;
+  });
+
+  return { states: states, ready: ready };
+}

@@ -1,0 +1,32 @@
+{
+  "baseline": {
+    "model": "deepseek-v4-pro",
+    "provider": "opencode",
+    "elapsedMs": 80915,
+    "tokens": {
+      "input": 7137,
+      "output": 1032,
+      "reasoning": 5302,
+      "cacheRead": 0,
+      "cacheWrite": 0
+    },
+    "cost": 0.03674094,
+    "toolCalls": 0,
+    "status": "completed"
+  },
+  "memory": {
+    "model": "deepseek-v4-pro",
+    "provider": "opencode",
+    "elapsedMs": 85183,
+    "tokens": {
+      "input": 11129,
+      "output": 1016,
+      "reasoning": 4439,
+      "cacheRead": 6604,
+      "cacheWrite": 0
+    },
+    "cost": 0.04126924,
+    "toolCalls": 1,
+    "status": "completed"
+  }
+}

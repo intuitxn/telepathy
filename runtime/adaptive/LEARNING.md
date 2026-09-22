@@ -133,6 +133,22 @@ on temporary registries; the live publisher key was deliberately not rotated.
 Another physical machine has not been connected; the documented bootstrap and
 local separate-registry tests do not establish that deployment.
 
+The harder dependency-worker coding pilot froze 652 cases before model calls.
+Both initial arms passed all cases, but the memory arm used one bash call despite
+a zero-tool prompt, invalidating the stated equal-budget comparison. The adapter
+now accepts `--tools none`, disables every discovered tool in the API request,
+and aborts with preserved evidence if a tool call is observed. This is an observed
+configuration failure and a tested repair; a prompt alone was not enforcement.
+
+A separate fresh-session follow-up with that API policy produced 652/652 in both
+arms with zero tool calls. Baseline took 60.711 seconds and memory 70.785 seconds;
+shared-server timings are observations, not a causal cost estimate. Accuracy gain
+was zero. Both pairs, including the invalid initial comparison, are retained in
+`runtime/evaluation/workflow-transfer*`. The memory arm received a selected real
+Lorenz finding as prompt context; this experiment does not claim autonomous
+retrieval or general learning benefit. It does show how an observed workflow
+failure can become a retained finding and an enforced operational fix.
+
 ## Session closeout procedure
 
 Record only findings supported by observed work. Include the exact source and

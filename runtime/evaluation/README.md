@@ -83,3 +83,8 @@ unseen tests owned by a separate evaluator, task-level reporting including
 negative transfer, and replicated runs. No claim about those outcomes is made
 by this demonstration. Replaying a seed reproduces inputs and correctness;
 wall times naturally vary.
+
+The subsequent [dependency-worker pilot](workflow-transfer.md) adds a harder
+coding task with 652 frozen state-transition cases. It retains an initial tool
+budget violation and a separate follow-up using enforced tool-free API settings.
+Both compliant arms passed all cases; no accuracy improvement was observed.

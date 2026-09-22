@@ -1,0 +1,115 @@
+function schedule(events) {
+  const items = new Map();
+  const dependentsOf = new Map();
+  const claimedBy = new Map();
+  const workerHolds = new Map();
+
+  const isDone = (id) => {
+    const it = items.get(id);
+    return it !== undefined && it.status === 'done';
+  };
+
+  const depsReady = (deps) => {
+    for (let i = 0; i < deps.length; i++) {
+      if (!isDone(deps[i])) return false;
+    }
+    return true;
+  };
+
+  const clearWorker = (id) => {
+    const w = claimedBy.get(id);
+    if (w !== undefined) {
+      claimedBy.delete(id);
+      if (workerHolds.get(w) === id) workerHolds.delete(w);
+    }
+  };
+
+  const closure = (startId) => {
+    const res = new Set();
+    const stack = [startId];
+    while (stack.length > 0) {
+      const cur = stack.pop();
+      if (res.has(cur)) continue;
+      res.add(cur);
+      const ds = dependentsOf.get(cur);
+      if (ds !== undefined) {
+        for (let i = 0; i < ds.length; i++) stack.push(ds[i]);
+      }
+    }
+    return res;
+  };
+
+  for (let i = 0; i < events.length; i++) {
+    const ev = events[i];
+    if (ev === null || typeof ev !== 'object') continue;
+
+    if (ev.type === 'work') {
+      if (items.has(ev.id)) continue;
+      const deps = ev.deps;
+      items.set(ev.id, { id: ev.id, deps: deps, priority: ev.priority, status: 'pending', worker: null });
+      for (let j = 0; j < deps.length; j++) {
+        const d = deps[j];
+        let arr = dependentsOf.get(d);
+        if (arr === undefined) { arr = []; dependentsOf.set(d, arr); }
+        arr.push(ev.id);
+      }
+    } else if (ev.type === 'claim') {
+      const it = items.get(ev.id);
+      if (it === undefined) continue;
+      if (it.status !== 'pending') continue;
+      if (workerHolds.has(ev.worker)) continue;
+      if (!depsReady(it.deps)) continue;
+      it.status = 'claimed';
+      it.worker = ev.worker;
+      claimedBy.set(ev.id, ev.worker);
+      workerHolds.set(ev.worker, ev.id);
+    } else if (ev.type === 'return') {
+      const it = items.get(ev.id);
+      if (it === undefined) continue;
+      if (it.status !== 'claimed') continue;
+      if (claimedBy.get(ev.id) !== ev.worker) continue;
+      if (!depsReady(it.deps)) continue;
+      clearWorker(ev.id);
+      it.worker = null;
+      it.status = ev.ok ? 'done' : 'pending';
+    } else if (ev.type === 'correct') {
+      if (!items.has(ev.id)) continue;
+      const affected = closure(ev.id);
+      for (const id of affected) {
+        const it = items.get(id);
+        if (it === undefined) continue;
+        if (it.status === 'revoked') continue;
+        clearWorker(id);
+        it.worker = null;
+        it.status = 'pending';
+      }
+    } else if (ev.type === 'revoke') {
+      if (!items.has(ev.id)) continue;
+      const affected = closure(ev.id);
+      for (const id of affected) {
+        const it = items.get(id);
+        if (it === undefined) continue;
+        clearWorker(id);
+        it.worker = null;
+        if (id === ev.id) it.status = 'revoked';
+        else if (it.status !== 'revoked') it.status = 'pending';
+      }
+    }
+  }
+
+  const states = [];
+  for (const it of items.values()) {
+    states.push({ id: it.id, status: it.status, worker: it.worker });
+  }
+  states.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+
+  const ready = [];
+  for (const it of items.values()) {
+    if (it.status === 'pending' && depsReady(it.deps)) {
+      ready.push(it);
+    }
+  }
+  ready.sort((a, b) => (b.priority - a.priority) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+
+  return { states, ready: ready.map(it => it.id) };
+}
