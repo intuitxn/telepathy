@@ -120,12 +120,15 @@ function describe(result) {
 }
 
 // (e) ALWAYS run the pure-Node evaluation test (no Bend required).
-const PURE_TEST = 'runtime/evaluation/workflow-transfer.test.mjs';
-const pure = runNode(['--test', PURE_TEST]);
+const PURE_TESTS = [
+  'runtime/evaluation/workflow-transfer.test.mjs',
+  'scripts/telepathy-discover.test.mjs',
+];
+const pure = runNode(['--test', ...PURE_TESTS]);
 if (pure.status === 0) {
-  record('PASS', `test ${PURE_TEST}`, 'exit 0');
+  record('PASS', `test ${PURE_TESTS.join(' ')}`, 'exit 0');
 } else {
-  record('FAIL', `test ${PURE_TEST}`, describe(pure));
+  record('FAIL', `test ${PURE_TESTS.join(' ')}`, describe(pure));
 }
 
 // (f) BEND-OPTIONAL checks.
@@ -151,6 +154,8 @@ if (!bendExecutable) {
     'runtime/lorenz/system.bend',
     'runtime/ops/fold.bend',
     'runtime/ops/status.bend',
+    'runtime/ops/ctx.bend',
+    'runtime/programs/bend-laws/PROOF.bend',
   ];
   for (const file of BEND_FILES) {
     const check = spawnSync(bendBin, [file, '--check-only'], {

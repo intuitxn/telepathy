@@ -28,8 +28,11 @@ type Boundary is Data:
 # The required kernel set. Paths are checkout-relative.
 def kernels() -> +List<Kernel>:
   [Kernel{"worker", "runtime/worker/system.bend", "All terms check.", True{}},
+   Kernel{"diffusion", "runtime/worker/diffusion.bend", "All terms check.", True{}},
+   Kernel{"history", "runtime/worker/history.bend", "All terms check.", True{}},
    Kernel{"adaptive", "runtime/adaptive/system.bend", "All terms check.", True{}},
    Kernel{"status", "runtime/ops/status.bend", "All terms check.", True{}},
+   Kernel{"fold", "runtime/ops/fold.bend", "All terms check.", True{}},
    Kernel{"ctx", "runtime/ops/ctx.bend", "All terms check.", True{}},
    Kernel{"programs", "runtime/programs/bend-laws/PROOF.bend", "All terms check.", True{}},
    Kernel{"lorenz", "runtime/lorenz/system.bend", "All terms check.", True{}}]
@@ -37,7 +40,7 @@ def kernels() -> +List<Kernel>:
 def boundaries() -> +List<Boundary>:
   [Boundary{"no signing keys in the kernel process", "never load or copy a private key"},
    Boundary{"one writer per store", "never mutate a shared snapshot concurrently"},
-   Boundary{"draft then owner send", "never publish or send without human review"},
+   Boundary{"act within existing authorization", "never publish, send, deploy, or spend beyond the authorized destination and content"},
    Boundary{"no subprocess in Bend", "never claim Bend spawns git or the network"}]
 
 # ---- helpers ----------------------------------------------------------------
@@ -172,9 +175,9 @@ law ctx_boundaries_well_formed:
 def ctx_boundaries_well_formed():
   {==}
 
-# The required set is fixed at six kernels.
+# The required set is fixed at nine kernels.
 law ctx_required_total:
-  {kernel_count(kernels()) == 6n : Nat}
+  {kernel_count(kernels()) == 9n : Nat}
 
 def ctx_required_total():
   {==}

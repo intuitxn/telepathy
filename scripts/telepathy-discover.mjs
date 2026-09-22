@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 
-const ONLINE_WINDOW_MS = 5 * 60 * 1000
+const RECENT_WINDOW_MS = 5 * 60 * 1000
 const REQUIRED_FIELDS = ["sessionID", "agent", "name", "status", "firstSeen", "lastSeen"]
 const HELP = `Usage: node scripts/telepathy-discover.mjs
 
@@ -11,6 +11,18 @@ Read-only discover view over the local telepathy peers registry.
 Reads $TELEPATHY_DIR/peers.json (default ~/.config/opencode/telepathy/peers.json),
 prints a sorted table of agent, name, status, presence and a records=N conforming=M
 summary. Writes nothing. Prints no raw session IDs or secrets.
+
+Classification compares names against the FULL session ID using the canonical
+shape "<agent>:<sessionID>" (a legacy "session-<sessionID>" shape is reported,
+never rewritten). Names are shown with an 8-char short id only; when two peers
+share an 8-char prefix their short ids get a stable "#N" discriminator so the
+rows stay distinguishable.
+
+Presence is an unauthenticated local heuristic derived from the recorded lifecycle
+status and lastSeen recency; it is not proof of liveness and asserts no
+authenticated session state. Values are "recently-seen" (within the window),
+"stale", or the lifecycle status (e.g. "deleted"). A deleted record never reads
+as recently-seen.
 
 Environment:
   TELEPATHY_DIR  store directory (default ~/.config/opencode/telepathy)
@@ -30,19 +42,24 @@ function nowMs() {
   return Number.isFinite(override) ? override : Date.now()
 }
 
-function readPeers() {
+// Distinguishes absent / unreadable / invalid-shape registries from a genuinely
+// empty inventory. Only { kind: "ok" } is a successful read.
+function readRegistry() {
   let raw
   try {
     raw = readFileSync(peersPath(), "utf8")
   } catch (err) {
-    if (err && err.code === "ENOENT") return { peers: {}, missing: true }
-    throw err
+    if (err && err.code === "ENOENT") return { kind: "absent" }
+    return { kind: "read-error", message: err && err.message ? err.message : "read failed" }
   }
+  let parsed
   try {
-    return { peers: JSON.parse(raw), missing: false }
+    parsed = JSON.parse(raw)
   } catch {
-    return { peers: {}, missing: false, unreadable: true }
+    return { kind: "invalid-json" }
   }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return { kind: "invalid-root" }
+  return { kind: "ok", peers: parsed }
 }
 
 function stringOf(value) {
@@ -59,7 +76,7 @@ function canonicalBase(agent) {
 }
 
 function canonicalName(peer) {
-  return `${canonicalBase(peer.agent)}:${id8(peer.sessionID)}`
+  return `${canonicalBase(peer.agent)}:${stringOf(peer.sessionID)}`
 }
 
 function hasRequiredFields(peer) {
@@ -67,10 +84,34 @@ function hasRequiredFields(peer) {
   return REQUIRED_FIELDS.every((field) => peer[field] !== undefined && peer[field] !== null)
 }
 
-function sanitize(text, sessionID) {
+// Maps each full session ID to the redacted label shown in the table. The label
+// is the 8-char short id; only when two peers collide on that prefix do we add a
+// stable discriminator, keeping classification (which uses full IDs) independent.
+function shortLabels(entries) {
+  const groups = new Map()
+  for (const [key, peer] of entries) {
+    const safe = peer && typeof peer === "object" ? peer : {}
+    const sid = stringOf(safe.sessionID) || stringOf(key)
+    const base = id8(sid)
+    if (!groups.has(base)) groups.set(base, new Set())
+    groups.get(base).add(sid)
+  }
+  const labels = new Map()
+  for (const [base, sids] of groups) {
+    const unique = [...sids].sort()
+    if (unique.length <= 1) {
+      labels.set(unique[0] ?? "", base)
+    } else {
+      unique.forEach((sid, index) => labels.set(sid, `${base}#${index + 1}`))
+    }
+  }
+  return labels
+}
+
+function sanitize(text, sessionID, label) {
   let out = stringOf(text)
   const sid = stringOf(sessionID)
-  if (sid) out = out.split(sid).join(id8(sid))
+  if (sid) out = out.split(sid).join(label ?? id8(sid))
   out = out.replace(/\s+/g, " ").trim()
   return out.length > 80 ? `${out.slice(0, 77)}...` : out
 }
@@ -80,13 +121,22 @@ function classifyShape(peer, sessionID) {
   if (!peer || typeof peer !== "object") return "not-an-object"
   if (!name) return "missing-name"
   if (name === canonicalName(peer)) return "canonical"
+  // Legacy records predate the canonical full-ID shape: the older mailbox wrote
+  // the 8-char short prefix ("session-ses_aaaa"), later ones the full session ID.
+  // Recognize both for diagnosis; neither is rewritten.
+  if (name === `session-${stringOf(sessionID)}`) return "legacy-hyphen"
   if (name === `session-${id8(sessionID)}`) return "legacy-hyphen"
   if (/^[^:]+:.+$/.test(name)) return "colon-noncanonical"
   return "other"
 }
 
+// Lifecycle first, recency second. Never claims authenticated liveness.
 function presenceOf(peer, now) {
-  return now - Number(peer.lastSeen) < ONLINE_WINDOW_MS ? "online" : "stale"
+  const status = stringOf(peer.status).toLowerCase()
+  if (status === "deleted") return "deleted"
+  const lastSeen = Number(peer.lastSeen)
+  if (!Number.isFinite(lastSeen)) return "stale"
+  return now - lastSeen < RECENT_WINDOW_MS ? "recently-seen" : "stale"
 }
 
 function pad(value, width) {
@@ -100,20 +150,39 @@ function main() {
     return 0
   }
 
+  const registry = readRegistry()
+  if (registry.kind !== "ok") {
+    if (registry.kind === "absent") {
+      process.stderr.write(`telepathy-discover: no registry at ${peersPath()}\n`)
+      process.stdout.write("registry=absent records=unknown\n")
+    } else if (registry.kind === "invalid-json") {
+      process.stderr.write(`telepathy-discover: registry at ${peersPath()} is not valid JSON\n`)
+      process.stdout.write("registry=unreadable records=unknown\n")
+    } else if (registry.kind === "invalid-root") {
+      process.stderr.write("telepathy-discover: registry root is not an object\n")
+      process.stdout.write("registry=unreadable records=unknown\n")
+    } else {
+      process.stderr.write(`telepathy-discover: cannot read registry at ${peersPath()}: ${registry.message}\n`)
+      process.stdout.write("registry=unreadable records=unknown\n")
+    }
+    return 1
+  }
+
   const now = nowMs()
-  const { peers, missing, unreadable } = readPeers()
-  const entries = Object.entries(peers)
+  const entries = Object.entries(registry.peers)
+  const labels = shortLabels(entries)
 
   const rows = entries.map(([key, peer]) => {
     const safe = peer && typeof peer === "object" ? peer : {}
     const sessionID = stringOf(safe.sessionID)
+    const label = labels.get(sessionID) ?? id8(sessionID)
     const shape = classifyShape(safe, sessionID)
     const conforming = hasRequiredFields(safe) && shape === "canonical"
     return {
       key,
-      name: sanitize(safe.name, sessionID),
-      agent: sanitize(safe.agent, sessionID) || "unknown",
-      status: sanitize(safe.status, sessionID) || "unknown",
+      name: sanitize(safe.name, sessionID, label),
+      agent: sanitize(safe.agent, sessionID, label) || "unknown",
+      status: sanitize(safe.status, sessionID, label) || "unknown",
       presence: presenceOf(safe, now),
       shape,
       conforming,
@@ -132,9 +201,6 @@ function main() {
   const body = rows.map((r) => [r.agent, r.name, r.status, r.presence])
   const widths = header.map((h, i) => Math.max(h.length, ...body.map((row) => stringOf(row[i]).length), 0))
   const line = (cells) => cells.map((c, i) => pad(c, widths[i])).join("  ").trimEnd()
-
-  if (missing) process.stderr.write(`telepathy-discover: no registry at ${peersPath()}\n`)
-  if (unreadable) process.stderr.write(`telepathy-discover: registry at ${peersPath()} is not valid JSON\n`)
 
   process.stdout.write(`${line(header)}\n`)
   process.stdout.write(`${line(widths.map((w) => "-".repeat(w)))}\n`)
