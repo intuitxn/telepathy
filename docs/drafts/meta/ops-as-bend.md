@@ -1,6 +1,8 @@
 # Ops as Bend
 
-An op is one Bend file: a total, pure function from a declared typed input to a declared typed output, with named compiler-checked laws.
+An op is one Bend file. Reuse comes from `import`, not a framework.
+
+## The file
 
 ```text
 runtime/ops/<name>.bend
@@ -14,6 +16,21 @@ runtime/ops/<name>.bend
   def main() -> IO(Unit): ...           # one fixture, print only
 ```
 
-Why Bend over a string-of-text procedure: it is typed, so one meaning; its laws are compiler-checked before execution; and a monoid-homomorphism law (`fold(xs ++ ys) == apply(fold xs, fold ys)`) is a proof the work can be split and combined in parallel. Bend owns the pure decision only — effects stay in the shell.
+## Run
 
-Worked example: `runtime/ops/fold.bend`.
+```sh
+bend runtime/ops/<name>.bend --check-only   # gate the laws
+bend runtime/ops/<name>.bend                # run the fixture
+```
+
+Discover by globbing `runtime/ops/*.bend` — the way skills are found by `**/SKILL.md`. No registry, driver or daemon.
+
+## Why Bend
+
+Typed, so one meaning; laws are compiler-checked before execution; and a monoid-homomorphism law (`fold(xs ++ ys) == apply(fold xs, fold ys)`) proves the work can be split and combined in parallel. Bend owns the pure decision; effects (worktree, subprocess, network, identity) stay in the shell.
+
+## Boundary
+
+An op never accepts, merges, pushes, publishes or resolves. A green checker is not acceptance and not a verified bundle.
+
+Worked example: `runtime/ops/fold.bend` — `--check-only` → `All terms check.`; bare run → `fixture 14` / `fixture_max 5`.
