@@ -39,6 +39,29 @@ revision ([SOP.md](./SOP.md), [HARNESS.md](../runtime/adaptive/HARNESS.md)).
 Reject means discard the branch and remove the worktree: an experiment that
 scored zero.
 
+A candidate may **auto-merge** once it is in a mergeable state: checks green on an
+up-to-date branch, one independent approving review, and no unresolved
+conversations. Native auto-merge is enabled per PR and pinned to the reviewed
+head (`gh pr merge <n> --auto --merge --match-head-commit <sha>`); a new commit
+re-runs checks and invalidates the stale review. Auto-merge lands the *reviewed
+state*; it is not self-approval and not acceptance. A reviewer identity and the
+check workflow are defined separately (native review and auto-merge; see
+`docs/AUTO_MERGE.md`). A green gate alone is never enough.
+
+## Guard
+
+`scripts/worktree-guard.sh` enforces the disposable half:
+
+```sh
+scripts/worktree-guard.sh status   # mark each worktree: stable / DISPOSABLE / active
+scripts/worktree-guard.sh guard .  # fail if the current worktree's branch already merged
+scripts/worktree-guard.sh prune 2  # remove clean, idle (>=2m) disposable worktrees
+```
+
+`guard` is the preflight that stops reuse of a merged worktree; it exits nonzero
+before any work starts. `prune` never touches the stable checkout or a worktree
+that is dirty or has writes in the last `MIN` minutes.
+
 ## Limits
 
 - A worktree is **not** a security boundary ([report](../artifacts/reports/2026-09-08-telepathy-labs-technical-report.md)).
