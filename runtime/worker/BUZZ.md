@@ -86,6 +86,12 @@ that arbitrary worker answers are correct.
 
 ## Use the existing Buzz harness and YAML
 
+For task and candidate review, use [native Buzz project PR review](../../docs/PROJECT_REVIEW.md).
+The inspected upstream workflow engine fails `request_approval` with
+`approval_not_supported`; CLI command availability is not evidence of an enforced
+approval gate. Do not deploy the historical JTBD YAML as automatic acceptance.
+Native PR reviews have separate commit/reviewer semantics, documented in the guide.
+
 Standard OpenCode provides `opencode acp` directly. On the inspected machine,
 `$HOME/.opencode/bin/opencode --version` returns **1.18.32**, while the Homebrew
 executable on PATH returns **1.14.20**. Select the intended executable explicitly:
