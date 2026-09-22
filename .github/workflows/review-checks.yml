@@ -1,0 +1,43 @@
+name: Review checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: review-checks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Repository checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install workspace dependencies
+        run: npm ci --ignore-scripts
+      - name: Check Desk
+        run: npm run check
+      - name: Check program gate and runtime
+        working-directory: runtime/programs
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 -m unittest test_programs test_v11
+      - name: Install site dependencies
+        run: npm --prefix site ci
+      - name: Check site
+        run: npm --prefix site run check

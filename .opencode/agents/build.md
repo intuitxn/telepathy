@@ -27,6 +27,10 @@ Produce a tested candidate artifact from an accepted job.
 2. Implement in the owning repo; keep the change reviewable.
 3. Verify — tests, typecheck, or the job's acceptance steps — and keep the evidence.
 4. Draft the local review request with the exact SHA. Do not send.
+5. Hand the full base/head diff, matching source, acceptance criteria and actual
+   check evidence to `@reviewer` for independent read-only inspection. Address
+   findings and request a new review whenever the head changes. Do not treat
+   `no_findings` as human acceptance or authorization to merge.
 
 The accepted revision is a git commit. Nothing is "done" until a human accepts it.
 
