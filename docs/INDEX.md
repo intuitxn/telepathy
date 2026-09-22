@@ -35,6 +35,8 @@ Both planes use one Job and artifact contract. The runtime stays below the produ
 - Meta-agent registry: [`plugins/telepathy-meta-agents/registry.json`](../plugins/telepathy-meta-agents/registry.json)
 - Agent directory + information-flow map: [`AGENT_DIRECTORY.md`](./AGENT_DIRECTORY.md)
 - Agent map: [`AGENT_MAP.md`](./AGENT_MAP.md)
+- Worktree lifecycle: [`WORKTREE_LIFECYCLE.md`](./WORKTREE_LIFECYCLE.md)
+- Draft (review only): [one self-contained Bend command vs the npm surface](./drafts/meta/one-file-bend-command.md)
 - Accepted activity: [`activity/`](../activity)
 - GitHub planning model: [`PROJECTS.md`](./PROJECTS.md)
 - Domain map: [`ORG.md`](./ORG.md)

@@ -11,6 +11,9 @@ For cross-harness worker coordination, use the packaged
 [Buzz's native memory and agent harness](../worker/BUZZ.md) provide the host
 facilities. The custom JavaScript runtime stack is retired; see
 [HARNESS.md](HARNESS.md) for the historical implementation and preserved state.
+For a draft analysis of the npm/Bend boundary and what this one-file program can
+and cannot own, see
+[drafts/meta/one-file-bend-command.md](../../docs/drafts/meta/one-file-bend-command.md).
 
 ## Run and reuse after restart
 
