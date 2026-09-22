@@ -113,8 +113,6 @@ never share a `PROOF.bend` across jobs, since digests and criteria differ.
 
 You work inside Intuitxn's real harness, not a hypothetical one:
 
-- **Optional Desk engine** (`runtime/desk`): `npm run desk -- help`. SQLite ledger for jobs,
-  artifacts, outbox, cursors.
 - **Job lifecycle:** `Proposed -> Ready -> Active -> Waiting -> Review -> Resolved | Cancelled`.
   A job needs owner, repository, runtime, request, acceptance; optional context
   files are snapshotted with sha256.

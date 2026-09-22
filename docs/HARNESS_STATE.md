@@ -5,21 +5,33 @@ accepted outcome; humans approve every entry. Checked facts only — mark uncert
 
 ## Current baseline — 2026-09-22
 
-Standard OpenCode executes directly or through native Buzz ACP. Bend owns local
-worker logic and explicit learn/correct transitions; Buzz holds selected shared
-findings. Desk is optional. No oc2 fork, custom plugin, fixed provider/model, or
-second managed service is required.
+Standard OpenCode executes directly or through native Buzz ACP; a checked Bend
+worker (`runtime/worker/`) owns local kernel logic and explicit learn/correct
+transitions; Buzz holds selected shared findings. The Desk engine (`runtime/desk`)
+was **retired 2026-09-22** — its npm workspace, `setup`/`doctor`/`desk`/`opencode`
+scripts and watch service were removed, and its history remains in git. The
+retired oc2 pilot (`runtime/opencode-v2`) and the custom `plugins/telepathy`
+integration were removed on the same date. No oc2 fork, custom plugin, fixed
+provider/model, or second managed service is required. The separate workspace
+service (`runtime/workspace`, `scripts/workspace-service.py`, port 4110) is
+retained for its own use and is not part of this retirement.
 
-Source verification: `npm run check` passed 12 tests at `c6e802f`; a native ACP
-initialize handshake returned OpenCode 1.18.32/protocol 1. CLI dispatch was tested
-with a fake executable (including configuration, worktree and failure behavior),
-not a fresh paid model task. See [the build plan](../runtime/adaptive/HARNESS.md)
+Source verification: root `npm run check` now runs `node scripts/check.mjs`. It
+guards the retirement (no `runtime/desk`, `scripts/desk-watch.sh`,
+`runtime/opencode-v2`, `plugins/telepathy`), verifies the retained runtime paths
+(`runtime/worker/`, `runtime/adaptive/`, `runtime/lorenz/`, the retained plugins
+and agent charters, `site/`, `activity/`) and the post-Desk root package shape,
+always runs the pure-Node evaluation test, and runs the Bend-backed checks when a
+Bend binary is available. The earlier `npm run check` = 12 desk tests figure is
+retired with the engine. A native ACP initialize handshake previously returned
+OpenCode 1.18.32/protocol 1. See [the build plan](../runtime/adaptive/HARNESS.md)
 for the remaining live demonstration and learning evaluation.
 
 The following September 8 deployment report and accepted lessons are historical.
 They do not establish that a watcher, provider, relay connection or credential
 boundary is working now. Preserve the observations; do not run their retired
-service recipes as current setup instructions.
+service recipes (Desk, `npm run setup`/`npm run doctor`, the oc2 node scripts) as
+current setup instructions.
 
 ## Historical deployment report — 2026-09-08
 
@@ -44,7 +56,7 @@ Proposed -> Ready -> Active -> Waiting -> Review -> Resolved | Cancelled
 Job JSON: `owner`, `repository`, `runtime` (`codex`|`opencode`), `request`, `acceptance`,
 optional `context` (repo-relative paths, sha256-snapshotted).
 
-## Current status (updated 2026-09-08)
+## Historical status — 2026-09-08 (retired Desk engine)
 
 | Piece | State |
 |---|---|
@@ -59,7 +71,7 @@ optional `context` (repo-relative paths, sha256-snapshotted).
 | Persistent runner | Running — launchd `com.intuitxn.telepathy-desk-watch` polls every 15s; auto-runs queued jobs; chat `accept` lands them |
 | Autonomous loop | Live — job `5046e555` went Buzz message -> queue -> Codex -> candidate reply -> chat accept -> commit `05afab1` -> pushed origin+buzz -> resolution reply, all unattended |
 
-## Open gaps
+## Historical open gaps — 2026-09-08
 
 1. (resolved) Watch loop runs as a launchd user agent on this Mac; identity comes from the Buzz environment export.
 2. (resolved) Code pushed to the relay repo — `main` at `2780de7`, repo bound to the telepathy channel.

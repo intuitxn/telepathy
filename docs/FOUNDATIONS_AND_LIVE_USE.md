@@ -2,6 +2,12 @@
 
 Verified on 2026-09-08. This is an engineering status and usage guide, not a team announcement.
 
+> Status update (2026-09-22): Desk (`runtime/desk`, `npm run desk`) was retired
+> 2026-09-22 and the oc2 fork/pilot (`runtime/opencode-v2`) is retired. The Desk
+> and oc2-node commands below are historical 2026-09-08 observations, not current
+> setup instructions. Retained execution is standard OpenCode + native Buzz ACP +
+> the checked Bend worker; the separate workspace service (port 4110) is retained.
+
 Telepathy is a team workspace for turning discussion into reviewed work. People share updates, decisions and questions; an explicit request can become a job; a local agent prepares a candidate; a human accepts the outcome. Labs distributes and runs the local agent infrastructure.
 
 ## What is live

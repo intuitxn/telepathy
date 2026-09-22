@@ -6,6 +6,13 @@
 [a2a-protocol.md](a2a-protocol.md). Historical M1–M8 federation work stays
 deferred until a real multi-node need.
 
+> Status update (2026-09-22): the oc2 fork/pilot (`runtime/opencode-v2`) and the
+> Desk engine (`runtime/desk`) were retired; the "Today" column in *What this
+> replaces today* names pre-retirement state. Retained execution is standard
+> OpenCode + native Buzz ACP + the checked Bend worker
+> (`runtime/adaptive/HARNESS.md`, `runtime/worker/`). The target design below is
+> unchanged.
+
 ## Goal
 
 Every product (forsee, telepathy, labs, meta) runs the **same agent pattern**:

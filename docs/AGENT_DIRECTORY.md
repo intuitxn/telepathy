@@ -18,6 +18,12 @@ Authority and status:
   agent and is not listed below.
 - Session identity is described by mechanism only. No session IDs, pubkeys,
   receipts, prompts, transcripts or job IDs appear in this document.
+- The Desk engine (`runtime/desk`), the oc2 pilot (`runtime/opencode-v2`) and the
+  custom `plugins/telepathy` integration were retired 2026-09-22; their history
+  remains in git. `runtime/desk` paths cited below are historical information-flow
+  records, not current command references. The retained execution path is standard
+  OpenCode + native Buzz ACP + the checked Bend worker
+  (`runtime/adaptive/HARNESS.md`, `runtime/worker/`).
 - This document is a draft. It creates no external effect and authorizes no
   publication, relay write, or commit.
 
@@ -30,12 +36,12 @@ Related: [`AGENT_MAP.md`](AGENT_MAP.md) · [`AGENT_ROLES.md`](AGENT_ROLES.md) ·
 
 | # | Canonical | Charter | JTBD | Mode | Runtime |
 |---|---|---|---|---|---|
-| A1.1 | `@telepathy` | `.opencode/agents/telepathy.md` | route | primary | opencode (desk optional) |
-| A1.2 | `@prime` | `.opencode/agents/prime.md` | propose, scope | subagent | desk |
-| A1.3 | `@build` | `.opencode/agents/build.md` | implement, verify | subagent | desk (codex or opencode) |
-| A1.4 | `@steward` | `.opencode/agents/steward.md` | resolve, project, learn | subagent | desk |
-| A1.5 | `@research` | `.opencode/agents/research.md` | research | subagent | desk |
-| A1.6 | `@relationships` | `.opencode/agents/relationships.md` | draft-external | subagent | desk |
+| A1.1 | `@telepathy` | `.opencode/agents/telepathy.md` | route | primary | opencode / Buzz ACP |
+| A1.2 | `@prime` | `.opencode/agents/prime.md` | propose, scope | subagent | opencode |
+| A1.3 | `@build` | `.opencode/agents/build.md` | implement, verify | subagent | opencode or codex |
+| A1.4 | `@steward` | `.opencode/agents/steward.md` | resolve, project, learn | subagent | opencode |
+| A1.5 | `@research` | `.opencode/agents/research.md` | research | subagent | opencode |
+| A1.6 | `@relationships` | `.opencode/agents/relationships.md` | draft-external | subagent | opencode |
 | A1.7 | `@bend-forge` | `.opencode/agents/bend-forge.md` | prove (Bend) | subagent | local Bend |
 | A1.8 | `@relay-keeper` | `.opencode/agents/relay-keeper.md` | infra health | subagent | local / host |
 | A1.9 | `@meta` | `.opencode/agents/meta.md` | orchestrate | primary | opencode |
@@ -101,7 +107,8 @@ artifact, resolves a job, publishes, or sends externally.
 
 **A1.8 `@relay-keeper`** — node networking and infra health (`.opencode/agents/relay-keeper.md:1-3`).
 - May: run read-only health checks (`python3 scripts/workspace-service.py status`,
-  `npm run doctor`, tunnel/port probes, route reads) (`:12-14`), read service logs
+  tunnel/port probes, route reads) (`:12-14`) — the retired `npm run doctor` check is
+  no longer part of the sweep — read service logs
   (`:15`), restart only the user-domain workspace service (`:16`), draft infra change
   proposals with rollback notes (`:17`).
 - Must not: publish, accept, resolve (`:21`), send externally (`:22`), touch
@@ -116,7 +123,7 @@ artifact, resolves a job, publishes, or sends externally.
 |---|---|---|---|---|
 | A2.1 | Telepathy peers | `sessionID`; display name `<agent>:<id8>` | `~/.config/opencode/telepathy/` | ephemeral coordination; registry disposable |
 | A2.2 | OpenCode server sessions | server-issued session ID | server `run/` + `logs/`, session store | live, disposable |
-| A2.3 | Desk job sessions | codex `thread_id`, or `opencode run` submission label | `.local/desk.sqlite` + `.local/jobs/<id>/` | job durable, worktree disposable |
+| A2.3 | Desk job sessions (retired 2026-09-22; historical) | codex `thread_id`, or `opencode run` submission label | `.local/desk.sqlite` + `.local/jobs/<id>/` | job durable, worktree disposable |
 | A2.4 | Bend worker snapshots | numeric event id within one snapshot lineage | caller-supplied private snapshot files | durable evidence, single writer |
 
 **A2.1 Telepathy peers.** A peer *is* a `sessionID`; its display name is
@@ -141,15 +148,17 @@ independently attachable agents; both register as telepathy peers
 state is live/disposable; durable knowledge belongs to the memory-store or the
 vault (`ARCHITECTURE.md:32-40`, `:150-152`).
 
-**A2.3 Desk job sessions.** `runtime/desk` runs one job per execution in a
-detached worktree. Codex records `event.thread_id` as `job.sessionID`
+**A2.3 Desk job sessions (retired 2026-09-22; historical).** `runtime/desk` ran one
+job per execution in a detached worktree. Codex records `event.thread_id` as
+`job.sessionID`
 (`runtime/desk/src/jobs.js:37`); the opencode path records
 `submission: 'opencode-run'` and a saved stdout/stderr instead (`jobs.js:43-56`,
 `:52`). Durable state is the SQLite ledger `.local/desk.sqlite` — tables `jobs`,
 `artifacts`, `outbox`, `cursors` (`runtime/desk/src/core.js:19-29`). The job folder
 `.local/jobs/<id>/` (worktree, `brief.md`, `result.md`, `events.jsonl`,
 `changes.patch`) is a disposable candidate (`jobs.js:15-22`, `:29`, `:57-60`;
-`docs/HARNESS_STATE.md:16`).
+`docs/HARNESS_STATE.md`). Desk was retired 2026-09-22; the retained job contract and
+execution path are `runtime/adaptive/HARNESS.md` and `runtime/worker/`.
 
 **A2.4 Bend worker snapshots.** The one-file Lorenz worker
 (`runtime/worker/system.bend`) keeps a single-writer immutable snapshot lineage:
@@ -170,7 +179,11 @@ session and is the record of truth) or **[ephemeral]** (transient coordination o
 a disposable candidate). The *store* column names where the hop's output lives.
 Ordering/dedupe rules are stated after each trajectory.
 
-### T1 — Human request → desk poll/ingest → job
+### T1 — Human request → relay intake → job (historical Desk poll/ingest)
+
+Historical: T1–T3 describe the retired Desk engine's information flow (`runtime/desk`,
+retired 2026-09-22). They are retained as records of the mechanism; the `file:line`
+citations point at code that is no longer in the tree.
 
 | Hop | Source → Sink | Store | Transition (file:line) | Lifetime |
 |---|---|---|---|---|
@@ -192,7 +205,7 @@ and relies on that unique constraint to deduplicate (`buzz.js:62-63`). Each
 channel keeps its own cursor (`cursors` table, `:53`, `:67`); a saturated page
 fails without advancing the cursor (`:59`).
 
-### T2 — Job → runtime session → candidate
+### T2 — Job → runtime session → candidate (historical Desk dispatch)
 
 | Hop | Source → Sink | Store | Transition (file:line) | Lifetime |
 |---|---|---|---|---|
@@ -334,7 +347,9 @@ engrams are attribution, not proof that a worker answer is correct
 ## Part C — Trajectories most worth observing
 
 Ranked by how much a single observation tells you about system health. Each
-names the signal it reveals.
+names the signal it reveals. Items 1–2 reference the retired Desk engine
+(`runtime/desk`, retired 2026-09-22); they are retained as historical signal
+descriptions.
 
 1. **T2.1 claim + T1.3 cursor/dedupe** — reveals duplicate execution and intake
    drift. Watching claim-once (`jobs.js:7`) and the `source` unique constraint
@@ -366,11 +381,19 @@ names the signal it reveals.
 Verification actually run while drafting this document (checkout
 `/Users/a3fckx/Desktop/Attri/telepathy-shared-learning`):
 
-- `npm run check` → `node --test runtime/desk/test/*.test.js`: **12 tests, 12
-  pass, 0 fail**. Covers intake/claim-once (`core.test.js:32`), worktree
-  isolation (`jobs.test.js:9`), review-gated accept (`jobs.test.js:20`), land
-  (`jobs.test.js:35`), accept matching (`jobs.test.js:53`), and the native
-  OpenCode CLI path (`opencode.test.js:10`).
+- (Historical, retired engine) `npm run check` → `node --test
+  runtime/desk/test/*.test.js`: **12 tests, 12 pass, 0 fail**. Covered
+  intake/claim-once (`core.test.js:32`), worktree isolation (`jobs.test.js:9`),
+  review-gated accept (`jobs.test.js:20`), land (`jobs.test.js:35`), accept
+  matching (`jobs.test.js:53`), and the native OpenCode CLI path
+  (`opencode.test.js:10`). Retired 2026-09-22 with `runtime/desk`.
+- Post-retirement replacement (2026-09-22): `npm run check` runs
+  `node scripts/check.mjs` against the retained runtime — retirement guard
+  (no `runtime/desk`, `scripts/desk-watch.sh`, `runtime/opencode-v2`,
+  `plugins/telepathy`), retention guard for the retained runtime paths, post-Desk
+  package guard, the pure-Node evaluation test
+  (`runtime/evaluation/workflow-transfer.test.mjs`), and the Bend-backed checks
+  when a Bend binary is available.
 - Worker source resolution and check:
   `BEND_NO_TELEMETRY=1 ~/.bend/bin/bend runtime/worker/system.bend --check-only`
   → `All terms check.`; `-- help` lists `worker`, `claim`, `packet`, `return`,

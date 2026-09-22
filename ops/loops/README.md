@@ -7,11 +7,16 @@ human hands. They surface REDs for human review; they never resolve anything.
 
 ### bend-forge-loop.sh (proposed cadence: every 60 min)
 
+> Status (2026-09-22): draft, not installed, not verified against the current
+> toolchain. It pins Bend 2.0.5, while the installed binary on this host reports
+> `bend 2.0.21` (`bend version`); the 2026-09-18 record below is historical and
+> does not assert current green gates. The loop is read-only and check-only.
+
 Re-runs the Bend proof gates exactly as the toolchain pins them
 (`runtime/programs/bend-laws/TOOLCHAIN.md`, Bend 2.0.5, absolute path
 `/Users/a3fckx/.bend/bin/bend` with `BEND_NO_TELEMETRY=1`):
 
-1. Toolchain pin: `bend --version` must print `bend 2.0.5`.
+1. Toolchain pin: `bend version` must print `bend 2.0.5`.
 2. Bare-file gates (there is no `bend check` in 2.0.5):
    - `runtime/programs/bend-laws/PROOF.bend` → expect `All terms check.`
    - `runtime/programs/retrieval/PROOF.bend` → expect `All terms check.`
@@ -29,9 +34,11 @@ Read-only infra health sweep. Nothing here restarts, installs, publishes,
 or touches credentials:
 
 1. `python3 scripts/workspace-service.py status` (status subcommand only).
-2. Doctor-equivalent checks that work without credentials:
-   `node runtime/desk/src/cli.js doctor`, plus bend/node/launcher presence
-   and read-only service-plist / state-dir observations.
+2. Toolchain presence checks that work without credentials: bend binary +
+   version, node version, `telepathy-program` launcher, and read-only
+   service-plist / state-dir observations. The retired Desk doctor sweep
+   (`node runtime/desk/src/cli.js doctor` / `npm run doctor`) was removed
+   2026-09-22 with the Desk engine.
 3. Read-only probes: loopback HTTP GET to `127.0.0.1:4110/api/health`
    (stdlib python, 5 s timeout) and one read-only HTTPS GET to the public
    URL's `/api/health` (10 s timeout; failure is `YELLOW` since tunnel-down
@@ -105,7 +112,17 @@ sh ops/loops/relay-keeper-loop.sh; echo "exit=$?"
   (`bend 2.0.5`), `bend-laws` (`All terms check.`). YELLOW ×3: all three
   `bend-gate` programs report `open` / `no_law` (no inline `bend-law`
   fences yet — informational).
+
+- Note (2026-09-22): the bend-forge record above was taken against Bend 2.0.5.
+  The installed binary on this host reports `bend 2.0.21` (via `bend version`), so
+  its toolchain-pin GREEN does not hold now. This draft sweep is not verified
+  against the current toolchain; the pin and the toolchain need reconciliation.
 - `relay-keeper-loop.sh` → exit 0. RED: service status (connection refused —
   workspace service not running) and loopback `:4110` probe (same cause).
   GREEN: doctor, bend binary, program launcher. YELLOW: public-URL probe and
   any absent plist/state observations, per the triage rule above.
+
+- Note (2026-09-22): the `doctor` check in the GREEN line above was removed from
+  `relay-keeper-loop.sh` with the Desk retirement; the remaining Bend/node/
+  launcher checks are unchanged. The workspace-service status check (port 4110)
+  and the read-only probes are retained.

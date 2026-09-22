@@ -30,7 +30,7 @@ jobs:
           python-version: '3.12'
       - name: Install workspace dependencies
         run: npm ci --ignore-scripts
-      - name: Check Desk
+      - name: Check retained runtime
         run: npm run check
       - name: Check program gate and runtime
         working-directory: runtime/programs

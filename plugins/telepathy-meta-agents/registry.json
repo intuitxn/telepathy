@@ -9,7 +9,7 @@
       "path": "/agents/prime",
       "status": "planned",
       "agentFile": ".opencode/agents/prime.md",
-      "runtime": "desk",
+      "runtime": "opencode",
       "jtbd": [
         "propose",
         "scope"
@@ -35,7 +35,7 @@
       "path": "/agents/build",
       "status": "planned",
       "agentFile": ".opencode/agents/build.md",
-      "runtime": "desk",
+      "runtime": "opencode",
       "jtbd": [
         "implement",
         "verify"
@@ -60,7 +60,7 @@
       "path": "/agents/steward",
       "status": "planned",
       "agentFile": ".opencode/agents/steward.md",
-      "runtime": "desk",
+      "runtime": "opencode",
       "jtbd": [
         "resolve",
         "project",
@@ -88,7 +88,7 @@
       "path": "/agents/research",
       "status": "planned",
       "agentFile": ".opencode/agents/research.md",
-      "runtime": "desk",
+      "runtime": "opencode",
       "jtbd": [
         "research"
       ],
@@ -112,7 +112,7 @@
       "path": "/agents/relationships",
       "status": "planned",
       "agentFile": ".opencode/agents/relationships.md",
-      "runtime": "desk",
+      "runtime": "opencode",
       "jtbd": [
         "draft-external"
       ],

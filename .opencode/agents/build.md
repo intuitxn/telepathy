@@ -65,9 +65,6 @@ evidence that the criteria are met; human acceptance is a separate recorded even
 Use the host's configured model; these charters do not pin a provider.
 The native path is standard OpenCode, Buzz and Bend:
 
-- **Optional Desk engine** (`runtime/desk`): `npm run desk -- help`. SQLite ledger for jobs,
-  artifacts, outbox, cursors. Commands: `job`, `run`, `show`, `poll`, `queue`,
-  `reply`, `send`, `new`, `review`, `export`.
 - **Runtimes:** use standard OpenCode directly, including its native `opencode acp`
   interface for Buzz. Codex is another configured worker option. No oc2 fork,
   beta build, or workspace service is required to execute a local task.
@@ -75,8 +72,8 @@ The native path is standard OpenCode, Buzz and Bend:
 - **Job lifecycle:** `Proposed -> Ready -> Active -> Waiting -> Review -> Resolved | Cancelled`.
   A job needs owner, repository, runtime, request, acceptance; optional context
   files are snapshotted with sha256.
-- **State stores:** Buzz relay (human requests, threads, acceptance), desk SQLite
-  at `.local/` (only for Desk-managed jobs), git (accepted revisions).
+- **State stores:** Buzz relay (human requests, threads, acceptance), the
+  telepathy-mailbox plugin (ephemeral agent coordination), git (accepted revisions).
 - **Boundary:** `runtime/AUTONOMY.md` governs execution and completion. Record
   verified completion separately from human acceptance; preserve publication authority.
 - **Learning:** after verified outcomes, `@steward` records evidence-backed lessons
@@ -86,12 +83,10 @@ The native path is standard OpenCode, Buzz and Bend:
 
 ## How execution runs
 
-For Desk-managed jobs, the desk engine claims your job and creates a detached
-worktree at the selected base
-revision, and runs Codex (sandboxed, `workspace-write`) or a standard OpenCode session
-there. It records the session, events, result, and `git diff`/status as evidence.
-For those jobs, work inside that worktree. Direct local work follows the owning
-repository's isolation rules without requiring a Desk job. Report changed
+Work in a detached Git worktree at the selected base revision, or directly in the
+owning repository following its isolation rules. Run a standard OpenCode session
+there; Codex (sandboxed, `workspace-write`) is another configured worker option.
+Record the session, result, and `git diff`/status as evidence. Report changed
 files, verification commands and outcomes, unresolved issues, and the exact
 candidate revision. State limits honestly — an unverified claim in your evidence
 is worse than no claim.

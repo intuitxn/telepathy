@@ -4,11 +4,11 @@
 # DOES (read-only; no credentials, no network writes, no restarts):
 #   1. Workspace service status via `python3 scripts/workspace-service.py status`
 #      (the status subcommand only; never install/restart).
-#   2. Doctor-equivalent checks that work without credentials:
-#      `node runtime/desk/src/cli.js doctor` (same as `npm run doctor`),
-#      plus toolchain presence (bend binary + version, node version,
-#      telepathy-program launcher) and read-only service plist / state-dir
-#      observations.
+#   2. Toolchain presence checks that work without credentials: bend binary +
+#      version, node version, telepathy-program launcher, and read-only service
+#      plist / state-dir observations. The retired Desk doctor sweep
+#      (`node runtime/desk/src/cli.js doctor` / `npm run doctor`) was removed
+#      2026-09-22 with the Desk engine.
 #   3. Tunnel/port probes, read-only: loopback TCP+HTTP GET to
 #      127.0.0.1:4110/api/health (stdlib python, 5s timeout) and one
 #      read-only HTTPS GET to the public URL's /api/health (10s timeout).
@@ -68,25 +68,16 @@ else
   bump_red
 fi
 
-# --- 2a. doctor (works without credentials) --------------------------------
-log "--- check: doctor"
-tmp="$(mktemp /private/var/folders/61/b705h_dd3_lggk6zs8jzcnx80000gn/T/relay-doctor-XXXXXX)"
-(node "$ROOT/runtime/desk/src/cli.js" doctor >"$tmp" 2>&1); code=$?
-cat "$tmp" >> "$OUT"
-last="$(tr -d '\n' < "$tmp" | cut -c1-300)"
-rm -f "$tmp"
-if [ "$code" -eq 0 ]; then
-  log "VERDICT GREEN doctor exit=$code :: $last"
-else
-  log "VERDICT RED doctor exit=$code :: $last"
-  bump_red
-fi
-
-# --- 2b. toolchain presence (no creds, no network) --------------------------
+# --- 2. toolchain presence (no creds, no network) ---------------------------
 log "--- check: toolchain presence"
 if [ -x /Users/a3fckx/.bend/bin/bend ]; then
-  BEND_VER="$(BEND_NO_TELEMETRY=1 /Users/a3fckx/.bend/bin/bend --version 2>&1)"
-  log "VERDICT GREEN bend-binary :: $BEND_VER"
+  BEND_VER="$(BEND_NO_TELEMETRY=1 /Users/a3fckx/.bend/bin/bend version 2>&1)"; code=$?
+  if [ "$code" -eq 0 ]; then
+    log "VERDICT GREEN bend-binary exit=$code :: $BEND_VER"
+  else
+    log "VERDICT RED bend-binary exit=$code :: $BEND_VER"
+    bump_red
+  fi
 else
   log "VERDICT RED bend-binary :: missing executable at /Users/a3fckx/.bend/bin/bend"
   bump_red

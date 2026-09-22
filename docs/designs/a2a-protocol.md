@@ -20,6 +20,10 @@ Reviewer: **Shubham**. See [native setup](../../runtime/worker/BUZZ.md).
 - Lorenz's local correctable snapshots and agent/owner-scoped NIP-AE engrams
   remain distinct. Shared content requires a selected audience and review;
   existing private snapshots and registry evidence have not been migrated.
+- The Desk engine (`runtime/desk`) and the retired oc2 pilot
+  (`runtime/opencode-v2`) were retired 2026-09-22; their history remains in git.
+  The oc2 paths, node scripts and M1–M8 material below are historical design
+  records, not current setup instructions.
 - Existing workspace service/tunnel state is preserved for its own use. Do not
   start a duplicate `:4110` service as an execution prerequisite. Its previous
   health observations are historical, not a current availability assertion.

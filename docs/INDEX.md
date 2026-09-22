@@ -4,7 +4,7 @@ Design records (check their dated implementation boundaries): [UX & AX — work 
 
 Telepathy is Intuitxn's human context layer and its family of focused meta-agent tools.
 
-Start with [the active harness and build plan](../runtime/adaptive/HARNESS.md) and [native setup](../runtime/worker/BUZZ.md). Historical services and optional Desk are not prerequisites.
+Start with [the active harness and build plan](../runtime/adaptive/HARNESS.md) and [native setup](../runtime/worker/BUZZ.md). Historical services and the retired Desk engine are not prerequisites.
 
 ## Two planes
 
@@ -18,7 +18,7 @@ Both planes use one Job and artifact contract. The runtime stays below the produ
 | Surface | Authority |
 |---|---|
 | Human action | Intent, review, acceptance, external sending |
-| Bend snapshots / optional Desk ledger | Local worker history / Desk jobs and artifacts; separate stores, not automatically merged |
+| Bend snapshots / retired Desk ledger (historical) | Local worker history / Desk jobs and artifacts; separate stores, not automatically merged |
 | Native Buzz ACP + OpenCode | Execution sessions; Agent Manager integration remains a proposal |
 | Git | Accepted code revisions and human-readable activity projection |
 | Telepathy UI | Human-relevant workspace and focused interfaces |
@@ -31,7 +31,7 @@ Both planes use one Job and artifact contract. The runtime stays below the produ
 - Product contract: [`PRODUCT.md`](../PRODUCT.md)
 - Team SOP: [`SOP.md`](../SOP.md)
 - Harness boundary: [`HARNESS.md`](../HARNESS.md)
-- Job implementation: [`runtime/desk/src/jobs.js`](../runtime/desk/src/jobs.js) (optional Desk)
+- Job/execution harness: [`runtime/adaptive/HARNESS.md`](../runtime/adaptive/HARNESS.md) · [`runtime/worker/`](../runtime/worker/) (checked Bend worker)
 - Meta-agent registry: [`plugins/telepathy-meta-agents/registry.json`](../plugins/telepathy-meta-agents/registry.json)
 - Agent directory + information-flow map: [`AGENT_DIRECTORY.md`](./AGENT_DIRECTORY.md)
 - Agent map: [`AGENT_MAP.md`](./AGENT_MAP.md)

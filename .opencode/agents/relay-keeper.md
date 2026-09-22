@@ -30,7 +30,7 @@ Do not turn a bounded task into an indefinite background loop.
 
 ## You may
 
-- Run read-only health checks: `python3 scripts/workspace-service.py status`, `npm run doctor`, tunnel and loopback port 4110 probes, node reachability and routing-table reads.
+- Run read-only health checks: `python3 scripts/workspace-service.py status`, tunnel and loopback port 4110 probes, node reachability and routing-table reads.
 - Read service logs to diagnose outages and slow paths.
 - Restart the user-domain workspace service via `scripts/workspace-service.py` (logged-in launchd domain only).
 - Draft infra change proposals (tunnel, snapshot, network config) with evidence and rollback notes.
@@ -45,7 +45,7 @@ Do not turn a bounded task into an indefinite background loop.
 
 ## Workflow
 
-1. Check first: service status, doctor, tunnel, port, then node routes — narrowest failing layer wins.
+1. Check first: service status, tunnel, port, then node routes — narrowest failing layer wins.
 2. Diagnose with logs and exact commands; record evidence (commit, digest, output hash), never transcripts or secrets.
 3. Record the fix and rollback; perform scoped reversible repair and restart only
    the workspace service when the authorized request concerns it. Verify health
@@ -53,8 +53,9 @@ Do not turn a bounded task into an indefinite background loop.
 
 ## The harness today
 
-Same harness as `@prime`: standard OpenCode directly (native `opencode acp` for Buzz), with Codex as another configured worker option. The optional desk engine (`npm run desk -- help`) records jobs; verified completion and human acceptance are distinct under
-`runtime/AUTONOMY.md`.
+Same harness as `@prime`: standard OpenCode directly (native `opencode acp` for
+Buzz), with Codex as another configured worker option. Verified completion and
+human acceptance are distinct under `runtime/AUTONOMY.md`.
 
 Existing optional infrastructure includes the workspace snapshot, user LaunchAgent,
 port 4110 and tunnel, with state under `~/.local/share/telepathy-workspace`.

@@ -1,6 +1,6 @@
 #!/bin/sh
 # Set up the Intuitxn programs on the Buzz relay: channels, NIP-MP projects, members,
-# canvases, shared-file notes, and the JTBD workflow.
+# canvases, and shared-file notes.
 #
 # The repo's programs/*.md and scripts/* are the source of truth; this script creates the
 # relay objects they describe. Idempotent: existing channels/projects are left alone,
@@ -121,15 +121,9 @@ while IFS='|' read -r name title tag path; do
   publish_note "$name" "$title" "$tag" "$path"
 done < "$script_dir/shared-files.list"
 
-# JTBD workflow on the telepathy channel (non-fatal: schema may need a first tweak)
-if [ -f "$script_dir/jtbd-workflow.yaml" ]; then
-  if "$buzz_bin" workflows create --channel "$t_channel" --yaml "$(cat "$script_dir/jtbd-workflow.yaml")" >/dev/null 2>&1; then
-    echo ""
-    echo "workflow jtbd created on channel telepathy"
-  else
-    echo "workflow create failed (check schema) — continuing; channels and projects are unaffected" >&2
-  fi
-fi
+# The JTBD workflow YAML was retired 2026-09-22: the inspected upstream engine
+# returns approval_not_supported for request_approval, and its steps were bound
+# to the retired Desk engine. Use native project PR review (docs/PROJECT_REVIEW.md).
 
 echo ""
 echo "Publish the telepathy code to the relay (run once, then push over NIP-98):"
@@ -138,6 +132,6 @@ echo "  git -C '$repo_dir' remote add buzz <relay>/git/<your-pubkey>/telepathy"
 echo "  git -C '$repo_dir' push -u buzz main"
 
 echo ""
-echo "Copy these into $repo_dir/.local/config.json (desk intake = program channels only):"
-echo "  \"channels\": [\"$t_channel\", \"$s_channel\", \"$i_channel\"],"
-echo "  \"authorizedPubkeys\": [\"$owner_pubkey\"$([ $# -gt 0 ] && printf ', \"%s\"' "$@")],"
+echo "The Desk intake config (.local/config.json channels) was retired 2026-09-22."
+echo "Configure the native host instead: connect Buzz to 'opencode acp' and use the"
+echo "Bend worker. See BUZZ_SETUP.md and runtime/worker/BUZZ.md."

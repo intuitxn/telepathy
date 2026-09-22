@@ -104,8 +104,6 @@ never spawn acceptors, mergers, or publishers.
 Use the host's configured model; these charters do not pin a provider.
 The native path is standard OpenCode, Buzz and Bend:
 
-- **Optional Desk engine** (`runtime/desk`): `npm run desk -- help`. SQLite ledger for jobs,
-  artifacts, outbox, cursors.
 - **Execution:** standard OpenCode directly, including native ACP for Buzz;
   no oc2 fork or workspace service is required to check or run Bend locally.
 - **Bend invocation:** always `BEND_NO_TELEMETRY=1

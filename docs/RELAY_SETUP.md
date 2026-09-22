@@ -2,6 +2,13 @@
 
 Setup verified on 2026-09-06, as recorded in the supplied relay setup report.
 
+**Historical record.** This document is a dated channel/setup snapshot, not a
+current operating guide. The Desk intake path it describes was retired
+2026-09-22 with the Desk engine; the channel UUIDs, project identifiers, and
+workflow ID are retained as historical evidence only. For the current setup use
+[BUZZ_SETUP.md](../BUZZ_SETUP.md) and the native
+[Buzz/Bend guide](../runtime/worker/BUZZ.md).
+
 ## Channels and members
 
 | Channel | UUID |
@@ -23,27 +30,18 @@ Channel canvases are set on telepathy, changelog, and shared-files.
 - Seven shared-file notes in the knowledge base: product, sop, changelog,
   agent-map, harness-state, meta-agent-registry, program-telepathy.
 
-## Desk intake
+## Desk intake — retired 2026-09-22
 
-The local desk reads the channel UUIDs in `.local/config.json` under `channels`;
-configure all six above for this setup. `authorizedPubkeys` controls whose
-requests can be imported. `npm run desk -- poll` reads each configured channel
-once; `npm run desk -- watch` repeats at the configured `pollSeconds` interval.
-Intake starts at `since`, then uses per-channel cursors with a one-second overlap
-and deduplicates by channel and source event ID.
+The Desk engine, its `poll`/`watch` intake, `.local/config.json` channel list,
+and the `/intuitxn ` request envelope were retired with `runtime/desk`. Their
+history remains in git. Do not run `npm run desk -- poll` or `npm run desk --
+watch`; those npm scripts no longer exist.
 
-A request starts with `/intuitxn ` followed by JSON, for example:
-
-```text
-/intuitxn {"request":"Update the onboarding guide","acceptance":"Guide covers all six channels and links resolve","repository":0,"runtime":"codex"}
-```
-
-`request` and `acceptance` are required. `repository` selects a zero-based entry
-in the configured repository list (default 0); optional `runtime` selects
-`codex` or `opencode`, otherwise the desk default applies. Ordinary conversation
-does not create jobs. Polling queues requests for an operator to run; it does
-not execute jobs or publish replies automatically. Candidates and checks still
-need human review and acceptance.
+Current coordination is native: use the Buzz relay for human context and accepted
+outcomes, and the native ACP/Bend worker for local execution, per
+[BUZZ_SETUP.md](../BUZZ_SETUP.md) and
+[runtime/worker/BUZZ.md](../runtime/worker/BUZZ.md). Agent work is verified
+separately from human acceptance.
 
 ## Repository context
 

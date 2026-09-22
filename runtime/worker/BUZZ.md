@@ -131,9 +131,13 @@ Use the existing host configuration; installing this document starts no daemon.
 
 `buzz workflows create/update` accepts YAML, while `trigger`, `runs`, and
 `approve` manage execution records and approvals. Inspect their `--help` before
-an authorized change. The repository's `scripts/jtbd-workflow.yaml` uses
-`send_message` and `request_approval`. Do not invent a workflow `shell` action:
-an ACP agent with process tools executes Bend and reports its observed evidence.
+an authorized change. The former repository workflow `scripts/jtbd-workflow.yaml`
+used `send_message` and `request_approval`; it was retired 2026-09-22 because the
+inspected upstream engine returns `approval_not_supported` for `request_approval`
+and its steps were bound to the retired Desk engine. Use native project PR review
+([docs/PROJECT_REVIEW.md](../../docs/PROJECT_REVIEW.md)) instead. Do not invent a
+workflow `shell` action: an ACP agent with process tools executes Bend and reports
+its observed evidence.
 
 ## Keep the storage boundaries explicit
 For a byte-pinned, independently checked kernel candidate and the native engram

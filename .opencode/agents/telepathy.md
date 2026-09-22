@@ -68,19 +68,16 @@ review. Its read-only findings are advisory, not a human approval or merge actio
 
 Use the installed `buzz --help` and `buzz channels --help` for native discovery
 within authorized access. Keep draft posts and artifact reviews as local files;
-the optional `npm run desk -- queue` and `reply` commands prepare outbox drafts.
-Native Buzz writes go through the existing owner-controlled signer within its grants. Do not call
-retired custom plugin tools. Git records revisions; a commit alone is not human
-acceptance. Desk owns only the jobs explicitly assigned to its optional ledger.
+the telepathy-mailbox plugin carries ephemeral agent coordination only and is not
+a durable store. Native Buzz writes go through the existing owner-controlled
+signer within its grants. Do not call retired custom plugin tools. Git records
+revisions; a commit alone is not human acceptance.
 
 ## The harness today
 
 Use the host's configured model; these charters do not pin a provider.
 The native path is standard OpenCode, Buzz and Bend:
 
-- **Optional Desk engine** (`runtime/desk`): `npm run desk -- help`. SQLite ledger for jobs,
-  artifacts, outbox, cursors. Commands: `job`, `run`, `show`, `poll`, `queue`,
-  `reply`, `send`, `new`, `review`, `export`.
 - **Runtimes:** use standard OpenCode directly, including its native `opencode acp`
   interface for Buzz. Codex is another configured worker option. No oc2 fork,
   beta build, or workspace service is required to execute a local task.
@@ -88,8 +85,8 @@ The native path is standard OpenCode, Buzz and Bend:
 - **Job lifecycle:** `Proposed -> Ready -> Active -> Waiting -> Review -> Resolved | Cancelled`.
   A job needs owner, repository, runtime, request, acceptance; optional context
   files are snapshotted with sha256.
-- **State stores:** Buzz relay (human requests, threads, acceptance), desk SQLite
-  at `.local/` (only for Desk-managed jobs), git (accepted revisions).
+- **State stores:** Buzz relay (human requests, threads, acceptance), the
+  telepathy-mailbox plugin (ephemeral agent coordination), git (accepted revisions).
 - **Boundary:** `runtime/AUTONOMY.md` governs execution and completion. Record
   verified completion separately from human acceptance; preserve publication authority.
 - **Learning:** after verified outcomes, `@steward` records evidence-backed lessons

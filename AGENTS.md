@@ -8,6 +8,6 @@ Use the original request, owner, acceptance criteria, sources and current decisi
 
 Code belongs in its application repository. Company writing belongs in artifacts, with evidence and review tracked separately. Drafts are not public announcements. Record agent verification separately from any actual named-human acceptance; human acceptance is not a prerequisite for routine internal completion. Keep actual sender identity distinct from the human who authorized publication.
 
-Use standard OpenCode with native Buzz ACP and the checked Bend worker; see runtime/adaptive/HARNESS.md for the active build plan. Desk is optional (`npm run desk -- help`). `npm run check` verifies Desk; Bend and the website have their own checks. The retired custom plugin is not loaded.
+Use standard OpenCode with native Buzz ACP and the checked Bend worker; see runtime/adaptive/HARNESS.md for the active build plan. The root `npm run check` runs `node scripts/check.mjs` for the retained runtime (kernels, the pure evaluator test, and Bend check-only when Bend is available); the website has its own check. The retired custom plugin is not loaded.
 
 Never put credentials, session transcripts or internal job metadata in public artifacts. Do not alter company goals or fabricate claims, customers, metrics or shipped features. Respect the publication authority given by the user for the exact destination and content.

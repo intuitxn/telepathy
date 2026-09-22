@@ -1,6 +1,9 @@
 #!/bin/sh
 # bend-forge-loop — unattended re-run of the Bend proof gates.
 #
+# Status: draft, not installed. Unaffected by the 2026-09-22 Desk retirement
+#   (no Desk dependency; read-only check-only Bend gates only).
+#
 # DOES (read-only + check-only):
 #   - Records repo HEAD (read-only), Bend version pin (expect bend 2.0.5).
 #   - Re-runs the bare-file gate `bend PROOF.bend` over
@@ -51,8 +54,11 @@ HEAD="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || printf 'unknown')"
 log "repo HEAD=$HEAD (read-only observation)"
 
 # --- toolchain pin -------------------------------------------------------
+# Draft pin: Bend 2.0.5. The installed binary on the 2026-09-22 host reports
+# `bend 2.0.21` (via `bend version`), so this draft gate is RED until the pin
+# or the toolchain is reconciled. `bend --version` is not accepted by 2.0.21.
 if [ -x "$BEND" ]; then
-  BEND_VER="$("$BEND" --version 2>&1)"
+  BEND_VER="$("$BEND" version 2>&1)"
   log "bend version: $BEND_VER"
   case "$BEND_VER" in
     "bend 2.0.5") log "VERDICT GREEN toolchain-pin :: $BEND_VER" ;;

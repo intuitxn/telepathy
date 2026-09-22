@@ -86,7 +86,7 @@ Gate inside `accept`: proof `pass` + candidate==reviewed==merged bytes + reviewe
 ## 4. Crew — who does what
 
 - **bend-forge** (`.opencode/agents/bend-forge.md`): does Bend defs/laws/`PROOF.bend` + gates with negative controls, one job per file. Never self-accepts, merges, tags, touches network/credentials, or sends externally.
-- **relay-keeper** (`.opencode/agents/relay-keeper.md`): does service/tunnel/port-4110/node-route health (`scripts/workspace-service.py status`, `npm run doctor`) + user-domain service restart on approved proposal. Never publishes, accepts, resolves, touches credentials/invites, rewires the network, or sends externally.
+- **relay-keeper** (`.opencode/agents/relay-keeper.md`): does service/tunnel/port-4110/node-route health (`scripts/workspace-service.py status`) + user-domain service restart on approved proposal. Never publishes, accepts, resolves, touches credentials/invites, rewires the network, or sends externally.
 
 Job lifecycle both assume: `Proposed -> Ready -> Active -> Waiting -> Review -> Resolved | Cancelled` (`HARNESS.md` §2). Agents draft; humans accept.
 
@@ -95,9 +95,9 @@ Job lifecycle both assume: `Proposed -> Ready -> Active -> Waiting -> Review -> 
 Per `forum/START_HERE.md`: request lives in a thread (`Result` + `Owner` + `Ready when` + `Context` + links); an operator turns an accepted request into a job; candidate comes back for review; human accepts the **exact** revision; reply **in the original thread** with accepted result + link + still-open items. Code → its repo, linked from thread. Writing → artifact, linked from thread.
 
 ```sh
-npm run desk -- help          # jobs, artifacts, Buzz drafts
-npm run check                 # runtime + plugin
-npm --prefix site run check   # website (separate)
+npm run check                                  # node scripts/check.mjs — retained runtime
+python3 scripts/workspace-service.py status    # workspace service health (optional infra)
+npm --prefix site run check                    # website (separate)
 ```
 
 Before writing: read `forum/WRITING.md`. Never put credentials, transcripts, or internal job metadata in an artifact; published `/p/` link quoted in the thread is the stable pointer, never a SQLite row id alone. Boundary: `AGENTS.md`.

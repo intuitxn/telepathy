@@ -3,6 +3,12 @@
 > Design proposal — no runtime changes. Owner review required. Date: 2026-09-18.
 > Extends: `SYSTEM.md` (§4 plan), `agentic-git.md` (§5 note semantics), `nudge-simplify.md` (§2.8 non-goals), `SHARED_PRODUCT.md` (learning loop).
 
+> Status update (2026-09-22): `runtime/desk` was retired 2026-09-22. The
+> `runtime/desk/src/jobs.js` citation in §5 is a historical design reference;
+> retained execution is standard OpenCode + native Buzz ACP + the checked Bend
+> worker (`runtime/adaptive/HARNESS.md`, `runtime/worker/`). The design body is
+> preserved.
+
 ## 0. Why
 
 The system records two kinds of claims today: structural proof (`bend` gate `pass`) and accountable acceptance (a named human on an exact revision). Quality — "was this response good?" — is deliberately unmeasured: receipts and review records carry `scoreStatus: not_evaluated` (`runtime/programs/cli.py`, `scripts/agit.py`), and `agentic-git.md` states that a score and a proof `pass` are *orthogonal claims recorded side by side*.
