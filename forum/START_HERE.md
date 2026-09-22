@@ -6,7 +6,7 @@ We use Buzz to share context and make decisions. We use our tools to turn that c
 
 1. **Discuss in a thread.** Say what changed, why it matters, and what you need. Link the relevant sources. Mention someone when they need to act.
 2. **Give work a clear finish.** Name the owner, the desired result, and how we will know it is ready. Keep follow-up context in the original thread.
-3. **Review the result.** Applications come back with a candidate change and checks. Writing comes back as a draft. Accept the exact version you reviewed, then share its outcome.
+3. **Verify the result.** Agents complete and check authorized work, fix failures, and retain supported learning. Human review applies when the task explicitly requires it or an action exceeds existing authorization; it is not a checkpoint for every internal step. See `runtime/AUTONOMY.md`.
 
 ## Where things go
 
@@ -26,7 +26,7 @@ Public writing is a deliberate output. A useful internal conversation can inform
 > **Ready when:** Reports open correctly on mobile, only reviewed reports appear, and the checks pass.
 > **Context:** Links to the current design and example reports.
 
-You can ask naturally in discussion. An operator turns an accepted request into a job. Automated intake uses the explicit format in the setup guide so ordinary discussion does not start work accidentally.
+You can ask naturally in discussion. A direct work request authorizes scoped execution; agents infer concrete checks and continue without requiring a second job-approval exchange. Automated unattended intake still uses the explicit format in the setup guide so ordinary discussion does not start work accidentally.
 
 ## Closing the loop
 
