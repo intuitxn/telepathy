@@ -341,7 +341,7 @@ def gate_blocks(law, proof, timeout_s=120):
         except subprocess.TimeoutExpired:
             return {'status': 'failed', 'reason': 'gate_timeout'}
         output = (completed.stdout + completed.stderr).strip()
-        if 'All terms check.' in output:
+        if completed.returncode == 0 and 'All terms check.' in output:
             return {'status': 'proven', 'output': output[-2000:]}
         if 'TODO' in output:
             return {'status': 'open', 'reason': 'open_laws', 'output': output[-2000:]}

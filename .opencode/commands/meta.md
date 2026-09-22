@@ -20,10 +20,10 @@ $ARGUMENTS
 
 Resolve the one-file Lorenz worker source as documented. Keep one coordinator
 writing its snapshot lineage. Use its worker, claim, packet, return and learn
-commands for worker state; do not replace that protocol with the separate
-shared-registry Lorenz core. When shared registry use is relevant, use its
-existing lifecycle before/after commands for bounded retrieval and selected
-outcomes. Delegate only concrete
+commands for worker state. For Buzz execution and retained findings, follow
+runtime/worker/BUZZ.md using the native harness and memory commands. The custom
+JavaScript lifecycle/registry stack is retired; do not recreate or invoke it.
+Delegate only concrete
 independent work authorized by the request, using available host tools or the
 native Bend OpenCode delivery to an existing local session. Evaluate returned
 work before closeout. Report exact evidence, source paths and outstanding work.

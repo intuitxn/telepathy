@@ -1,3 +1,6 @@
+# Historical design, not a working approval gate. Inspected upstream engine
+# returns approval_not_supported for request_approval (2026-09-22).
+# Use native project PR review: docs/PROJECT_REVIEW.md.
 name: jtbd
 description: Job To Be Done loop for Intuitxn programs — request, execute, accept, resolve
 trigger:

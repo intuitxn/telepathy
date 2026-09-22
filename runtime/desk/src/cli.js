@@ -5,7 +5,7 @@ import { spawn } from 'node:child_process';
 import { home, ROOT, config, store, get, list, createArtifact, approveArtifact, exportArtifact, newJob } from './core.js';
 import { queueMessage, sendMessage, poll, acceptEvents, notify, buzz } from './buzz.js';
 import { runJob, acceptJob, landJob } from './jobs.js';
-import { connect, cliPath, runtimeEnv } from './runtime.js';
+import { cliPath, runtimeEnv } from './runtime.js';
 import { checked } from './process.js';
 const [command = 'help', ...args] = process.argv.slice(2);
 const print = value => console.log(typeof value === 'string' ? value : JSON.stringify(value, null, 2));
@@ -13,7 +13,7 @@ const help = `intuitxn — discuss, build, write
 
 npm run setup                          Prepare this machine (preserves settings)
 npm run doctor                         Check installed tools and connections
-npm run opencode                       Open the shared runtime
+npm run opencode                       Open installed OpenCode
 npm run desk -- new report "Title"      Create a report/announcement/blog/proposal/writing draft
 npm run desk -- list                    List drafts and jobs
 npm run desk -- review ID "Reviewer"    Record review of the exact artifact text
@@ -29,7 +29,6 @@ npm run desk -- queue-artifact CHANNEL ID  Prepare the reviewed artifact for Buz
 npm run desk -- reply CHANNEL EVENT FILE  Prepare a forum reply without sending
 npm run desk -- show outbox ID          Review exact destination, content and digest
 npm run desk -- send ID DIGEST          Send that reviewed message once
-npm run desk -- stop                    Stop this workspace's OpenCode service
 
 Settings: .local/config.json. State: .local/ (private, ignored by Git).
 Public exports are files, not a deployment. No background job runs or messages are automatic.`;
@@ -43,21 +42,13 @@ async function main() {
   if (command === 'doctor') {
     const result = { settings: existsSync(join(home(), 'config.json')), buzzIdentity: Boolean(process.env.BUZZ_PRIVATE_KEY), buzzMembership: 'not checked' };
     for (const [name, cmd, flags] of [['node','node',['--version']],['codex','codex',['--version']],['opencode',cliPath(),['--version']],['buzz',process.env.BUZZ_BIN || 'buzz',['--help']]]) {
-      try { const text = await checked(cmd, flags); result[name] = name === 'buzz' ? 'installed' : text; } catch { result[name] = 'missing'; }
+      try { const text = await checked(cmd, flags, { env: runtimeEnv() }); result[name] = name === 'buzz' ? 'installed' : text; } catch { result[name] = 'missing'; }
     }
     if (result.buzzIdentity) { try { const channels = await buzz(['channels','list']); result.buzzMembership = Array.isArray(channels) ? `connected; ${channels.length} visible channels` : 'unexpected response'; } catch (e) { result.buzzMembership = e.message; } }
-    if (result.settings) {
-      const client = await connect(); await client.plugin.awaitActivation({ location: { directory: ROOT } });
-      result.health = await client.health.get();
-      result.agents = (await client.agent.list({ location: { directory: ROOT } })).data.map(a => a.id);
-      result.plugins = (await client.plugin.list({ location: { directory: ROOT } })).data.filter(p => p.id.includes('telepathy')).map(p => ({ id: p.id, state: p.state }));
-      if (!result.plugins.some(p => p.id === 'intuitxn.telepathy' && p.state.status === 'active')) process.exitCode = 1;
-      result.modelsAvailable = (await client.model.list({ location: { directory: ROOT } })).data.length;
-    }
     print(result); return;
   }
   if (command === 'stop') {
-    Object.assign(process.env, runtimeEnv()); const { Service } = await import('@opencode-ai/client/service'); await Service.stop(); return print('Workspace OpenCode service stopped.');
+    return print('No workspace-managed OpenCode service. Close the terminal or Buzz session that owns the process.');
   }
   const db = store();
   try {

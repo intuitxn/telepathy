@@ -1,0 +1,195 @@
+{
+  "artifact": "buzz-agent-registry.draft",
+  "status": "draft",
+  "registryVersion": "0.2.0-draft",
+  "date": "2026-09-22",
+  "purpose": "Optional persona-to-charter proposal; not another executable registry or a deployed identity map.",
+  "reviewRequired": "Confirm actual Buzz persona bindings and destination before applying any identity or membership change.",
+  "sourceSnapshotNote": "Canonical charter names replace historical aliases; native OpenCode is the active baseline. No per-persona execution or current membership has been verified.",
+  "fieldLegend": {
+    "proposed": "Draft pairing, including null when a persona or channel/tier is unconfirmed. Charter existence does not establish a live binding."
+  },
+  "sources": [
+    "docs/AGENT_MAP.md",
+    ".opencode/agents/",
+    "runtime/worker/BUZZ.md"
+  ],
+  "personaRows": [
+    {
+      "buzzPersona": {
+        "value": "Pollen",
+        "status": "proposed",
+        "source": "docs/AGENT_MAP.md"
+      },
+      "nodeAgents": {
+        "value": [
+          "@prime",
+          "@research"
+        ],
+        "status": "proposed",
+        "source": "docs/AGENT_MAP.md"
+      },
+      "jtbd": {
+        "value": [
+          "propose",
+          "scope",
+          "research"
+        ],
+        "status": "proposed",
+        "source": "docs/AGENT_MAP.md"
+      },
+      "runtime": {
+        "value": [
+          "opencode"
+        ],
+        "status": "proposed",
+        "source": "docs/AGENT_MAP.md"
+      },
+      "channelTier": {
+        "value": null,
+        "status": "proposed",
+        "source": "docs/AGENT_MAP.md"
+      }
+    },
+    {
+      "buzzPersona": {
+        "value": "Fizz",
+        "status": "proposed",
+        "source": "docs/AGENT_MAP.md"
+      },
+      "nodeAgents": {
+        "value": [
+          "@build"
+        ],
+        "status": "proposed",
+        "source": "docs/AGENT_MAP.md"
+      },
+      "jtbd": {
+        "value": [
+          "implement",
+          "verify"
+        ],
+        "status": "proposed",
+        "source": "docs/AGENT_MAP.md"
+      },
+      "runtime": {
+        "value": [
+          "opencode"
+        ],
+        "status": "proposed",
+        "source": "docs/AGENT_MAP.md"
+      },
+      "channelTier": {
+        "value": null,
+        "status": "proposed",
+        "source": "docs/AGENT_MAP.md"
+      }
+    },
+    {
+      "buzzPersona": {
+        "value": "Honey",
+        "status": "proposed",
+        "source": "docs/AGENT_MAP.md"
+      },
+      "nodeAgents": {
+        "value": [
+          "@steward"
+        ],
+        "status": "proposed",
+        "source": "docs/AGENT_MAP.md"
+      },
+      "jtbd": {
+        "value": [
+          "resolve",
+          "project",
+          "learn"
+        ],
+        "status": "proposed",
+        "source": "docs/AGENT_MAP.md"
+      },
+      "runtime": {
+        "value": [
+          "opencode"
+        ],
+        "status": "proposed",
+        "source": "docs/AGENT_MAP.md"
+      },
+      "channelTier": {
+        "value": null,
+        "status": "proposed",
+        "source": "docs/AGENT_MAP.md"
+      }
+    },
+    {
+      "buzzPersona": {
+        "value": null,
+        "status": "proposed",
+        "source": "docs/AGENT_MAP.md"
+      },
+      "nodeAgents": {
+        "value": [
+          "@telepathy"
+        ],
+        "status": "proposed",
+        "source": "docs/AGENT_MAP.md"
+      },
+      "jtbd": {
+        "value": [
+          "route"
+        ],
+        "status": "proposed",
+        "source": "docs/AGENT_MAP.md"
+      },
+      "runtime": {
+        "value": [
+          "opencode"
+        ],
+        "status": "proposed",
+        "source": "docs/AGENT_MAP.md"
+      },
+      "channelTier": {
+        "value": null,
+        "status": "proposed",
+        "source": "docs/AGENT_MAP.md"
+      }
+    },
+    {
+      "buzzPersona": {
+        "value": null,
+        "status": "proposed",
+        "source": "docs/AGENT_MAP.md"
+      },
+      "nodeAgents": {
+        "value": [
+          "@relationships"
+        ],
+        "status": "proposed",
+        "source": "docs/AGENT_MAP.md"
+      },
+      "jtbd": {
+        "value": [
+          "draft-external"
+        ],
+        "status": "proposed",
+        "source": "docs/AGENT_MAP.md"
+      },
+      "runtime": {
+        "value": [
+          "opencode"
+        ],
+        "status": "proposed",
+        "source": "docs/AGENT_MAP.md"
+      },
+      "channelTier": {
+        "value": null,
+        "status": "proposed",
+        "source": "docs/AGENT_MAP.md"
+      }
+    }
+  ],
+  "additionalCharters": [
+    "@bend-forge",
+    "@relay-keeper"
+  ],
+  "identityNotice": "Resolve current identities through authorized native Buzz reads. Do not use truncated historical public keys as configuration. Signing stays owner-controlled, outside execution processes; isolation still needs verification."
+}

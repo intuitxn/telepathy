@@ -2,7 +2,11 @@
 
 Telepathy is Intuitxn's shared human context layer.
 
-**Working setup:** `npm ci && npm run setup`, then `npm run doctor`. Read the [setup guide](./BUZZ_SETUP.md), [forum start page](./forum/START_HERE.md), and [company writing guide](./forum/WRITING.md). The local Desk supports durable jobs, reviewed writing and explicit Buzz delivery alongside the website alpha.
+**Working setup:** use installed OpenCode directly (`opencode` or `opencode run "task"`), or connect Buzz to its native `opencode acp` command. Bend owns the local worker state; Buzz supplies coordination and memory. Follow the [Buzz/Bend guide](runtime/worker/BUZZ.md). No oc2 fork, custom plugin, SDK service, or npm setup is required for that path.
+
+The existing Desk remains optional for its local jobs and writing records (`npm ci && npm run setup`, then `npm run doctor`). Its OpenCode jobs now use the installed CLI and normal provider configuration; `OPENCODE_BIN` selects an explicit executable if multiple versions are installed. Previous profiles and stored records are preserved. Read the [setup guide](./BUZZ_SETUP.md), [forum start page](./forum/START_HERE.md), and [company writing guide](./forum/WRITING.md).
+
+The [active build plan](runtime/adaptive/HARNESS.md#what-the-system-should-build-toward) defines how findings become reusable, corrected, independently evaluated improvements.
 
 **Live internal-alpha preview:** <https://intuitxn.github.io/telepathy/>
 
@@ -39,9 +43,10 @@ These boundaries are tracked in the [Telepathy GitHub Project](https://github.co
 
 ```text
 site/                human communication product
-packages/harness/    internal job, artifact, and runtime contracts
-agents/              hidden runtime charters
-plugins/             integration boundary
+runtime/worker/      one-file Bend worker logic and independent checks
+runtime/desk/        optional local jobs and writing records
+.opencode/agents/    native OpenCode role charters
+plugins/             declarative catalog and historical integrations
 ```
 
 Read [PRODUCT.md](./PRODUCT.md) for the product contract, [SOP.md](./SOP.md) for the team operating model, and [CHANGELOG.md](./CHANGELOG.md) for release history.

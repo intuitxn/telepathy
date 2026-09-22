@@ -2,15 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync, rmSync, copyFileSyn
 import { join, resolve, dirname } from 'node:path';
 import { get, put, home, now, hash, confined } from './core.js';
 import { checked, execute } from './process.js';
-import { forkEnv, FORK_BIN, DEFAULT_FORK_MODEL } from './runtime.js';
-export function resultText(messages) {
-  for (const message of [...messages].reverse()) {
-    if (message.type !== 'assistant') continue;
-    const text = (message.content || []).filter(part => part.type === 'text').map(part => part.text).join('\n');
-    if (text.trim()) return text;
-  }
-  throw Error('OpenCode completed without a text result; inspect the saved session');
-}
+import { cliPath, runtimeEnv } from './runtime.js';
 export function claim(db, id) {
   const result = db.prepare("UPDATE jobs SET state='running' WHERE id=? AND state='queued'").run(id);
   if (result.changes !== 1) throw Error('Job is already claimed or is not queued; inspect it before retrying');
@@ -49,14 +41,15 @@ export async function runJob(db, id, cfg, { executor } = {}) {
       if (!existsSync(final)) throw Error('Codex returned no final result');
       output = readFileSync(final, 'utf8');
     } else {
-      // opencode runtime: run the oc2 fork binary headlessly with the canonical
-      // work profile (its opencode-go provider is authenticated and executes;
-      // the upstream beta's free zen models are interactive-only).
-      const model = cfg.model || DEFAULT_FORK_MODEL;
-      const result = await execute(FORK_BIN, ['run', '-m', model, prompt], {
-        cwd: worktree, env: forkEnv(), timeout: cfg.timeoutSeconds * 1000,
+      const model = cfg.model || null;
+      if (model !== null && typeof model !== 'string') throw Error('OpenCode model must be a provider/model string or null to use native configuration');
+      const args = ['run', ...(model ? ['-m', model] : []), prompt];
+      const result = await execute(cliPath(), args, {
+        cwd: worktree, env: runtimeEnv(), timeout: cfg.timeoutSeconds * 1000,
       });
-      job = put(db, 'jobs', { ...job, model, submission: 'fork-run' });
+      writeFileSync(join(folder, 'stdout.log'), result.stdout);
+      writeFileSync(join(folder, 'stderr.log'), result.stderr);
+      job = put(db, 'jobs', { ...job, model, submission: 'opencode-run' });
       if (result.code !== 0) throw Error(`opencode exited ${result.code}; inspect the job folder`);
       output = result.stdout.trim();
       if (!output) throw Error('opencode returned no text result; inspect the job folder');

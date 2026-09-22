@@ -1,10 +1,45 @@
-> Implementation update (2026-09-08): M2 network configuration is implemented. Live Codex and Buzz tool calls passed. The running node inherits a Buzz identity; the no-key assertion below is not true for this host. See [current verification and limits](../FOUNDATIONS_AND_LIVE_USE.md).
+# Mundus baseline and historical A2A design
 
-> Design proposal — not shipped. Prepared by an agent design pass on 2026-09-08.
-> Every fact in section 0 was verified live (probes, exact outputs). Marked guesses are in section 6.
-> Milestones M1–M8 are ordered and independently testable. Owner review required before any milestone starts.
+## Active baseline — 2026-09-22
 
-# A2A Protocol Design — oc2 / Telepathy Agent Runtime Stack
+Use **standard OpenCode directly**, its native `opencode acp` interface with
+Buzz's existing harness, native Buzz memory/workflow YAML, and checked Bend
+cores. No oc2 fork, beta build, additional agent manager, custom learning
+service, or port 4110 workspace service is required for local execution.
+Reviewer: **Shubham**. See [native setup](../../runtime/worker/BUZZ.md).
+
+- Buzz provides existing identity, relay coordination and selected engrams;
+  OpenCode provides execution and ACP; Bend provides local kernel/worker state.
+  Use those interfaces before adding a missing-operation adapter. Do not recreate
+  the retired registry or add Nostr signing inside Bend.
+- Publication remains **draft → Shubham reviews the exact payload/revision →
+  owner-controlled signer sends**. Keyless execution is a target invariant,
+  not a demonstrated deployment guarantee: the September 8 audit found inherited
+  Buzz identity in its node. Do not inject signing keys into workers to make
+  this integration work. Public verification and signing-key custody differ.
+- Lorenz's local correctable snapshots and agent/owner-scoped NIP-AE engrams
+  remain distinct. Shared content requires a selected audience and review;
+  existing private snapshots and registry evidence have not been migrated.
+- Existing workspace service/tunnel state is preserved for its own use. Do not
+  start a duplicate `:4110` service as an execution prerequisite. Its previous
+  health observations are historical, not a current availability assertion.
+- The oc2 **M1–M8 roadmap below is historical optional federation design**,
+  not the active implementation sequence. Directory bridges, new network-intent
+  schemas and Lamport clocks are deferred until an actual multi-node requirement
+  warrants them. No such federation is claimed here. A lower Lamport timestamp
+  alone would not prove that one event caused another.
+
+## Historical proposal and verification — 2026-09-08
+
+The remainder preserves the old oc2 proposal, probes and rollout options for
+reference. Its host versions, outages, paths, milestones and claims of live
+service are dated observations; do not treat them as installation requirements
+or current runtime status. Owner review was required before those milestones.
+
+> Historical update: M2 network configuration was implemented and live Codex
+> and Buzz tool calls passed on the audited host. Its node inherited a Buzz
+> identity, overriding the no-key assertion later in the proposal. See
+> [the historical verification and limits](../FOUNDATIONS_AND_LIVE_USE.md).
 
 **File:** `/Users/a3fckxmini/agent-workspaces/a2a-protocol-design.md`
 **Date:** 2026-09-08 · **Author:** research agent (child of harness session)
@@ -320,6 +355,12 @@ Proposed mapping (from the pairing table, currently dormant-by-decision):
 | Honey | @ledger | resolve, project, learn | opencode |
 | (no persona) | @telepathy | route | opencode |
 | (no persona) | @diplomat | draft-external | opencode |
+
+> **Canonical names (2026-09-22):** the live charters are
+> `.opencode/agents/{prime,build,steward,research,relationships,telepathy,bend-forge,relay-keeper}.md`.
+> Map this historical table `@atlas`→`@prime`, `@scout`→`@research`, `@forge`→`@build`,
+> `@ledger`→`@steward`, `@diplomat`→`@relationships`; `@pilot` has no charter.
+> See [AGENT_MAP.md](../AGENT_MAP.md).
 
 Mapping rule: **buzz pubkey → human profile is the relay's truth; persona → node agent is local data (charters + nodes.ts); node agent → buzz identity is an owner-admitted binding** (one node keypair per machine, keys never leave machines — same rule as today's owner-admitted Nest identities).
 

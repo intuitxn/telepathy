@@ -10,6 +10,7 @@ fallback, no external package.
  """
 import asyncio
 import os
+from pathlib import Path
 import sys
 import tempfile
 import unittest
@@ -196,6 +197,15 @@ class LegacyRejected(unittest.TestCase):
 
 
 class RunnerAndGate(unittest.TestCase):
+    def test_failed_checker_cannot_report_proven(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            binary = Path(scratch) / 'bend'
+            binary.write_text('#!/bin/sh\necho "All terms check."\nexit 1\n')
+            binary.chmod(0o755)
+            with patch.dict(os.environ, {'BEND_BINARY': str(binary)}):
+                verdict = cli.gate_blocks('law x:\n  {1n == 1n : Nat}\n', None)
+            self.assertEqual(verdict['status'], 'failed')
+
     def test_bend_gate_open_without_law(self):
         result = cli.bend_gate('lesson-proposal')
         self.assertEqual(result['status'], 'open')

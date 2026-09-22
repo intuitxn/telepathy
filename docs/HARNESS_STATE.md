@@ -3,6 +3,26 @@
 The verified state of Intuitxn's job harness. Ledger updates this file after every
 accepted outcome; humans approve every entry. Checked facts only — mark uncertainty as such.
 
+## Current baseline — 2026-09-22
+
+Standard OpenCode executes directly or through native Buzz ACP. Bend owns local
+worker logic and explicit learn/correct transitions; Buzz holds selected shared
+findings. Desk is optional. No oc2 fork, custom plugin, fixed provider/model, or
+second managed service is required.
+
+Source verification: `npm run check` passed 12 tests at `c6e802f`; a native ACP
+initialize handshake returned OpenCode 1.18.32/protocol 1. CLI dispatch was tested
+with a fake executable (including configuration, worktree and failure behavior),
+not a fresh paid model task. See [the build plan](../runtime/adaptive/HARNESS.md)
+for the remaining live demonstration and learning evaluation.
+
+The following September 8 deployment report and accepted lessons are historical.
+They do not establish that a watcher, provider, relay connection or credential
+boundary is working now. Preserve the observations; do not run their retired
+service recipes as current setup instructions.
+
+## Historical deployment report — 2026-09-08
+
 ## What the harness is
 
 - **Buzz relay** (`wss://intuitxn.communities.buzz.xyz`): human context layer — requests,

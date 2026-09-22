@@ -1,4 +1,4 @@
-# Native Lorenz worker core
+# Mundus Bend kernel: native Lorenz worker protocol
 
 `system.bend` packages the other development checkout's one-file Lorenz worker
 implementation without changing it. SHA-256:
@@ -31,8 +31,9 @@ reuse in a subsequent packet read by a fresh Bend process. Parent and child
 model costs are recorded separately. This demonstrates protocol execution;
 it does not measure an independent second LLM improving from that memory.
 
-Use [/meta agents](../adaptive/META.md) from OpenCode or follow the same protocol
-from Codex. One coordinator owns each immutable snapshot lineage. Workers perform
+Use [Buzz native memory and agents](BUZZ.md), [/meta agents](../adaptive/META.md)
+from OpenCode, or follow the same protocol from Codex. No custom JavaScript
+runtime adapter is needed. One coordinator owns each immutable snapshot lineage. Workers perform
 concrete authorized tasks in their host harness and return evidence; the
 coordinator evaluates results before explicitly selecting memories with `learn`.
 The runtime does not itself judge those results or train model weights.
@@ -42,9 +43,8 @@ atomic; there are no distributed locks, globally exclusive claims across forks,
 authenticated actor labels, or automatic snapshot merge. An HTTP 204 acknowledges
 delivery, not completion. An ambiguous timeout must not trigger blind retry.
 
-This packaged worker is separate from the registry's `adaptive-max` and
-`lorenz-memory` contracts. Do not admit this source under either contract.
-Shared-registry lifecycle outcomes can accompany worker work, but live snapshots
-are not synchronized by signed bundle publication. Registering a dedicated worker
-evaluator is future work if worker-source publication through that registry is
-needed; Git already distributes this source and its protocol tests.
+The previous JavaScript registry is retired; its data and historical receipts
+remain preserved. Buzz memory holds selected findings, while native Bend
+snapshots hold explicit local transitions. Neither mechanism automatically
+merges snapshot branches. Source and tests are distributed through Git; check
+the actual source and relevant examples before claiming executable verification.

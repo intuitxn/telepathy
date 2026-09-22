@@ -3,6 +3,36 @@
 This is agent-authored project memory, not a training update or a proof receipt.
 Read it before proposing changes; recheck claims against the current source.
 
+## Current direction: Buzz native, Bend executable logic
+
+The user chose Buzz's existing memory, ACP agent harness and ordinary workflow
+DSL instead of an additional JavaScript runtime. The custom registry, lifecycle,
+sync, maintenance and delegation code is now retired. Use
+[BUZZ.md](../worker/BUZZ.md) and direct Bend commands. Offline test/scoring tools
+remain available; this is not a rewrite of Buzz itself into Bend.
+
+The installed Buzz 0.5.23 exposes `mem ls/get/set/hash/patch/rm`; its ACP harness
+injects core memory by default. Other slugs require explicit retrieval. Bend
+checks the kernel and owns explicit local dependency/correction semantics; a
+Buzz engram is a stored finding, not automatic independent verification.
+
+Existing signed bundles, private snapshots and the learning branch are preserved,
+not migrated or erased. The old implementation is recoverable at
+`d7a6c7b0930f6d91b691e58df84b775479380c0d`; see [HARNESS.md](HARNESS.md).
+The remaining sections are historical findings from those specific experiments,
+including superseded runtime instructions. They do not claim the retired
+JavaScript services are still available in this checkout.
+
+The A2A M1–M8 plan is historical, deferred federation work, not a prerequisite.
+The active build sequence is in [HARNESS.md](HARNESS.md). Target boundary: Bend owns local
+state/flow and unsigned intents; the existing Buzz signer handles reviewed
+publication. Reviewer: Shubham. Lamport rules are present in the separate oc2
+sync layer, but not wired to Mundus; typed network events are not implemented.
+The local workspace service health probe on port 4110 returned connection
+refused during this cleanup. The September 8 deployment audit also contradicted
+the desired no-key-in-node rule by finding an inherited Buzz identity. Neither
+service availability nor credential isolation was repaired or verified here.
+
 ## Findings retained from development
 
 - First-item selection fails on `[1,2]`: observed 1, expected maximum 2.

@@ -6,13 +6,11 @@ evidence, compatible-block lookup, native file persistence, and reporting.
 Bend 2.0.21 and its Base library are runtime dependencies; Git is an external
 recording tool. There is no Python host.
 
-`registry.mjs` is the external verification/storage adapter described in
-[SHARED.md](SHARED.md); its process and filesystem operations are not Bend proofs.
-
 For cross-harness worker coordination, use the packaged
 [one-file Lorenz worker](../worker/README.md) through [/meta agents](META.md).
-The [operations guide](OPERATIONS.md) covers health checks, recovery, safe
-scratch cleanup, key rotation, and another-machine bootstrap.
+[Buzz's native memory and agent harness](../worker/BUZZ.md) provide the host
+facilities. The custom JavaScript runtime stack is retired; see
+[HARNESS.md](HARNESS.md) for the historical implementation and preserved state.
 
 ## Run and reuse after restart
 
@@ -36,7 +34,7 @@ this is not dynamic loading of arbitrary code. Replay also recomputes evidence
 for validation; it is not a cached inference speedup.
 
 Native file reads decode UTF-8: comparison checks decoded text, not raw bytes.
-The external SHA256 evidence snapshot supplies byte-level binding.
+An independently measured SHA256 source digest supplies byte-level binding.
 Always supply the executing source as SOURCE. Base cannot independently attest
 that the supplied path is the running program. Records are untrusted,
 single-writer local files: there are no locks, atomic replacement, or fsync
@@ -59,13 +57,9 @@ appear. Other machines need this checkout (including the skill and source)
 and the Bend toolchain; the local link does not distribute files or evidence.
 This is an instruction workflow, not an enforced hook or a network service.
 
-The [shared registry adapter](SHARED.md) adds explicit admission, retrieval,
-and bundle transfer with fresh Bend checks. Its gate applies to registry
-admission; it does not intercept all Codex edits.
-
-The registry now dispatches this `adaptive-max` core and the separate
-[`lorenz-memory` core](../lorenz/README.md). It supports bounded lexical
-retrieval, payload deduplication, revocation, and signed Git synchronization.
+This adaptive example and the separate [memory-only core](../lorenz/README.md)
+remain available for reproducing prior experiments. The current worker path
+uses direct Bend commands and Buzz native memory, without a Node service.
 The [transfer experiment](../evaluation/README.md) measures reuse on new inputs
 with no-memory and always-exact controls; it does not establish LLM learning.
 
@@ -122,8 +116,8 @@ program. No network synchronization or public publication is enabled.
 ## Scope
 
 See [retained findings and next experiments](LEARNING.md) for the project memory,
-the distinction between runtime selection and session knowledge, and the steps
-still needed for a shared verified registry.
+the distinction between runtime selection and session knowledge, and historical
+experiments with the now-retired shared registry.
 
 Coding agents authored the algorithms and proofs during development. Runtime
 learning remains bounded selection from those implementations. Persisted
