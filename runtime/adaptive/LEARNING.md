@@ -89,10 +89,12 @@ did not expose that separately managed command during this trial.
    separate; extract specific claims with supporting evidence.
 2. Extend the implemented core-specific admission/evaluators as new contracts
    become available. Preserve independent checks and counterexamples.
-3. Scale the implemented lexical retrieval beyond full registry scans, preserving
-   core compatibility and exact-revision filtering.
-4. Extend the implemented signed Git synchronization with publisher roles and
-   key rotation, operational monitoring, and managed retention if needed.
+3. Retrieval now retains only the best bounded results and avoids building a
+   full narrative vocabulary per entry. It still hashes every eligible bundle;
+   a persistent index must not hide corruption in an unselected record.
+4. Key rotation, read-only health checks, lock-aware scratch cleanup and recovery
+   guidance are implemented in maintenance.mjs and OPERATIONS.md. Publisher roles,
+   scheduled monitoring and destructive evidence retention remain separate work.
 5. Evaluate agent learning on new tasks: compare a fresh agent against one given prior
    evidence at equal resource budgets. Measure correctness, cost, reuse, and
    regressions. Keep evaluation tasks independent of selection decisions.
@@ -102,6 +104,34 @@ The executable algorithm, selection rules, and expressible laws can stay in
 external dependencies. Current Base does not supply the subprocess/Git and
 transactional storage facilities needed to implement that entire boundary
 inside the existing one-file program.
+
+## Worker integration and operational findings
+
+The native worker implementation is now packaged in `runtime/worker/system.bend`.
+Its 78 named laws pass Bend 2.0.21 checking. Independent fresh-process tests cover
+claim ownership, rejected duplicate/wrong-worker returns, explicit learning,
+later memory retrieval and transitive invalidation after correction. A local
+HTTP test exercises native packet delivery, quoted data, receipt reuse rejection
+and failed acknowledgement without creating learned memory. These checks prove
+neither arbitrary worker answers nor authenticated worker identity.
+
+`/meta agents` is discoverable in fresh OpenCode contexts from both the checkout
+and an unrelated directory. The command resolves its installed symlink to the
+packaged source. It is an instruction workflow, not an enforced lifecycle hook.
+The first live attempt timed out after guessing the wrong Bend checker syntax;
+the instructions now give the exact `FILE --check-only` invocation. Preserve
+this operational failure rather than counting command discovery as execution.
+The corrected live command completed in 178.256 seconds and a fresh Bend process
+retrieved the learned result in a second task packet. Six independent checks
+passed; `runtime/worker/meta-trial.json` preserves both attempts and their scope.
+
+Doctor found all 11 accepted/staged bundle instances intact and the configured
+signing key healthy. Compaction linked 65 duplicate payloads, reporting 700397
+bytes of duplicate storage removed, with zero evidence or failures deleted.
+Scratch cleanup found no eligible expired directories. Key rotation was tested
+on temporary registries; the live publisher key was deliberately not rotated.
+Another physical machine has not been connected; the documented bootstrap and
+local separate-registry tests do not establish that deployment.
 
 ## Session closeout procedure
 

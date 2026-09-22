@@ -7,11 +7,12 @@ description: Verify and reuse Intuitxn Bend2 cores, Lorenz memory, and signed sh
 
 ## One-file Lorenz worker network
 
-For joining or delegating work through the one-file Lorenz network in
-`/Users/a3fckx/Desktop/Attri/telepathy`, read and follow that checkout's
-`.agents/skills/bend-kernels/SKILL.md`, especially “Participate as a Lorenz
-worker”. Its commands live in `runtime/adaptive/system.bend`: `worker`,
-`claim`, `packet`, `return`, `learn`, and native loopback `opencode` delivery.
+For joining or delegating work through the one-file Lorenz network, resolve
+this skill's repository as described below and follow `runtime/adaptive/META.md`.
+The packaged worker source is `runtime/worker/system.bend`; an explicit
+`INTUITXN_WORKER_SOURCE` can select another verified checkout's worker source.
+Its commands include `worker`, `claim`, `packet`, `return`, `learn`, and native
+loopback `opencode` delivery.
 This workflow works with OpenCode, Codex, or another host that can execute the
 Bend commands. Do not substitute this worktree's separate Lorenz core or Node
 adapters for the one-file worker protocol. The instructions below concern
@@ -95,8 +96,9 @@ revoke authority. Use `compact REGISTRY` to preview payload deduplication and
 `compact REGISTRY --apply` to share identical immutable bytes without deleting
 evidence. Read SHARED.md before configuring a new destination or revoking records.
 
-For authorized real OpenCode delegation, use `delegate-opencode.mjs` as described
-in HARNESS.md with a narrow prompt and new private output directory. Do not
+For one-file worker delegation, use `/meta agents` or follow META.md directly.
+For the separate shared-registry coding experiment, `delegate-opencode.mjs`
+in HARNESS.md provides bounded model calls and private metrics. Do not
 restart another agent's server or replace a separately managed `/meta` command.
 Score the worker's result before closeout, and distinguish observed retrieval
 from demonstrated improvement. Keep raw session IDs/messages private.

@@ -5,16 +5,17 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 export function options(argv) {
-  const out={server:'http://127.0.0.1:4096',timeout:120000};
+  const out={server:'http://127.0.0.1:4096',timeout:120000,tools:'bash'};
   for(let i=0;i<argv.length;i+=2){
     const key=argv[i]?.replace(/^--/,'');
-    if(!['server','directory','prompt','output','timeout'].includes(key)||!argv[i+1])throw Error('Expected --server URL --directory DIR --prompt FILE --output NEW_PRIVATE_DIR [--timeout MS]');
+    if(!['server','directory','prompt','output','timeout','tools'].includes(key)||!argv[i+1])throw Error('Expected --server URL --directory DIR --prompt FILE --output NEW_PRIVATE_DIR [--timeout MS] [--tools bash|none]');
     out[key]=argv[i+1];
   }
   const u=new URL(out.server);
   if(!['http:','https:'].includes(u.protocol)||!['127.0.0.1','[::1]'].includes(u.hostname)||u.username||u.password||u.pathname!=='/'||u.search||u.hash)throw Error('Server must be an IP-literal loopback URL without credentials or path');
   for(const k of ['directory','prompt','output']){if(!out[k])throw Error('Missing --'+k);out[k]=path.resolve(out[k]);}
   out.timeout=Number(out.timeout);
+  if(!['bash','none'].includes(out.tools))throw Error('Tools must be bash or none');
   if(!Number.isInteger(out.timeout)||out.timeout<100||out.timeout>120000)throw Error('Timeout must be 100..120000 ms');
   out.server=u.origin;
   return out;
@@ -34,6 +35,8 @@ export function summarize(messages,started) {
 }
 
 export async function delegate(opts) {
+  const toolPolicy=opts.tools??'bash';
+  if(!['bash','none'].includes(toolPolicy))throw Error('Tools must be bash or none');
   const prompt=await fs.readFile(opts.prompt,'utf8');
   // Refuse existing output so concurrent callers cannot overwrite evidence.
   await fs.mkdir(opts.output,{mode:0o700});
@@ -51,13 +54,15 @@ export async function delegate(opts) {
     session=await api('/session',{title:'Shared-learning delegated task'});
     await save('session.json',{id:session.id,directory:opts.directory,started});
     const names=await api('/experimental/tool/ids');
-    const tools=Object.fromEntries(names.map(n=>[n,n==='bash']));
+    const tools=Object.fromEntries(names.map(n=>[n,toolPolicy==='bash'&&n==='bash']));
     // Omit model and agent: use the server's existing default configuration.
     await api('/session/'+session.id+'/prompt_async',{tools,parts:[{type:'text',text:prompt}]});
     while(Date.now()<deadline){
       messages=await api('/session/'+session.id+'/message');
       summary=summarize(messages,started);
+      summary.toolPolicy=toolPolicy;
       if(summary.error)throw Error('OpenCode agent failed (details retained privately)');
+      if(toolPolicy==='none'&&summary.toolCalls)throw Error('Tool-free delegation policy violated; evidence retained privately');
       if(summary.finished){await save('messages.json',messages);await save('answer.txt',summary.text);await save('result.json',{...summary,session:session.id,status:'completed'});return {...summary,session:session.id,status:'completed'};}
       await new Promise(r=>setTimeout(r,Math.min(500,Math.max(0,deadline-Date.now()))));
     }
@@ -65,7 +70,7 @@ export async function delegate(opts) {
   } catch(error) {
     let aborted=false;
     if(session?.id){try{await api('/session/'+session.id+'/abort',{},true);aborted=true;}catch{}}
-    const result={...summarize(messages,started),session:session?.id,status:'failed',message:error.message,abortRequested:aborted};
+    const result={...summarize(messages,started),toolPolicy,session:session?.id,status:'failed',message:error.message,abortRequested:aborted};
     await save('messages.json',messages);await save('result.json',result);
     throw error;
   }

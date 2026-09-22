@@ -9,6 +9,11 @@ recording tool. There is no Python host.
 `registry.mjs` is the external verification/storage adapter described in
 [SHARED.md](SHARED.md); its process and filesystem operations are not Bend proofs.
 
+For cross-harness worker coordination, use the packaged
+[one-file Lorenz worker](../worker/README.md) through [/meta agents](META.md).
+The [operations guide](OPERATIONS.md) covers health checks, recovery, safe
+scratch cleanup, key rotation, and another-machine bootstrap.
+
 ## Run and reuse after restart
 
 From the Telepathy repository:

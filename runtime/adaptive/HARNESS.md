@@ -66,13 +66,16 @@ node runtime/adaptive/delegate-opencode.mjs --server http://127.0.0.1:4096 --dir
 ```
 
 The output directory must be new, and its parent must exist. Each call creates
-a fresh server session using the server's configured default agent/model. Only
-the bash tool is enabled; the prompt must bound its purpose. The adapter records
+a fresh server session using the server's configured default agent/model. By
+default only bash is enabled; the prompt must bound its purpose. For a tool-free
+coding experiment pass `--tools none`: all discovered tools are disabled in the
+API request, and any observed tool call aborts the run with a retained failure.
+The adapter records
 actual model/provider, time, tokens, cost, and tool calls. Its maximum task
 deadline is 120 seconds, after which it requests abort. It does not guarantee
 that a remote provider immediately stops billing after an abort request.
-Tool-count/output-word limits in experiment prompts are audited afterward, not
-enforced as model token caps by this adapter.
+Other tool-count/output-word limits in experiment prompts are audited afterward,
+not enforced as model token caps by this adapter.
 
 Raw messages, prompt, answer, session ID, and metrics stay in private output
 files with restricted permissions. Do not commit that directory or publish
@@ -81,16 +84,20 @@ server URLs and does not read or change provider credentials or configuration.
 
 ## Integration with /meta agents
 
-The `/meta` owner should call `before` before assigning relevant work, pass the
+The repository now provides an OpenCode `/meta agents` command; see
+[META.md](META.md) for installation and the one-file Lorenz worker protocol.
+The `/meta` coordinator should call `before` before assigning relevant shared-registry work, pass the
 returned selected findings and run reference to the worker, evaluate its actual
 result, and call `after` with selected observations. An OpenCode worker can call
 `before` itself, as the demonstrated memory arm did. Exactly one coordinator
 owns closeout, preventing duplicate promotion.
 
-At the integration test, the live server did not expose `/meta`; it did expose
-ordinary agent delegation. No replacement `/meta` command or server restart was
-performed. These hooks are the integration seam for that separately managed
-entry point. Merely installing a slash command does not enforce this lifecycle.
+The earlier cross-harness trial used ordinary agent delegation because its
+server did not expose `/meta`. The new command is discovered in a fresh
+OpenCode context; it does not restart or replace an already running server.
+Merely installing a slash command does not enforce this lifecycle. Worker
+snapshots remain distinct from registry bundles and are not synchronized by
+the signed bundle transport.
 
 ## Verification
 

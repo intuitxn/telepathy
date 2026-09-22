@@ -326,6 +326,9 @@ async function main(args) {
     const entries = path.join(registry, 'entries');
     await noLinks(entries);
     const result = [];
+    const limit = command === 'find' ? Number(options['--limit'] || 5) : Infinity;
+    const query = new Set((options['--query'] || '').toLowerCase().match(/[a-z0-9_]+/g) || []);
+    const rank = (a, b) => b.score - a.score || a.id.localeCompare(b.id);
     let ids;
     try { ids = await fs.readdir(entries); }
     catch (error) { if (error.code === 'ENOENT') return []; throw error; }
@@ -334,18 +337,26 @@ async function main(args) {
       if (await revoked(registry, id)) continue;
       const { manifest, buffers } = await verifyBundle(path.join(entries, id), id);
       if (options['--core'] && coreOf(manifest) !== options['--core']) continue;
-      const narrative = buffers['findings.md']?.toString('utf8') || '';
-      const tokens = new Set(narrative.toLowerCase().match(/[a-z0-9_]+/g) || []);
-      const query = [...new Set((options['--query'] || '').toLowerCase().match(/[a-z0-9_]+/g) || [])];
-      const score = query.filter(token => tokens.has(token)).length;
-      if (command === 'find' && score === 0) continue;
+      let narrative = '', score = 0;
+      if (command === 'find') {
+        narrative = buffers['findings.md']?.toString('utf8') || '';
+        // Keep only query-matching tokens; avoid a vocabulary-sized Set per finding.
+        const matched = new Set();
+        for (const match of narrative.toLowerCase().matchAll(/[a-z0-9_]+/g)) {
+          const token = match[0];
+          if (query.has(token)) matched.add(token);
+          if (matched.size === query.size) break;
+        }
+        score = matched.size;
+        if (score === 0) continue;
+      }
       result.push({ id, core: coreOf(manifest), contract: manifest.contract || ADAPTIVE.contract, ...(command === 'find' ? { score, excerpt: narrative.slice(0, 1200), ranking: 'lexical-token-overlap; narrative unverified' } : {}), source_sha256: manifest.source_sha256, evaluator: manifest.evaluator, findings: manifest.findings, verification: 'receipt-integrity-only; replay performs fresh execution' });
-    }
-    if (command === 'find') {
-      const limit = Number(options['--limit'] || 5);
-      assert(Number.isInteger(limit) && limit >= 1 && limit <= 20, 'limit must be 1..20');
-      assert(options['--query']?.trim() && options['--query'].length <= 4096, 'find needs bounded --query');
-      return result.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id)).slice(0, limit);
+      if (command === 'find') {
+        // Retain at most limit results, but continue verifying EVERY non-revoked bundle.
+        // A persistent index cannot replace those hashes without weakening tamper detection.
+        result.sort(rank);
+        if (result.length > limit) result.pop();
+      }
     }
     return result;
   }
