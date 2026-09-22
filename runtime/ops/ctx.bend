@@ -31,7 +31,8 @@ def kernels() -> +List<Kernel>:
    Kernel{"adaptive", "runtime/adaptive/system.bend", "All terms check.", True{}},
    Kernel{"status", "runtime/ops/status.bend", "All terms check.", True{}},
    Kernel{"ctx", "runtime/ops/ctx.bend", "All terms check.", True{}},
-   Kernel{"programs", "runtime/programs/bend-laws/PROOF.bend", "All terms check.", True{}}]
+   Kernel{"programs", "runtime/programs/bend-laws/PROOF.bend", "All terms check.", True{}},
+   Kernel{"lorenz", "runtime/lorenz/system.bend", "All terms check.", True{}}]
 
 def boundaries() -> +List<Boundary>:
   [Boundary{"no signing keys in the kernel process", "never load or copy a private key"},
@@ -171,9 +172,9 @@ law ctx_boundaries_well_formed:
 def ctx_boundaries_well_formed():
   {==}
 
-# The required set is fixed at five kernels.
+# The required set is fixed at six kernels.
 law ctx_required_total:
-  {kernel_count(kernels()) == 5n : Nat}
+  {kernel_count(kernels()) == 6n : Nat}
 
 def ctx_required_total():
   {==}
