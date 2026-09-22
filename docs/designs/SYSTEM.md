@@ -24,7 +24,7 @@ human intent
 
 - **Nudge** (`programs/*.nudge.md`, `nudge.transaction/v1.1`): typed `inputs/outputs`, two prompt fences plus optional `bend-law`/`bend-proof`, limits-as-defaults, dual digests. No loops, no auth, no approval. Single-run v1.1 only — legacy rejected; see `nudge-simplify.md` for design history.
 - **Bend kernels** (`runtime/programs/bend-laws/`, `runtime/programs/retrieval/`): small recursive blocks, each with signature + complexity + termination measure + laws. Canonical boundary laws 1–5 gated.
-- **agit** (`docs/designs/agentic-git.md`, `agit-in-bend.md`): every transition a git object with `Bundle-Digest/Proof-Digest/Candidate-Digest/Reviewer` trailers + `refs/notes/agit-*`. Orientation `O=(stage, laws_passed, fresh)` monotone; SQLite is rebuildable cache.
+- **agit** (`docs/designs/agentic-git.md`, `agit-in-bend.md`): every transition a git object with `Bundle-Digest/Proof-Digest/Candidate-Digest/Reviewer` trailers + `refs/notes/agit-*`. Orientation `O=(stage, laws_passed, fresh)` monotone; SQLite is rebuildable cache (retired 2026-09-22 — git objects are now the sole source of truth; no SQLite reconciliation step).
 - **Retrieval**: CSR graph over Job/timeline/artifact/digest nodes (`job-contract.md`), PPR/heat diffusion in Bend with fuel, `host.output_excludes` guard outside the model.
 - **Metacognition**: strategies as Bend defs (lexical/diffusion/fusion/confidence/abstain); router choice + scores recorded per transition. Model text never counts as evidence.
 - **bend-forge** (`plugins/telepathy-meta-agents/bend-specialist.md`, `.opencode/agents/bend-forge.md`, registry entry): the one agent perfect in Bend. Writes defs/laws/proofs, runs gates + negative controls, never self-accepts/merges/touches network. Spawns per job.

@@ -32,12 +32,13 @@ The intended main-branch settings are:
 - Review conversations resolved; administrators follow the same requirements.
 - No force push or branch deletion.
 
-The workflow runs on every PR, without path filters: Desk tests, program/gate
-tests, and site typecheck/tests/build. It has read-only repository permissions,
-no model/signing secrets and no merge action. It uses Node 24; the local Node 26
-runtime's Web Storage behavior broke the existing site test environment, while
-Node 24 passed. These checks do not run the Bend compiler. A Bend change still
-needs source-bound checker and independent evaluation evidence in the review.
+The workflow runs on every PR, without path filters: the retained runtime check
+(`npm run check`), program/gate tests, and site typecheck/tests/build. It has
+read-only repository permissions, no model/signing secrets and no merge action.
+It uses Node 24; the local Node 26 runtime's Web Storage behavior broke the
+existing site test environment, while Node 24 passed. These checks do not run
+the Bend compiler. A Bend change still needs source-bound checker and independent
+evaluation evidence in the review.
 
 Enable native auto-merge for a specific PR only after these settings are active:
 

@@ -13,6 +13,12 @@
 > Buzz ACP + the checked Bend worker (`runtime/adaptive/HARNESS.md`,
 > `runtime/worker/`). The design body is preserved.
 
+> Update (2026-09-22): the Desk SQLite ledger is no longer written, so the
+> best-effort SQLite "divergence" projection was removed from `scripts/agit.py`.
+> Git objects are now the sole source of truth for job state; there is no SQLite
+> reconciliation step. References to a SQLite projection or SQLite/git
+> divergence below are historical only. The design body is preserved.
+
 # Agentic-git: git as the state store on top of Nudge + Bend
 
 **Status:** design proposal · **Base:** `HARNESS.md`, `docs/PROJECTS.md`, `docs/SHARED_PRODUCT.md`, `runtime/programs/README.md` + `LIVE_RUN.md`, `runtime/desk/src/cli.js` + `jobs.js`

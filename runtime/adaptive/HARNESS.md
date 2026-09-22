@@ -44,7 +44,8 @@ time; they do not establish current automatic synchronization.
 
 Offline Node drivers still check Bend transitions and score saved experimental
 answers. They are optional development tools and never run as a learning service.
-Desk remains optional and now uses the installed OpenCode CLI. The old custom
+Desk was retired 2026-09-22; retained local logic is the checked Bend worker and
+standard OpenCode with native Buzz ACP. The old custom
 plugin source is historical and excluded from the active install and checks.
 
 ## What the system should build toward

@@ -14,7 +14,7 @@ help: ## Show this help
 check: test ctx verify-kernels ## Run all checks (node tests, ctx equation, every kernel)
 
 test: ## Run the retained pure node test suite
-	$(NODE) --test scripts/telepathy-discover.test.mjs runtime/evaluation/workflow-transfer.test.mjs
+	$(NODE) --test scripts/telepathy-discover.test.mjs runtime/evaluation/workflow-transfer.test.mjs scripts/agit-retirement.test.mjs
 
 ctx: ## Check the Bend context equation (the required kernel set)
 	BEND_NO_TELEMETRY=1 $(BEND) runtime/ops/ctx.bend --check-only
@@ -26,13 +26,16 @@ verify-kernels: ## Run --check-only on every kernel declared in ctx.bend
 	@set -e; \
 	list="$$(BEND_NO_TELEMETRY=1 $(BEND) runtime/ops/ctx.bend)"; \
 	test -n "$$list"; \
+	expected="$$(printf '%s\n' "$$list" | awk -F': ' '/^required_total: /{print $$2}')"; \
+	test -n "$$expected"; \
 	found=0; \
 	for p in $$(printf '%s\n' "$$list" | awk 'NR>2 && $$2 ~ /\.bend$$/ {print $$2}'); do \
-		found=1; \
-		printf '%-44s ' "$$p"; \
-		BEND_NO_TELEMETRY=1 $(BEND) "$$p" --check-only; \
+		out="$$(BEND_NO_TELEMETRY=1 $(BEND) "$$p" --check-only)"; \
+		printf '%s\n' "$$out" | grep -q '^All terms check\.$$'; \
+		printf '%-44s %s\n' "$$p" "$$out"; \
+		found=$$((found + 1)); \
 	done; \
-	test $$found -eq 1
+	test "$$found" = "$$expected"
 
 bend-status: ## Check the Bend status projection kernel
 	BEND_NO_TELEMETRY=1 $(BEND) runtime/ops/status.bend --check-only

@@ -17,7 +17,7 @@ An agent stopping does not mean a job is resolved. Review and human acceptance a
 ## 3. Where state lives
 
 - **Buzz relay** holds human requests and acceptance.
-- **Desk SQLite in `.local/`** holds job, artifact, and outbox state.
+- **Private Bend Lorenz snapshots and telepathy-mailbox state** hold local worker and mailbox history.
 - **Git** holds accepted revisions.
 
 These stores keep human decisions, execution state, and accepted work traceable.
@@ -31,9 +31,9 @@ Humans remain the visible authors and accountable owners. Agents draft; humans a
 From the repository root:
 
 ```bash
-npm run setup
-npm run doctor
-npm run desk -- help
+npm run check
+make check
+python3 scripts/workspace-service.py status
 ```
 
-Use setup to prepare the local environment, doctor to check it, and Desk help to see the available commands. See the [README](README.md) for repository setup context.
+Use `npm run check` for the retained runtime check, `make check` for the kernels and the context equation, and the workspace service status command to inspect the retained workspace service. See the [README](README.md) for repository setup context.

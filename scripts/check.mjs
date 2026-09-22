@@ -68,6 +68,8 @@ const REQUIRED = [
   '.opencode/agents/reviewer.md',
   'plugins/telepathy-mailbox/telepathy.ts',
   'plugins/telepathy-meta-agents/registry.json',
+  'runtime/workspace/server.py',
+  'scripts/workspace-service.py',
   'site/package.json',
   'activity/README.md',
 ];
@@ -123,6 +125,7 @@ function describe(result) {
 const PURE_TESTS = [
   'runtime/evaluation/workflow-transfer.test.mjs',
   'scripts/telepathy-discover.test.mjs',
+  'scripts/agit-retirement.test.mjs',
 ];
 const pure = runNode(['--test', ...PURE_TESTS]);
 if (pure.status === 0) {

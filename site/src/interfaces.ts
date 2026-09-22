@@ -2,7 +2,9 @@
  * Focused meta-agent interface catalog.
  *
  * Source of truth: `.opencode/agents/*.md` (the `telepathy.md` main agent plus
- * the five subagent charters) and the Buzz-native plugin in `plugins/telepathy/`.
+ * the five subagent charters), the declarative catalog in
+ * `plugins/telepathy-meta-agents/registry.json`, and the `plugins/telepathy-mailbox/`
+ * Buzz-native plugin.
  * This module is a static projection of those charters for the Interfaces view —
  * it is not an execution registry.
  *

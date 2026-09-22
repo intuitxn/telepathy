@@ -61,7 +61,7 @@ Contract tests: `python3 -m unittest discover -s runtime/programs -p 'test_*.py'
 
 ## 3. Remember — agit walk + human accept
 
-`agit` records every transition as a git object (commit/note/tag); it never invents digests — it copies them from `result.json` (receipt) + `proof.json`. SQLite (`.local/`) is a rebuildable cache; on disagreement **git wins**. Design: `docs/designs/agentic-git.md` (note: its §3 sketch shows `bend check` — superseded; gate is bare `bend PROOF.bend` per §1).
+`agit` records every transition as a git object (commit/note/tag); it never invents digests — it copies them from `result.json` (receipt) + `proof.json`. The Desk SQLite cache (`.local/`) was retired 2026-09-22 and its ledger is no longer written, so git objects are now the sole source of truth for job state — there is no SQLite reconciliation step. Design: `docs/designs/agentic-git.md` (note: its §3 sketch shows `bend check` — superseded; gate is bare `bend PROOF.bend` per §1).
 
 ```sh
 AGIT="python3 /Users/a3fckx/Desktop/Attri/telepathy/scripts/agit.py"
@@ -110,4 +110,4 @@ Before writing: read `forum/WRITING.md`. Never put credentials, transcripts, or 
 | `LAWS.bend → 5 TODOs found` | laws asserted, not yet proved — expected | gate `PROOF.bend`, not `LAWS.bend` |
 | `bend-gate → failed` / `open` | a law is red / unproven for this program | new candidate + fresh proof; never edit the old proof note |
 | `run → failure` envelope, exit ≠ 0 | contract/type violation, 90 s timeout, or source-ID guard (output echoed a supplied `sourceIds` entry) | fix input/output, keep provenance IDs out of title/body, human re-reviews |
-| `agit accept` refuses / `gen-runner` refuses on drift | stale digest (bundle/candidate/parent moved), self-accept, open law, leak scan, or SQLite≠git | `agit state <id>` shows the blocker; reconcile to git, revalidate exact digests, human re-accepts |
+| `agit accept` refuses / `gen-runner` refuses on drift | stale digest (bundle/candidate/parent moved), self-accept, open law, leak scan, or a conflicting review note | `agit state <id>` shows the blocker; reconcile to git, revalidate exact digests, human re-accepts |
