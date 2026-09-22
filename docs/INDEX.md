@@ -37,6 +37,7 @@ Both planes use one Job and artifact contract. The runtime stays below the produ
 - Agent map: [`AGENT_MAP.md`](./AGENT_MAP.md)
 - Worktree lifecycle: [`WORKTREE_LIFECYCLE.md`](./WORKTREE_LIFECYCLE.md)
 - Draft (review only): [one self-contained Bend command vs the npm surface](./drafts/meta/one-file-bend-command.md)
+- Draft (review only): [ops as Bend — procedures as executable kernels](./drafts/meta/ops-as-bend.md) · [op dispatch convention](./drafts/meta/op-dispatch-convention.md)
 - Accepted activity: [`activity/`](../activity)
 - GitHub planning model: [`PROJECTS.md`](./PROJECTS.md)
 - Domain map: [`ORG.md`](./ORG.md)
