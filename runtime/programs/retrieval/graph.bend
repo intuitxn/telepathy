@@ -57,7 +57,7 @@ def list_sum(+xs: +List<Nat>, acc: Nat) -> Nat:
     case Nil{}:
       acc
     case Con{h, t}:
-      list_sum(t, acc + h)
+      list_sum(t, (acc + h : Nat))
 
 # nth with default: out-of-range reads yield dflt, never trap
 def nth(+xs: +List<Nat>, i: Nat, dflt: Nat) -> Nat:
@@ -119,7 +119,7 @@ def add_at(+xs: +List<Nat>, i: Nat, v: Nat) -> +List<Nat>:
     case Con{h, t}:
       match i:
         case 0n:
-          (h + v) <> t
+          (h + v : Nat) <> t
         case 1n+p:
           h <> add_at(t, p, v)
 

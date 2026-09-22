@@ -5,6 +5,12 @@ import ./rank.bend as Rank
 import ./route.bend as Route
 
 # ---- PROOF.bend: retrieval-spike proofs (AI-owned; `bend PROOF.bend` gate) --
+# PORT NOTE (2026-09-22): ported from bend 2.0.5 to bend 2.0.21. Since 2.0.16
+# a bare infix operator in a def body or proof-type annotation must carry its
+# type: every formerly-bare `a + b` / `a * b` / `a / b` below is now wrapped as
+# `(a + b : Nat)` etc. No law, statement, or proof term changed semantically;
+# all 5 laws and every helper lemma still check. See
+# docs/drafts/meta/retrieval-port-notes.md for the checker transcript.
 # Status on bend 2.0.5 (PATH toolchain `/Users/a3fckx/.bend/bin/bend`):
 # 5/5 laws HOLD for the honestly-narrowed fragments (2026-09-18 downgrade):
 # Laws 2-4 closed as before (computation/reflexivity/case analysis). Law 1
@@ -83,9 +89,9 @@ def add_assoc(+a: Nat, +b: Nat, +c: Nat) -> {Nat.add(Nat.add(a, b), c) == Nat.ad
       {==}
 
 def add_shuffle_base(+b: Nat, +c: Nat, +d: Nat) -> {Nat.add(b, Nat.add(c, d)) == Nat.add(c, Nat.add(b, d)) : Nat}:
-  %Equal.sym(Nat, Nat.add(b, Nat.add(c, d)), Nat.add(Nat.add(c, d), b), add_comm(b, Nat.add(c, d))) : {_ == c + (b + d) : Nat}
-  %Equal.sym(Nat, Nat.add(Nat.add(c, d), b), Nat.add(c, Nat.add(d, b)), add_assoc(c, d, b)) : {_ == c + (b + d) : Nat}
-  %Equal.sym(Nat, Nat.add(d, b), Nat.add(b, d), add_comm(d, b)) : {Nat.add(c, _) == c + (b + d) : Nat}
+  %Equal.sym(Nat, Nat.add(b, Nat.add(c, d)), Nat.add(Nat.add(c, d), b), add_comm(b, Nat.add(c, d))) : {_ == (c + (b + d) : Nat) : Nat}
+  %Equal.sym(Nat, Nat.add(Nat.add(c, d), b), Nat.add(c, Nat.add(d, b)), add_assoc(c, d, b)) : {_ == (c + (b + d) : Nat) : Nat}
+  %Equal.sym(Nat, Nat.add(d, b), Nat.add(b, d), add_comm(d, b)) : {Nat.add(c, _) == (c + (b + d) : Nat) : Nat}
   {==}
 
 def add_shuffle(+a: Nat, +b: Nat, +c: Nat, +d: Nat) -> {Nat.add(Nat.add(a, b), Nat.add(c, d)) == Nat.add(Nat.add(a, c), Nat.add(b, d)) : Nat}:
@@ -93,7 +99,7 @@ def add_shuffle(+a: Nat, +b: Nat, +c: Nat, +d: Nat) -> {Nat.add(Nat.add(a, b), N
     case 0n:
       add_shuffle_base(b, c, d)
     case 1n+p:
-      %add_shuffle(p, b, c, d) : {1n+Nat.add(Nat.add(p, b), c + d) == 1n+_ : Nat}
+      %add_shuffle(p, b, c, d) : {1n+Nat.add(Nat.add(p, b), (c + d : Nat)) == 1n+_ : Nat}
       {==}
 
 # ---- List sum library ------------------------------------------------------
@@ -102,9 +108,9 @@ def list_sum_acc(+xs: +List<Nat>, +acc: Nat) -> {G.list_sum(xs, acc) == (acc + R
     case Nil{}:
       Equal.sym(Nat, Nat.add(acc, 0n), acc, add_zero(acc))
     case Con{h, t}:
-      %Equal.sym(Nat, G.list_sum(t, h), h + Rank.heat_sum(t), list_sum_acc(t, h)) : {G.list_sum(t, acc + h) == acc + _ : Nat}
-      %add_assoc(acc, h, Rank.heat_sum(t)) : {G.list_sum(t, acc + h) == _ : Nat}
-      list_sum_acc(t, acc + h)
+      %Equal.sym(Nat, G.list_sum(t, h), (h + Rank.heat_sum(t) : Nat), list_sum_acc(t, h)) : {G.list_sum(t, (acc + h : Nat)) == (acc + _ : Nat) : Nat}
+      %add_assoc(acc, h, Rank.heat_sum(t)) : {G.list_sum(t, (acc + h : Nat)) == _ : Nat}
+      list_sum_acc(t, (acc + h : Nat))
 
 def zip_add_sum(+xs: +List<Nat>, +ys: +List<Nat>) -> {Rank.heat_sum(Rank.zip_add(xs, ys)) == (Rank.heat_sum(xs) + Rank.heat_sum(ys) : Nat) : Nat}:
   match xs:
@@ -113,12 +119,12 @@ def zip_add_sum(+xs: +List<Nat>, +ys: +List<Nat>) -> {Rank.heat_sum(Rank.zip_add
     case Con{h, t}:
       match ys:
         case Nil{}:
-          Equal.sym(Nat, Rank.heat_sum(h <> t) + 0n, Rank.heat_sum(h <> t), add_zero(Rank.heat_sum(h <> t)))
+          Equal.sym(Nat, (Rank.heat_sum(h <> t) + 0n : Nat), Rank.heat_sum(h <> t), add_zero(Rank.heat_sum(h <> t)))
         case Con{k, u}:
-          %Equal.sym(Nat, G.list_sum(t, h), h + Rank.heat_sum(t), list_sum_acc(t, h)) : {G.list_sum(Rank.zip_add(t, u), h + k) == _ + G.list_sum(u, k) : Nat}
-          %Equal.sym(Nat, G.list_sum(u, k), k + Rank.heat_sum(u), list_sum_acc(u, k)) : {G.list_sum(Rank.zip_add(t, u), h + k) == (h + Rank.heat_sum(t)) + _ : Nat}
-          %Equal.sym(Nat, G.list_sum(Rank.zip_add(t, u), h + k), (h + k) + Rank.heat_sum(Rank.zip_add(t, u)), list_sum_acc(Rank.zip_add(t, u), h + k)) : {_ == (h + Rank.heat_sum(t)) + (k + Rank.heat_sum(u)) : Nat}
-          %Equal.sym(Nat, Rank.heat_sum(Rank.zip_add(t, u)), Rank.heat_sum(t) + Rank.heat_sum(u), zip_add_sum(t, u)) : {(h + k) + _ == (h + Rank.heat_sum(t)) + (k + Rank.heat_sum(u)) : Nat}
+          %Equal.sym(Nat, G.list_sum(t, h), (h + Rank.heat_sum(t) : Nat), list_sum_acc(t, h)) : {G.list_sum(Rank.zip_add(t, u), (h + k : Nat)) == (_ + G.list_sum(u, k) : Nat) : Nat}
+          %Equal.sym(Nat, G.list_sum(u, k), (k + Rank.heat_sum(u) : Nat), list_sum_acc(u, k)) : {G.list_sum(Rank.zip_add(t, u), (h + k : Nat)) == ((h + Rank.heat_sum(t)) + _ : Nat) : Nat}
+          %Equal.sym(Nat, G.list_sum(Rank.zip_add(t, u), (h + k : Nat)), ((h + k) + Rank.heat_sum(Rank.zip_add(t, u)) : Nat), list_sum_acc(Rank.zip_add(t, u), (h + k : Nat))) : {_ == ((h + Rank.heat_sum(t)) + (k + Rank.heat_sum(u)) : Nat) : Nat}
+          %Equal.sym(Nat, Rank.heat_sum(Rank.zip_add(t, u)), (Rank.heat_sum(t) + Rank.heat_sum(u) : Nat), zip_add_sum(t, u)) : {((h + k) + _ : Nat) == ((h + Rank.heat_sum(t)) + (k + Rank.heat_sum(u)) : Nat) : Nat}
           add_shuffle(h, k, Rank.heat_sum(t), Rank.heat_sum(u))
 
 # ---- nsub exactness ---------------------------------------------------------
@@ -285,9 +291,9 @@ def add_shift(+h: Nat, +v: Nat, +s: Nat) -> {Nat.add(Nat.add(h, v), s) == Nat.ad
   %add_assoc(h, s, v) : {_ == Nat.add(Nat.add(h, s), v) : Nat}
   {==}
 
-def add_at_zero(+t: +List<Nat>, +h: Nat, +v: Nat) -> {G.list_sum(t, h + v) == (G.list_sum(t, h) + v : Nat) : Nat}:
-  %Equal.sym(Nat, G.list_sum(t, h + v), (h + v) + Rank.heat_sum(t), list_sum_acc(t, h + v)) : {_ == G.list_sum(t, h) + v : Nat}
-  %Equal.sym(Nat, G.list_sum(t, h), h + Rank.heat_sum(t), list_sum_acc(t, h)) : {(h + v) + Rank.heat_sum(t) == _ + v : Nat}
+def add_at_zero(+t: +List<Nat>, +h: Nat, +v: Nat) -> {G.list_sum(t, (h + v : Nat)) == (G.list_sum(t, h) + v : Nat) : Nat}:
+  %Equal.sym(Nat, G.list_sum(t, (h + v : Nat)), ((h + v) + Rank.heat_sum(t) : Nat), list_sum_acc(t, (h + v : Nat))) : {_ == (G.list_sum(t, h) + v : Nat) : Nat}
+  %Equal.sym(Nat, G.list_sum(t, h), (h + Rank.heat_sum(t) : Nat), list_sum_acc(t, h)) : {((h + v) + Rank.heat_sum(t) : Nat) == (_ + v : Nat) : Nat}
   add_shift(h, v, Rank.heat_sum(t))
 
 def add_at_len(+xs: +List<Nat>, +i: Nat, +v: Nat) -> {G.list_len(G.add_at(xs, i, v)) == G.list_len(xs) : Nat}:
@@ -317,16 +323,16 @@ def add_at_sum(+xs: +List<Nat>, +i: Nat, +v: Nat) -> {Rank.heat_sum(G.add_at(xs,
     case Con{h, t}:
       match i:
         case 0n:
-          %Equal.sym(Nat, Rank.heat_sum(G.add_at(h <> t, 0n, v)), G.list_sum(t, h + v), {==}) : {_ == Rank.heat_sum(h <> t) + v : Nat}
-          %Equal.sym(Nat, Rank.heat_sum(h <> t), G.list_sum(t, h), {==}) : {G.list_sum(t, h + v) == _ + v : Nat}
+          %Equal.sym(Nat, Rank.heat_sum(G.add_at(h <> t, 0n, v)), G.list_sum(t, (h + v : Nat)), {==}) : {_ == (Rank.heat_sum(h <> t) + v : Nat) : Nat}
+          %Equal.sym(Nat, Rank.heat_sum(h <> t), G.list_sum(t, h), {==}) : {G.list_sum(t, (h + v : Nat)) == (_ + v : Nat) : Nat}
           add_at_zero(t, h, v)
         case 1n+p:
-          %Equal.sym(Nat, Rank.heat_sum(G.add_at(h <> t, 1n+p, v)), G.list_sum(G.add_at(t, p, v), h), {==}) : {_ == Rank.heat_sum(h <> t) + Bool.pick(Nat, Nat.is_lt(p, G.list_len(t)), v, 0n) : Nat}
-          %Equal.sym(Nat, Rank.heat_sum(h <> t), G.list_sum(t, h), {==}) : {G.list_sum(G.add_at(t, p, v), h) == _ + Bool.pick(Nat, Nat.is_lt(p, G.list_len(t)), v, 0n) : Nat}
-          %Equal.sym(Nat, G.list_sum(G.add_at(t, p, v), h), h + Rank.heat_sum(G.add_at(t, p, v)), list_sum_acc(G.add_at(t, p, v), h)) : {_ == G.list_sum(t, h) + Bool.pick(Nat, Nat.is_lt(p, G.list_len(t)), v, 0n) : Nat}
-          %Equal.sym(Nat, G.list_sum(t, h), h + Rank.heat_sum(t), list_sum_acc(t, h)) : {h + Rank.heat_sum(G.add_at(t, p, v)) == _ + Bool.pick(Nat, Nat.is_lt(p, G.list_len(t)), v, 0n) : Nat}
-          %Equal.sym(Nat, Rank.heat_sum(G.add_at(t, p, v)), Rank.heat_sum(t) + Bool.pick(Nat, Nat.is_lt(p, G.list_len(t)), v, 0n), add_at_sum(t, p, v)) : {h + _ == (h + Rank.heat_sum(t)) + Bool.pick(Nat, Nat.is_lt(p, G.list_len(t)), v, 0n) : Nat}
-          Equal.sym(Nat, (h + Rank.heat_sum(t)) + Bool.pick(Nat, Nat.is_lt(p, G.list_len(t)), v, 0n), h + (Rank.heat_sum(t) + Bool.pick(Nat, Nat.is_lt(p, G.list_len(t)), v, 0n)), add_assoc(h, Rank.heat_sum(t), Bool.pick(Nat, Nat.is_lt(p, G.list_len(t)), v, 0n)))
+          %Equal.sym(Nat, Rank.heat_sum(G.add_at(h <> t, 1n+p, v)), G.list_sum(G.add_at(t, p, v), h), {==}) : {_ == (Rank.heat_sum(h <> t) + Bool.pick(Nat, Nat.is_lt(p, G.list_len(t)), v, 0n) : Nat) : Nat}
+          %Equal.sym(Nat, Rank.heat_sum(h <> t), G.list_sum(t, h), {==}) : {G.list_sum(G.add_at(t, p, v), h) == (_ + Bool.pick(Nat, Nat.is_lt(p, G.list_len(t)), v, 0n) : Nat) : Nat}
+          %Equal.sym(Nat, G.list_sum(G.add_at(t, p, v), h), (h + Rank.heat_sum(G.add_at(t, p, v)) : Nat), list_sum_acc(G.add_at(t, p, v), h)) : {_ == (G.list_sum(t, h) + Bool.pick(Nat, Nat.is_lt(p, G.list_len(t)), v, 0n) : Nat) : Nat}
+          %Equal.sym(Nat, G.list_sum(t, h), (h + Rank.heat_sum(t) : Nat), list_sum_acc(t, h)) : {(h + Rank.heat_sum(G.add_at(t, p, v)) : Nat) == (_ + Bool.pick(Nat, Nat.is_lt(p, G.list_len(t)), v, 0n) : Nat) : Nat}
+          %Equal.sym(Nat, Rank.heat_sum(G.add_at(t, p, v)), (Rank.heat_sum(t) + Bool.pick(Nat, Nat.is_lt(p, G.list_len(t)), v, 0n) : Nat), add_at_sum(t, p, v)) : {(h + _ : Nat) == ((h + Rank.heat_sum(t)) + Bool.pick(Nat, Nat.is_lt(p, G.list_len(t)), v, 0n) : Nat) : Nat}
+          Equal.sym(Nat, ((h + Rank.heat_sum(t)) + Bool.pick(Nat, Nat.is_lt(p, G.list_len(t)), v, 0n) : Nat), (h + (Rank.heat_sum(t) + Bool.pick(Nat, Nat.is_lt(p, G.list_len(t)), v, 0n)) : Nat), add_assoc(h, Rank.heat_sum(t), Bool.pick(Nat, Nat.is_lt(p, G.list_len(t)), v, 0n)))
 
 # gain function for spread sums: total q added equals q per in-bounds index.
 # Single def (Bend bans cycles); spread_sum Nil case closes via add_zero and
@@ -336,7 +342,7 @@ def spread_gain(+ns: +List<Nat>, +n: Nat, +q: Nat) -> Nat:
     case Nil{}:
       0n
     case Con{j, t}:
-      Bool.pick(Nat, Nat.is_lt(j, n), q, 0n) + spread_gain(t, n, q)
+      (Bool.pick(Nat, Nat.is_lt(j, n), q, 0n) + spread_gain(t, n, q) : Nat)
 
 # PROOF: step_preserves_heat (PROVEN FRAGMENT: Nil{}). One step on the empty
 # vector preserves the heat sum by computation (both sides are 0n).

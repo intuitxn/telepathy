@@ -39,7 +39,7 @@ def heat_sum(+h: +List<Nat>) -> Nat:
   G.list_sum(h, 0n)
 
 def half_count(n: Nat) -> Nat:
-  n / 2n
+  (n / 2n : Nat)
 
 # elementwise (h*num)/den takes, in node order
 def take_each(+hs: +List<Nat>, +num: Nat, +den: Nat) -> +List<Nat>:
@@ -47,7 +47,7 @@ def take_each(+hs: +List<Nat>, +num: Nat, +den: Nat) -> +List<Nat>:
     case Nil{}:
       Nil{}
     case Con{h, t}:
-      ((h * num) / den) <> take_each(t, num, den)
+      ((h * num : Nat) / den : Nat) <> take_each(t, num, den)
 
 def zip_add(+xs: +List<Nat>, +ys: +List<Nat>) -> +List<Nat>:
   match xs:
@@ -58,7 +58,7 @@ def zip_add(+xs: +List<Nat>, +ys: +List<Nat>) -> +List<Nat>:
         case Nil{}:
           h <> t
         case Con{k, u}:
-          (h + k) <> zip_add(t, u)
+          (h + k : Nat) <> zip_add(t, u)
 
 def zip_sub(+xs: +List<Nat>, +ys: +List<Nat>) -> +List<Nat>:
   match xs:
@@ -84,7 +84,7 @@ def scatter_branch(dangling: Bool, +acc: +List<Nat>, +ns: +List<Nat>, +i: Nat, +
     case True{}:
       G.add_at(acc, i, h)
     case False{}:
-      spread(ns, G.add_at(acc, i, G.nsub(h, (h / d) * d)), h / d)
+      spread(ns, G.add_at(acc, i, G.nsub(h, ((h / d : Nat) * d : Nat))), (h / d : Nat))
 
 def scatter_one(+acc: +List<Nat>, +ns: +List<Nat>, +i: Nat, +h: Nat, +d: Nat) -> +List<Nat>:
   scatter_branch(Nat.is_eq(d, 0n), acc, ns, i, h, d)
@@ -131,9 +131,9 @@ def give_back(+base: +List<Nat>, +flags: +List<Nat>, +share: Nat, +rem: Nat) -> 
         case 1n+w:
           match rem:
             case 0n:
-              (b + share) <> give_back(bt, ft, share, 0n)
+              (b + share : Nat) <> give_back(bt, ft, share, 0n)
             case 1n+u:
-              (b + share + (1n+u)) <> give_back(bt, ft, share, 0n)
+              (b + share + (1n+u) : Nat) <> give_back(bt, ft, share, 0n)
 
 def teleport_branch(noseed: Bool, +h: +List<Nat>, +seed: +List<Nat>, +s: Nat, +num: Nat, +den: Nat) -> +List<Nat>:
   match noseed:
@@ -143,8 +143,8 @@ def teleport_branch(noseed: Bool, +h: +List<Nat>, +seed: +List<Nat>, +s: Nat, +n
       +takes = take_each(h, num, den)
       +pool = heat_sum(takes)
       base = zip_sub(h, takes)
-      +share = pool / s
-      rem = G.nsub(pool, share * s)
+      +share = (pool / s : Nat)
+      rem = G.nsub(pool, (share * s : Nat))
       give_back(base, seed, share, rem)
 
 def teleport(+h: +List<Nat>, +seed: +List<Nat>, +s: Nat, +num: Nat, +den: Nat) -> +List<Nat>:
