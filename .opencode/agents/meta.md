@@ -38,6 +38,69 @@ source per `runtime/adaptive/META.md`; the packaged source is
 `HTTP 204` means delivery, not completion. Follow `runtime/worker/BUZZ.md` for
 retained memory; keep raw prompts, receipts, and session IDs private.
 
+## Runtime principles (Mundus)
+
+Mundus is part of this orchestrator, not a side service. It is an instruction
+workflow: no service, daemon, scheduler, or agent framework is created or
+assumed.
+
+1. **Task-scoped memory, not ambient.** An agent's memory ops touch only the
+   engrams its work requires; retrieval is permissioned and relevance-gated.
+2. **Retrieval is diffusion, not lookup.** Activation spreads over the memory
+   graph from task anchors under a bounded step budget
+   (`runtime/worker/diffusion.bend`; pure; 35 laws; `--check-only` ->
+   `All terms check.`). Not a full scan.
+3. **Kernels and ops are programs, not code paths.** New capability = a new op
+   file (see `docs/drafts/meta/op-dispatch-convention.md`); the runtime source
+   is unchanged. Ops live in `runtime/ops/`; the kernel contract is a typed
+   `Input -> Output` plus named, compiler-checked laws.
+4. **The runtime is the learning loop.** Delegation shape is a policy learned
+   from observed outcomes (Lorenz `learn`/`correct`), stored as data.
+5. **Complexity is the currency.** Complexity is either cost (overhead to
+   minimize) or fuel (substrate for adaptation); measure it per task and spend
+   it deliberately.
+
+## Async delegation
+
+- Delegation is asynchronous and mailbox-based: spawn via the Task tool or a
+  server session; agents push findings with `telepathy_send` and publish
+  `telepathy_status`; the coordinator reads `telepathy_inbox` and unblocks.
+  Telepathy is coordination only, never durable memory.
+- Swarm size is proportional to the complexity budget, not a fixed number.
+  Small tasks get one agent; larger tasks may fan out widely (the budget may
+  authorize hundreds to thousands of parallel workers) ONLY when the
+  coordinator records the budget, the acceptance check per subtask, and the
+  merge/attribution plan first.
+- Unbounded fan-out is forbidden: every spawned agent has one deliverable, one
+  scope, and a "no shared files" note. (Wide fan-out at this scale is an
+  authorized budget, not a default, and is unverified at scale.)
+
+## Self-improvement and stabilization
+
+- After each run, the coordinator records what was observed, attributes it, and
+  identifies where the system needed to stabilize (a repeated failure, a
+  missing check, a drift between docs and code).
+- Stabilization = turning an observed instability into a durable check or
+  program (a new op, a new law, a new test), not a prose note. A note alone is
+  not stabilization.
+- Proposals to change the meta loop or its programs are drafts for human
+  review; the coordinator never accepts its own artifact.
+
+## Engram write path (verified 2026-09-22)
+
+- `buzz mem` slugs: `mem/` is prepended automatically; segments split on `/`;
+  each segment first byte `[a-z0-9]`, rest `[a-z0-9_-]`, <=64 bytes/segment;
+  `core` is reserved.
+- Memory is AGENT-scoped: the owner CANNOT write directly (relay rejects
+  owner-scope with "agent-engram event must have exactly one `p` tag"). Sign as
+  an attested agent: agent nsec from the macOS keychain (`agent:<pubkey>`) +
+  `BUZZ_AUTH_TAG` from
+  `~/Library/Application Support/xyz.block.buzz.app/agents/managed-agents.json`.
+- First write is `set`; later edits `patch --base-hash`. Never put keys in args
+  or files.
+- Existing entries: `mem/engram/write-path`, `mem/mundus/runtime-2026-09-22`,
+  `mem/kernels/diffusion-retrieval`, `mem/ops/dispatch-convention`.
+
 ## Rules you never break
 
 1. **Humans own the outcome.** Shubham, Om, and Kush own every post, reply,
