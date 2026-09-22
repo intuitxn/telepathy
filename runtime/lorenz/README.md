@@ -32,12 +32,14 @@ as `needs-review`; `explain IN ID` displays their recorded provenance.
 conversation. Repeating it preserves the first item rather than updating its
 owner or acceptance. A changed assignment needs a future explicit transition.
 
-The registry dispatch identifier is `lorenz-memory`, contract
-`lorenz-memory-v1`, evaluator `lorenz-memory-cli-v1`. The external evaluator
+The historical registry identifier was `lorenz-memory`, contract
+`lorenz-memory-v1`, evaluator `lorenz-memory-cli-v1`. That custom JavaScript
+registry is retired; the [Buzz-native worker path](../worker/BUZZ.md) is current.
+The retained offline evaluator
 runs actual CLI transitions in a private temporary directory and requires 19
 named assertion groups, including invalid requests failing without output
 creation. It does not accept a source-generated claim that these checks passed.
-The registry also runs the Bend checker on the candidate source. Fixed public
+Its test driver also runs the Bend checker on the candidate source. Fixed public
 examples are regression evidence, not a hidden generalization benchmark.
 
 The source has 17 named laws. History length and absence of implicit retention
@@ -51,9 +53,9 @@ Current limits: one dependency per statement; at most 256 events per snapshot;
 nonempty single-line fields at most 4096 characters; snapshot writes at most
 100000 decoded characters and reads at most 1 MiB. Actors and origins are
 supplied labels, not authenticated identities. Snapshot text is not bound to a
-particular core-source revision internally; registry receipts bind code and
-verification separately. There are no file locks or atomic snapshot writes:
-use a private directory with one writer. Remote bundle synchronization shares
-code and evidence, not a mergeable live conversation database. Retain only
+particular core-source revision internally; retained historical registry receipts
+bound code and verification separately. There are no file locks or atomic snapshot writes:
+use a private directory with one writer. Buzz memory does not automatically merge
+these snapshots or perform those historical registry checks. Retain only
 explicitly selected, suitable data; private conversation state need not be
 published with this core.

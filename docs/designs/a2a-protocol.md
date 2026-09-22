@@ -6,6 +6,46 @@
 
 # A2A Protocol Design — oc2 / Telepathy Agent Runtime Stack
 
+## Mundus alignment — 2026-09-22
+
+Mundus adopts this document's M1–M8 sequence rather than defining a parallel
+network protocol. Reviewer: **Shubham**. This section records the selected
+architecture and verified gaps; it does not mark the milestones complete.
+
+- Reuse the existing Buzz relay and workspace service on `:4110`. The relay
+  coordinates identities, directory records and events; ACP and execution stay
+  node-local. The local `:4110/api/health` probe currently returns connection
+  refused, so reuse is an integration target, not a claim of running service.
+- Bend owns Mundus kernel state, scheduler/flow rules and unsigned event intents.
+  Use the existing Buzz CLI as the signing/relay boundary where it suffices. A
+  minimal audited twin is justified only for an actual missing host operation;
+  do not recreate the retired JavaScript registry or implement Nostr signing
+  inside Bend. Typed network intents are not yet implemented in the worker.
+- Publication follows **draft → Shubham reviews the exact payload/revision →
+  owner-controlled signer sends**. Execution/kernel processes must not receive
+  signing keys. This is a target invariant, not a verified deployment property:
+  the September 8 audit above found inherited Buzz identity in the running node.
+  The earlier M4 suggestion to keep a key in the execution node is superseded
+  for Mundus; public-key verification and private-key custody are separate roles.
+- Lorenz holds local correctable memory. NIP-AE holds selected published engrams;
+  these remain scoped by agent/owner and are not automatically readable by every
+  node. Sharing requires an explicitly selected audience and reviewed content.
+  Existing private snapshots and signed registry evidence have not been migrated.
+- Phase 3.5 derives typed payloads for `predict`, `return`, `learn`, `correct`,
+  `artifact` and `accept`, then implements directory registration, routing and
+  delivery through M3–M8. These names are Mundus domain semantics, not a claim
+  that new standardized NIP kinds already exist. Kind/schema mapping, exact
+  revision acceptance, replay deduplication and delivery receipts remain work.
+- Reuse §3.4's Lamport design: local tick, receive `max(local, remote)+1`, and
+  deterministic projection order `(clock, node_id, event_id)`. The existing
+  `oc2` sync implementation contains the primitive; the Bend worker and Mundus
+  network intents are not yet connected to it. A Lamport timestamp does not
+  establish that one event caused another merely because its number is lower.
+
+The current cleanup removes the extra JavaScript learning service and keeps
+native Bend plus Buzz facilities. It does not claim to implement M3–M8 or the
+credential-isolation/review gate. See [current native path](../../runtime/worker/BUZZ.md).
+
 **File:** `/Users/a3fckxmini/agent-workspaces/a2a-protocol-design.md`
 **Date:** 2026-09-08 · **Author:** research agent (child of harness session)
 **Scope:** unified auth (codex + opencode in one resident node), ACP-over-Buzz network topology, A2A inter/intra-node communication, identity mapping, continual node learning, and implementation milestones.

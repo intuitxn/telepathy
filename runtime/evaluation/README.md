@@ -1,5 +1,11 @@
 # Bounded transfer demonstration
 
+These retained experiments use optional offline Node drivers. The deployed path
+now uses [Buzz native facilities and Bend](../worker/BUZZ.md); the custom
+JavaScript registry/lifecycle/delegation services have been removed. Historical
+transport trials describe commit `d7a6c7b0930f6d91b691e58df84b775479380c0d`.
+Their saved answers can still be scored here without contacting any provider.
+
 For the separate fresh coding-agent pilot, see [agent-transfer.md](agent-transfer.md).
 Both agents passed 136/136 held-out cases; the observed memory benefit was zero.
 The [real Codex-to-OpenCode trial](cross-harness.md) exercises publication,
@@ -73,8 +79,9 @@ new algorithm discovery, arbitrary causal discovery, or AGI.
 
 This runner constructs its own evidence fixtures and validates their declared
 compatibility. It is not an end-to-end registry transport/admission test, and
-its evidence JSON is not independently authenticated. The registry's own tests
-cover that boundary. The unchanged source is freshly checked before the run;
+its evidence JSON is not independently authenticated. The historical registry
+tests at `d7a6c7b0930f6d91b691e58df84b775479380c0d` covered that boundary.
+The unchanged source is freshly checked before the run;
 recorded hashes bind these measurements to the bytes that were executed.
 
 A stronger agent-learning experiment still requires multiple independent
