@@ -1,4 +1,5 @@
 {
+  "status": "historical draft — derived from docs/AGENT_DIRECTORY.md before the 2026-09-22 Desk retirement. The 'runtime: desk' / '.local/desk.sqlite' / 'runtime/desk/*' values below are the pre-retirement draft and are NOT current; the canonical agent directory is docs/AGENT_DIRECTORY.md.",
   "source": {
     "directory": "docs/AGENT_DIRECTORY.md",
     "charters": ".opencode/agents/*.md",
