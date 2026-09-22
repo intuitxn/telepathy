@@ -1,0 +1,25 @@
+{
+  "schema": "single-paired-coding-pilot-v1",
+  "protocol_sha256": "dd5b425805e104b1d870d56182a27ffb4471827f430660215088d2c5939dda15",
+  "evaluator_sha256": "8b362170546799e77b1d3ecf737a57e1a38657278a264baec055787c508a78b5",
+  "results": {
+    "without_memory": {
+      "correct": 136,
+      "total": 136,
+      "mutations": 0,
+      "failures": [],
+      "answer_sha256": "cdc17cdb7d464915c833a180576c294137a67a3894daa7a23ca858509f284c1b",
+      "output_words": 266
+    },
+    "with_memory": {
+      "correct": 136,
+      "total": 136,
+      "mutations": 0,
+      "failures": [],
+      "answer_sha256": "0ae1cd2f571703427a289f4d1e8a709c3055e852039efd331f05a26a6617f69b",
+      "output_words": 260
+    }
+  },
+  "accuracy_difference": 0,
+  "conclusion": "One paired coding pilot; actual task correctness, no evidence of population-level learning. Both arms receive identical full specification; memory adds prior engineering findings only. No source edits or retries after test feedback."
+}

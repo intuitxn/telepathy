@@ -1,0 +1,56 @@
+{
+  "frozen_evaluator_sha256": "cd40f70ebdd2c19cf0eb2d87e7ecb9f739122e78e47618bfad2387b5422e3c51",
+  "report_plumbing_change": "Report plumbing retains budget compliance, supports both initial and corrected follow-up trials, and reads losslessly gzipped fixtures; frozen decompressed protocol, oracle and scorer unchanged.",
+  "budget_compliant_comparison": true,
+  "schema": "workflow-transfer-paired-pilot-v1",
+  "protocol_sha256": "9a0204406305bb6f6a1c59a66b7cf1c4993a0f1ae5885d0185784a3e097d9e1b",
+  "evaluator_sha256": "7a88d3cfc1e111a158f9d343e140fc0755c85945fb81510defb7f749a39e0187",
+  "results": {
+    "baseline": {
+      "correct": 652,
+      "total": 652,
+      "failures": [],
+      "model": "deepseek-v4-pro",
+      "provider": "opencode",
+      "elapsedMs": 60711,
+      "tokens": {
+        "input": 4640,
+        "output": 945,
+        "reasoning": 4351,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "cost": 0.02841024,
+      "toolCalls": 0,
+      "toolPolicy": "none",
+      "status": "completed",
+      "code_sha256": "697743e468a70edb5c87d7d0487d4a9c1b6199579516409e9b0a5c88d3aef9a5",
+      "output_words": 463,
+      "budget_compliant": true
+    },
+    "memory": {
+      "correct": 652,
+      "total": 652,
+      "failures": [],
+      "model": "deepseek-v4-pro",
+      "provider": "opencode",
+      "elapsedMs": 70785,
+      "tokens": {
+        "input": 4709,
+        "output": 758,
+        "reasoning": 5077,
+        "cacheRead": 0,
+        "cacheWrite": 0
+      },
+      "cost": 0.03060006,
+      "toolCalls": 0,
+      "toolPolicy": "none",
+      "status": "completed",
+      "code_sha256": "88e1b2ab7515487b20b8002bc04fca92c05630d633fc0e3c9022941b68c277a7",
+      "output_words": 370,
+      "budget_compliant": true
+    }
+  },
+  "accuracy_difference": 0,
+  "limitation": "One task and one compliant paired trial; initial policy-violating pair also retained. Fixed fixtures, no statistical or general-learning claim. Memory is supplied retained project prose, not autonomous retrieval."
+}
