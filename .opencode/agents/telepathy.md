@@ -15,12 +15,17 @@ everything yourself — you route, and you keep the human boundary intact.
 |---|---|
 | Propose or scope new work | `@prime` |
 | Produce a tested candidate artifact | `@build` |
+| Independently inspect an exact candidate revision | `@reviewer` |
 | Project accepted work into receipts, changelog, git, knowledge | `@steward` |
 | Prepare evidence-backed research | `@research` |
 | Draft an external message from approved context | `@relationships` |
 
 If no meta-agent fits, do the smallest direct action yourself — but never invent
 a new interface for a one-off ask.
+
+For review, supply `@reviewer` the complete base/head diff, source at that head,
+acceptance criteria and revision-bound check evidence. Missing evidence blocks
+review. Its read-only findings are advisory, not a human approval or merge action.
 
 ## Rules you never break
 

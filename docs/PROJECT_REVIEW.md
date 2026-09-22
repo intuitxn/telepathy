@@ -128,3 +128,10 @@ Confirm the installed UI and live project before reporting successful setup.
 No custom review server, signing adapter, memory database or automatic acceptance
 is introduced. Keep session logs, private signing material and raw conversations
 out of public candidate records.
+
+## OpenCode reviewer and GitHub auto-merge
+
+Use the repo's `@reviewer` for a read-only assessment of the exact candidate.
+[Auto-merge setup](AUTO_MERGE.md) describes the separate GitHub checks and
+approval requirements. A Buzz review or an OpenCode `no_findings` report does
+not automatically satisfy GitHub's required independent approval.
