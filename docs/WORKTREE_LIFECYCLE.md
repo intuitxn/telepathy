@@ -39,6 +39,17 @@ revision ([SOP.md](./SOP.md), [HARNESS.md](../runtime/adaptive/HARNESS.md)).
 Reject means discard the branch and remove the worktree: an experiment that
 scored zero.
 
+A candidate may **auto-merge** once it is mergeable: checks green on an up-to-date
+branch, one independent approving review, no unresolved conversations. Auto-merge
+lands the *reviewed state*, pinned to the reviewed head; a new commit re-runs
+checks and invalidates the stale review. It is not self-approval ([AUTO_MERGE.md](./AUTO_MERGE.md)).
+
+## Guard
+
+`scripts/worktree-guard.sh` fails before work starts if the current branch already
+merged into `origin/main`. Run it as a preflight; if it fails, make a fresh
+worktree instead of reusing the merged one. Nothing to prune by hand.
+
 ## Limits
 
 - A worktree is **not** a security boundary ([report](../artifacts/reports/2026-09-08-telepathy-labs-technical-report.md)).
