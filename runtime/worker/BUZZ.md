@@ -136,6 +136,39 @@ an authorized change. The repository's `scripts/jtbd-workflow.yaml` uses
 an ACP agent with process tools executes Bend and reports its observed evidence.
 
 ## Keep the storage boundaries explicit
+For a byte-pinned, independently checked kernel candidate and the native engram
+transfer procedure, see [engrams/README.md](engrams/README.md). This preparation
+does not establish a completed remote transfer.
+
+## Agent identity and local logs
+
+Buzz agent identity is its existing signed public key and owner relationship.
+An OpenCode session ID identifies a local execution session; it is not a Buzz
+login. Keep those identities distinct. A running local session does not imply
+that this shell can publish as its enclosing Buzz agent.
+
+On macOS, the existing Buzz host keeps agent PID records and logs under
+`~/Library/Application Support/xyz.block.buzz.app/agents/agent-pids/` and
+`agents/logs/`. Use the managed agent's public key to match its records. Check
+the process as well as the file: an old PID record or connection log is not
+proof of current relay presence. Configuration and raw logs may contain private
+data; do not publish them as engrams.
+
+The existing local OpenCode mailbox registration repair is versioned in
+[plugins/telepathy-mailbox](../../plugins/telepathy-mailbox/README.md). It records
+full session IDs, role when available, workspace, host, title and lifecycle state
+in `~/.config/opencode/telepathy/peers.json`, with events in `events.jsonl`.
+These local records are not authenticated Buzz presence or a second login.
+Installing the repaired file does not reload existing OpenCode instances. Let
+their jobs finish before reloading; concurrent-writer protection requires all
+writers to adopt the repair.
+
+Native Buzz authentication and an owner-authorized channel remain necessary for
+publication. Do not copy host signing keys into a worker to bridge a missing
+login. Cross-agent kernel reuse must record the actual publisher and receiving
+identity separately, as described in the engram procedure.
+
+## Local state and retained memory
 Local Bend snapshots preserve worker claims, result provenance, explicit
 learning, and corrections in one private single-writer lineage. A selected Buzz
 engram is a separate retained summary; it does not automatically merge those
