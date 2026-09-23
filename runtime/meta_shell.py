@@ -38,6 +38,14 @@ DEFAULT_PORT = 47831
 SERVICE = "space.intuitxn.meta"
 KERNEL_TIMEOUT = 180
 STARTUP_TIMEOUT = KERNEL_TIMEOUT + 60
+CHILD_GROUPS: set[int] = set()
+
+
+def terminate_child_groups():
+    """Signal-safe bounded cleanup before a supervisor can forcibly stop this node."""
+    for pid in tuple(CHILD_GROUPS):
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(pid, signal.SIGKILL)
 
 
 def private_dir(path: Path):
@@ -180,6 +188,7 @@ class Node:
             *map(str, args), cwd=str(project),
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
             start_new_session=True)
+        CHILD_GROUPS.add(proc.pid)
         try:
             out, err = await asyncio.wait_for(proc.communicate(), 120)
         except BaseException:
@@ -187,6 +196,8 @@ class Node:
                 os.killpg(proc.pid, signal.SIGKILL)
             await proc.wait()
             raise
+        finally:
+            CHILD_GROUPS.discard(proc.pid)
         if proc.returncode:
             raise RuntimeError("jj " + " ".join(map(str, args[:2])) + ": " + err.decode(errors="replace")[-4000:])
         return out.decode().strip()
@@ -414,6 +425,7 @@ class Node:
         proc = await asyncio.create_subprocess_exec(*command, env=env,
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
             start_new_session=True)
+        CHILD_GROUPS.add(proc.pid)
         try:
             out, _ = await asyncio.wait_for(proc.communicate(), KERNEL_TIMEOUT)
         except BaseException:
@@ -421,6 +433,8 @@ class Node:
                 os.killpg(proc.pid, signal.SIGKILL)
             await proc.wait()
             raise
+        finally:
+            CHILD_GROUPS.discard(proc.pid)
         text = out.decode(errors="replace")
         if proc.returncode:
             raise RuntimeError(f"Bend {args[0]} failed ({proc.returncode}): {text[-3000:]}")
@@ -808,7 +822,18 @@ def main():
         import uvicorn
         node = Node(args.state, args.source, args.bend, args.opencode, args.model)
         node.port = args.port
-        uvicorn.run(create_app(node), host="127.0.0.1", port=args.port, log_level="warning")
+        class OwnedServer(uvicorn.Server):
+            def handle_exit(self, sig, frame):
+                # Lifespan startup can be waiting on Bend before normal shutdown runs.
+                # Kill owned groups immediately, then preserve uvicorn's signal handling.
+                terminate_child_groups()
+                super().handle_exit(sig, frame)
+        server = OwnedServer(uvicorn.Config(create_app(node), host="127.0.0.1",
+                                          port=args.port, log_level="warning"))
+        try:
+            server.run()
+        finally:
+            terminate_child_groups()
         return
     if args.command == "install":
         install(args)
@@ -895,6 +920,7 @@ async def owned_acp(client, executable, project, env, stderr):
         executable, "acp", "--cwd", project, cwd=project, env=env,
         stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=stderr,
         limit=4 * 1024 * 1024, start_new_session=True)
+    CHILD_GROUPS.add(process.pid)
     conn = None
     try:
         conn = acp.connect_to_agent(client, process.stdin, process.stdout)
@@ -914,7 +940,10 @@ async def owned_acp(client, executable, project, env, stderr):
             finally:
                 with contextlib.suppress(ProcessLookupError):
                     os.killpg(process.pid, signal.SIGKILL)
-                await process.wait()
+                try:
+                    await process.wait()
+                finally:
+                    CHILD_GROUPS.discard(process.pid)
 
 
 class MetaACPClient:

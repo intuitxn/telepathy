@@ -8,6 +8,11 @@ import sqlite3
 import tempfile
 import unittest
 import plistlib
+import os
+import signal
+import subprocess
+import sys
+import time
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -213,6 +218,45 @@ class TransportTests(unittest.TestCase):
 
 
 class ServiceLifecycleTests(unittest.TestCase):
+    def test_sigterm_during_startup_reaps_checker_and_its_child(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            marker, checker, source = root / "pids", root / "checker", root / "source.bend"
+            source.write_text("test fixture only\n")
+            checker.write_text(f"#!{sys.executable}\n"
+                "import os, subprocess, sys, time\n"
+                "from pathlib import Path\n"
+                "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])\n"
+                f"Path({str(marker)!r}).write_text(str(os.getpid()) + ' ' + str(child.pid))\n"
+                "time.sleep(60)\n")
+            checker.chmod(0o700)
+            with open(root / "daemon.log", "wb") as log:
+                daemon = subprocess.Popen([sys.executable, str(Path(meta_shell.__file__).resolve()),
+                    "--state", str(root / "state"), "--source", str(source), "--bend", str(checker),
+                    "--port", "0", "serve"], stdout=log, stderr=log)
+                pids = []
+                try:
+                    deadline = time.monotonic() + 30
+                    while not marker.exists() and daemon.poll() is None and time.monotonic() < deadline:
+                        time.sleep(0.05)
+                    self.assertTrue(marker.exists(), (root / "daemon.log").read_text()[-2000:])
+                    pids = [int(value) for value in marker.read_text().split()]
+                    daemon.send_signal(signal.SIGTERM)
+                    daemon.wait(timeout=10)
+                    for pid in pids:
+                        status = subprocess.run(["ps", "-p", str(pid), "-o", "stat="], capture_output=True, text=True)
+                        self.assertTrue(status.returncode != 0 or status.stdout.strip().startswith("Z"),
+                                        f"Startup descendant {pid} still running: {status.stdout}")
+                finally:
+                    if daemon.poll() is None:
+                        daemon.kill()
+                        daemon.wait(timeout=5)
+                    if pids:
+                        try:
+                            os.killpg(pids[0], signal.SIGKILL)
+                        except ProcessLookupError:
+                            pass
+
     def test_start_waits_past_old_readiness_cutoff_for_kernel_check(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory).resolve()
