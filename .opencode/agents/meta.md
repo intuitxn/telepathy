@@ -54,14 +54,17 @@ assumed.
    engrams its work requires; retrieval is permissioned and relevance-gated.
 2. **Retrieval is diffusion, not lookup.** Activation spreads over the memory
    graph from task anchors under a bounded step budget
-   (`runtime/worker/diffusion.bend`; pure; 35 laws; `--check-only` ->
+   (`runtime/worker/diffusion.bend`; pure; `--check-only` ->
    `All terms check.`). Not a full scan.
+   The command surface currently exercises a local graph fixture; it does not
+   retrieve Buzz engrams automatically.
 3. **Kernels and ops are programs, not code paths.** New capability = a new op
    file (see `docs/drafts/meta/op-dispatch-convention.md`); the runtime source
    is unchanged. Ops live in `runtime/ops/`; the kernel contract is a typed
    `Input -> Output` plus named, compiler-checked laws.
-4. **The runtime is the learning loop.** Delegation shape is a policy learned
-   from observed outcomes (Lorenz `learn`/`correct`), stored as data.
+4. **The runtime supports the learning loop.** Lorenz `learn`/`correct` retain
+   selected findings. Learning a better delegation policy from outcomes is a
+   target; the current numeric planner does not establish that improvement.
 5. **Complexity is the currency.** Complexity is either cost (overhead to
    minimize) or fuel (substrate for adaptation); measure it per task and spend
    it deliberately.

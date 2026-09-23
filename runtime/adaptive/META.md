@@ -11,13 +11,31 @@ through checks, corrections and relevant internal memory updates. Derive concret
 acceptance from the goal when needed. Human review is not a per-transition gate;
 preserve existing authorization and escalate only an actual missing boundary.
 
-To make the command discoverable from other local projects, install a symlink
-at `~/.config/opencode/commands/meta.md` pointing to this checkout's
-`.opencode/commands/meta.md`. Preserve any existing command and coordinate its
-owner rather than overwriting it. Start a fresh OpenCode project context after
-installation. The command resolves its checkout through that symlink and keeps
+To make the command and its `meta` role discoverable from other local projects,
+run `scripts/install-meta.sh` in the selected checkout. It installs symlinks for
+both entries and preserves existing configuration in a private backup directory.
+Start a fresh OpenCode project context after installation.
+The command resolves its checkout through that symlink and keeps
 the user's active project as the work target. Other machines need their own
 checkout, Bend executable, and local link; this does not install credentials.
+
+## Preferred host entry point
+
+Use `./mundus help` for arguments. `./mundus init ROOT` creates a private local
+lineage; `capture`, `work`, `worker`, `claim`, `return`, `learn`, `remember` and
+`correct` execute the actual Lorenz worker below. `packet`, `history`, `status`,
+`memory` and `explain` read its records. Read actual IDs from `history ROOT`, selecting the required record kind
+and reference rather than assuming the newest ID is a work ID. One conversation
+has one work record; a repeated `work` preserves that prior record. Capture a
+separate selected request for each independently delegated task.
+The shell freezes and checks the worker source for each mutation, takes a local
+writer lock, preserves each attempt, and updates `ROOT/head` only on success.
+An interrupted attempt can leave a lock; inspect its process and evidence before
+recovery. Do not automatically steal locks or retry ambiguous network delivery.
+
+`plan` and `retrieve` use separate experimental slots under `ROOT/planner`.
+They do not delegate agents, import a worker packet or retrieve Buzz memory.
+The direct Bend commands below remain available for explicit snapshot control.
 
 ## Resolve the native worker
 

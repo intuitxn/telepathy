@@ -30,8 +30,10 @@ jobs:
           python-version: '3.12'
       - name: Install workspace dependencies
         run: npm ci --ignore-scripts
-      - name: Check retained runtime
-        run: npm run check
+      - name: Install pinned Bend 2.0.21
+        run: sh scripts/install-bend-ci.sh
+      - name: Check retained runtime (Bend required)
+        run: node scripts/check.mjs --require-bend
       - name: Check program gate and runtime
         working-directory: runtime/programs
         env:

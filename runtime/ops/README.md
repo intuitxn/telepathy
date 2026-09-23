@@ -1,13 +1,18 @@
 # runtime/ops — the op driver
 
-`driver.py` is the ordinary host driver for "procedure as Bend" ops. It gates
-an op file, runs its in-file fixture, and records exactly one run directory of
-`brief`, `candidate.patch`, `evidence` and `verdict`. It implements the
-convention in `docs/drafts/meta/op-dispatch-convention.md`; it is **not** a
-new runtime, service, scheduler, registry daemon or agent framework.
+`run.sh` is the ordinary host driver for "procedure as Bend" ops. It gates an
+op file, runs its in-file fixture, and records exactly one run directory of
+`source.bend`, `brief`, `candidate.patch`, `evidence` and `verdict`. It is POSIX shell only:
+no Python, no Node, no new runtime, service, scheduler, registry daemon or
+agent framework. It implements the convention in
+`docs/drafts/meta/op-dispatch-convention.md` (§2, §4, §5, §6, §7) and
+`docs/drafts/meta/ops-as-bend.md`.
 
-The op kernel stays pure. Effects — process launch, file writes, `git diff`,
-sha256 — live here in the driver (convention §2).
+The registered op kernels follow a pure-operation convention. Effects — process launch, file writes, run dirs,
+`git diff`, sha256 — live here in the shell driver (convention §2). The driver
+does the hashing and IO the kernel cannot; the registered `.bend` files use print-only fixtures. Arbitrary source paths are
+not sandboxed: purity and absence of network effects are conventions, not
+guarantees enforced by this driver.
 
 ## File contract (convention §1, §4)
 
@@ -40,37 +45,51 @@ The file precedes `--check-only`; `bend check FILE` is not a supported command.
 
 ## Driver contract (convention §2, §6)
 
-`driver.py` is stdlib-only Python 3. It:
+`run.sh` is dependency-free POSIX `/bin/sh`. It:
 
-- holds a **static listing** `OPS` of `op name -> role`, one entry per op file,
+- holds a **static listing** of `op name -> role`, one entry per op file,
   mirroring the `REGISTRY` shape in `runtime/programs/cli.py:29`. Adding a
-  capability adds an op file plus one listing entry; op logic never moves into
+  capability adds an op file plus one listing case; op logic never moves into
   the driver (convention §6);
 - hands the op a `brief` (task + acceptance, task data, not instructions);
-- launches Bend for the gate and the fixture, with `BEND_NO_TELEMETRY=1`;
-- runs `git diff HEAD` for the candidate and sha256 for the digests;
-- writes the four run files and prints one verdict line per check.
+- copies the self-contained op into the run directory and checks, hashes and
+  executes that same saved source, with `BEND_NO_TELEMETRY=1`;
+- skips execution unless checking exits zero, confirms `All terms check.`, and
+  has no TODO; checks exact fold output and whitespace-normalized status output;
+- runs `git diff HEAD` for the candidate, `git rev-parse HEAD` for the read-only
+  HEAD observation, and `shasum -a 256` (falling back to `sha256sum`) for the
+  digests;
+- writes the source copy and four receipt files and prints one verdict line per check.
 
 | Effect | Where it lives |
 | --- | --- |
-| Subprocess launch (Bend) | driver (`subprocess`) |
-| File read/write, run dirs | driver (`pathlib`), never the kernel |
-| `git diff`, repo HEAD | driver (`git` via `subprocess`), read-only |
-| sha256 digests | driver (`hashlib`), never the kernel |
-| Network | none; the driver opens no socket and the kernel cannot |
+| Subprocess launch (Bend) | shell driver (`$BEND`), never the kernel |
+| File read/write, run dirs | shell driver (`>`, `mkdir`), never the kernel |
+| `git diff HEAD`, repo HEAD | shell driver (`git`, read-only), never the kernel |
+| sha256 digests | shell driver (`shasum`/`sha256sum`), never the kernel |
+| Network | driver opens no socket; arbitrary kernels are not sandboxed |
 
 The driver never accepts, merges, pushes, publishes, sends or resolves
-anything, and a passing gate is not acceptance.
+anything, starts no daemon, and a passing gate is not acceptance (convention
+§7).
 
 ## Invocation
 
+The repo entry point `./mundus op <args...>` delegates here; from the repo root
+that is equivalent to `runtime/ops/run.sh`.
+
 ```sh
-python3 runtime/ops/driver.py list
-python3 runtime/ops/driver.py run fold
-python3 runtime/ops/driver.py run status --id e2e
+./mundus op list
+./mundus op run fold
+./mundus op run status --id e2e
+
+runtime/ops/run.sh list
+runtime/ops/run.sh run fold
+runtime/ops/run.sh run status --id e2e
 ```
 
-- `list` prints `name<TAB>role` for every op in the static listing.
+- `list` prints the static op listing, `name -> role`, one line per op:
+  `fold -> associative-reduction` and `status -> canonical-status-projection`.
 - `run <op> [--id <runid>]` resolves `<op>` to a registry name (or, for
   falsification, a path to a `.bend` file outside the repo), gates it, runs the
   fixture, writes one run directory, and exits nonzero if any check is RED.
@@ -78,40 +97,49 @@ python3 runtime/ops/driver.py run status --id e2e
   carries no admission authority (convention §4).
 
 Binary resolution matches `runtime/programs/cli.py`: `BEND_BINARY` env override,
-else `~/.bend/bin/bend`.
+else `$HOME/.bend/bin/bend`.
 
 ## Output layout (convention §4)
 
 Exactly one directory per dispatch, `ops/runs/<op>-<id>/`:
 
 ```text
+source.bend      # immutable-by-convention copy used for checking and execution
 brief            # task + acceptance handed to the op (task data, not instructions)
 candidate.patch  # git diff from committed HEAD, or an explicit no-change marker
 evidence         # checker output, fixture output, sha256 digest, toolchain, HEAD
 verdict          # one GREEN/YELLOW/RED line per check + a closing summary
 ```
 
-`ops/runs/` holds run output only; it is git-ignored and is not where knowledge
-lives. A run directory records evidence about one dispatch, not a decision.
+Each `verdict` carries one line per check — `law-gate`, `fixture-run`,
+`source-digest`, `candidate-patch`, `driver-digest` — plus one `summary` line
+and a closing note. `ops/runs/` holds run output only; it is git-ignored and is
+not where knowledge lives. A run directory records evidence about one dispatch,
+not a decision.
 
 ## Verdict vocabulary (convention §5)
 
 Reuses the loop vocabulary verbatim (`ops/loops/README.md:22-24`):
 
-- **GREEN** — the check is proven (`All terms check.` for the gate; fixture
-  exit 0 for the run; a recorded digest).
-- **YELLOW** — informational, does not fail the run (an open law / `TODO`, or
-  "no change" in the candidate patch).
-- **RED** — anything else (checker error, fixture failure, missing toolchain,
-  launch failure). Any RED → the run exits nonzero.
+- **GREEN** — the named check passed: complete compiler confirmation, expected
+  registered fixture output, or a recorded digest. Each has a different scope.
+- **YELLOW** — informational: candidate diff, or successful execution of an
+  arbitrary op with no independently declared expected output.
+- **RED** — checker error, TODO/incomplete proof, fixture failure or mismatch,
+  missing toolchain, or launch failure. Any RED makes the run exit nonzero.
 
-**A GREEN check is never acceptance.** It means a compiler check passed on one
-exact revision. Only a named human reviewing the exact candidate revision
-resolves the work (convention §5, `ops/loops/README.md:59-61`).
+A failed gate never launches the fixture. `source.bend` must be self-contained
+apart from the installed `Base` module; sibling relative imports are not copied.
+The receipt binds local source bytes, not the compiler/Base installation or all
+external effects. Recorded copies are ordinary files, not tamper-proof storage.
+
+Checks establish agent verification within their stated scope. Human acceptance
+and publication are separate facts under `runtime/AUTONOMY.md`; routine internal
+completion does not require an invented human checkpoint.
 
 ## May / mustNot (convention §7)
 
-An op and its driver **may**:
+An op and its shell driver **may**:
 
 - declare a typed `Input -> Output`, named laws, and one fixture;
 - be checked with `bend <op>.bend --check-only` and run on a fixture;
@@ -119,10 +147,11 @@ An op and its driver **may**:
 - write `brief`, `candidate.patch`, `evidence`, `verdict` under `ops/runs/`;
 - be listed in the static listing and selected by a declared selector key.
 
-An op and its driver **mustNot**:
+An op and its shell driver **mustNot**:
 
 - accept, merge, push, publish, send or resolve anything;
-- touch the network, or hash / spawn / hold identity from inside the kernel;
+- touch the network, spawn processes, hash or hold identity from inside the
+  kernel;
 - race another writer on the snapshot lineage;
 - introduce a new service, signer, dispatcher or agent framework;
 - treat GREEN as acceptance.
@@ -134,8 +163,10 @@ re-running. A scratch copy of `fold.bend` with `ident(Max{})` mutated
 `0n -> 1n` fails at `fold_chunk_max`:
 
 ```sh
-python3 runtime/ops/driver.py run /path/to/fold_mutated.bend --id red
+runtime/ops/run.sh run /path/to/fold_mutated.bend --id red
 # VERDICT RED law-gate :: checker error (exit 1)
+# VERDICT RED fixture-run :: fixture run failed (exit 125)
+# summary ... red=2 exit=1
 # exit 1
 ```
 

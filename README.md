@@ -12,6 +12,40 @@ The [active build plan](runtime/adaptive/HARNESS.md#what-the-system-should-build
 
 It gives Shubham, Om, and Kush one place to publish decisions, updates, questions, asks, and accepted outcomes. People remain the visible authors and owners. Agent Manager, worker agents, routing, summarization, and artifact processing operate beneath that surface.
 
+## Mundus entry point
+
+Use the native Lorenz worker through one host entry point:
+
+```sh
+./mundus <verb> <root> [args...]
+```
+
+| Verb | Effect |
+| --- | --- |
+| `init <root>` | create an immutable worker genesis snapshot |
+| `capture <root> <task> [actor origin]` | retain the exact selected request |
+| `work`, `worker`, `claim`, `return`, `learn`, `remember`, `correct` | checked Lorenz transitions; see `./mundus help` for arguments |
+| `packet <root> <work>` | task, ownership, acceptance and active attributed memory |
+| `status`, `history`, `memory`, `explain` | inspect actual worker records |
+| `plan <root> <budget> <depth>` | separate abstract planning experiment; does not spawn agents |
+| `retrieve <root>` | separate local graph experiment; does not fetch Buzz memory |
+| `path <root> <verb>` | print the experimental kernel slot path |
+| `op <args...>` | delegate to `runtime/ops/run.sh` |
+| `guard <args...>` | delegate to `scripts/durability-guard.sh` |
+| `help` | print supported host commands and arguments |
+
+The shell creates private directories, acquires a local writer lock, freezes and
+checks the one-file worker source, and publishes a successful immutable snapshot
+by atomically replacing `<root>/head`. Bend owns ownership and memory semantics.
+Failed attempts preserve evidence and leave the head unchanged. This is local
+coordination, not distributed consensus or an execution sandbox. `BEND` overrides
+the compiler path (default `$HOME/.bend/bin/bend`).
+
+Run `scripts/install-meta.sh` to install both `/meta` and its agent role for fresh
+OpenCode contexts; previous entries are backed up. Run `make check` for required
+Bend checks and protocol tests. See [the worker guide](runtime/worker/README.md)
+and [the architecture boundary](docs/META_NATIVE.md).
+
 ## Product rule
 
 > Telepathy exists to improve human communication. It must not turn internal agent traffic into a product for people to monitor.

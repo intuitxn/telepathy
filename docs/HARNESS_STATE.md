@@ -1,7 +1,22 @@
 # Harness state
 
-The verified state of Intuitxn's job harness. Ledger updates this file after every
-accepted outcome; humans approve every entry. Checked facts only — mark uncertainty as such.
+Source-backed state of Intuitxn's harness. Record agent verification separately
+from named-human acceptance. Follow runtime/AUTONOMY.md; mark uncertainty explicitly.
+
+## Consolidated candidate — 2026-09-23
+
+The candidate combines integration and Mundus without reintroducing Desk or the
+retired plugin. `./mundus` uses real Lorenz worker transitions, frozen source per
+mutation, fresh snapshots, a local writer lock and atomic head publication.
+Its plan/retrieve commands remain experimental and separate from worker state.
+The command installer preserves previous config and installs both `/meta` and
+its agent role. `make check` requires Bend; default npm checks explicitly report
+when Bend is unavailable. See [native boundaries](META_NATIVE.md).
+
+This is a candidate state, not a claim that main has landed or that a host was
+restarted. GitHub requires independent approval. The existing Buzz host could
+not be called from this shell, so native relay recall/correction and a complete
+Buzz-to-OpenCode-to-Bend task remain unverified.
 
 ## Current baseline — 2026-09-22
 

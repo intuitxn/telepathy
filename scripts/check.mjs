@@ -5,7 +5,7 @@
 // manifest, always runs the pure-Node evaluation test, and runs the Bend-backed
 // checks when a Bend binary is available (skipped in CI).
 //
-// Usage: node scripts/check.mjs [--root DIR]
+// Usage: node scripts/check.mjs [--root DIR] [--require-bend]
 // Node standard library only.
 
 import fs from 'node:fs';
@@ -18,10 +18,13 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 // (a) Resolve the repo root from this file's location unless --root is given.
 let root = path.resolve(HERE, '..');
+let requireBend = false;
 const argv = process.argv.slice(2);
 for (let i = 0; i < argv.length; i += 1) {
   const arg = argv[i];
-  if (arg === '--root') {
+  if (arg === '--require-bend') {
+    requireBend = true;
+  } else if (arg === '--root') {
     const value = argv[i + 1];
     if (!value) {
       console.error('check: --root requires a directory');
@@ -59,6 +62,10 @@ if (stillPresent.length > 0) {
 
 // (c) RETENTION GUARD: every retained path must exist.
 const REQUIRED = [
+  'mundus',
+  'runtime/mundus.bend',
+  'runtime/worker/run.sh',
+  'runtime/worker/mundus.test.mjs',
   'runtime/worker/system.bend',
   'runtime/worker/diffusion.bend',
   'runtime/adaptive/system.bend',
@@ -126,6 +133,7 @@ const PURE_TESTS = [
   'runtime/evaluation/workflow-transfer.test.mjs',
   'scripts/telepathy-discover.test.mjs',
   'scripts/agit-retirement.test.mjs',
+  'scripts/ops-driver.test.mjs',
 ];
 const pure = runNode(['--test', ...PURE_TESTS]);
 if (pure.status === 0) {
@@ -147,9 +155,10 @@ try {
 }
 
 if (!bendExecutable) {
-  record('SKIP', 'bend', 'binary not found');
+  record(requireBend ? 'FAIL' : 'SKIP', 'bend', `binary not found: ${bendBin}${requireBend ? ' (--require-bend)' : ''}`);
 } else {
   const BEND_FILES = [
+    'runtime/mundus.bend',
     'runtime/worker/system.bend',
     'runtime/worker/diffusion.bend',
     'runtime/worker/history.bend',
@@ -175,7 +184,7 @@ if (!bendExecutable) {
     }
   }
 
-  const BEND_TESTS = ['runtime/worker/protocol.test.mjs', 'runtime/lorenz/evaluate.test.mjs'];
+  const BEND_TESTS = ['runtime/worker/protocol.test.mjs', 'runtime/lorenz/evaluate.test.mjs', 'runtime/worker/mundus.test.mjs'];
   // Pin the test subprocesses to the exact binary validated above so the file
   // checks and the tests can never disagree about which Bend they used (the test
   // files themselves also read process.env.BEND, falling back to ~/.bend/bin/bend).
@@ -192,4 +201,5 @@ const failed = results.filter((r) => r.status === 'FAIL').length;
 const passed = results.filter((r) => r.status === 'PASS').length;
 const skipped = results.filter((r) => r.status === 'SKIP').length;
 console.log(`check: ${failed > 0 ? 'FAIL' : 'PASS'} (${passed} passed, ${failed} failed, ${skipped} skipped)`);
+if (skipped > 0) console.log('Bend kernels and runtime protocols were NOT verified; use --require-bend for a complete local runtime check.');
 process.exit(failed > 0 ? 1 : 0);

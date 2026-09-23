@@ -27,7 +27,8 @@ type Boundary is Data:
 
 # The required kernel set. Paths are checkout-relative.
 def kernels() -> +List<Kernel>:
-  [Kernel{"worker", "runtime/worker/system.bend", "All terms check.", True{}},
+  [Kernel{"mundus", "runtime/mundus.bend", "All terms check.", True{}},
+   Kernel{"worker", "runtime/worker/system.bend", "All terms check.", True{}},
    Kernel{"diffusion", "runtime/worker/diffusion.bend", "All terms check.", True{}},
    Kernel{"history", "runtime/worker/history.bend", "All terms check.", True{}},
    Kernel{"adaptive", "runtime/adaptive/system.bend", "All terms check.", True{}},
@@ -175,9 +176,9 @@ law ctx_boundaries_well_formed:
 def ctx_boundaries_well_formed():
   {==}
 
-# The required set is fixed at nine kernels.
+# The required set is fixed at ten kernels.
 law ctx_required_total:
-  {kernel_count(kernels()) == 9n : Nat}
+  {kernel_count(kernels()) == 10n : Nat}
 
 def ctx_required_total():
   {==}
