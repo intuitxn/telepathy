@@ -657,56 +657,6 @@ def describe_blockers(record):
     return ["unknown stage; inspect with `agit log %s`" % record["job"]]
 
 # ---------------------------------------------------------------------------
-# SQLite divergence (best effort, read-only, never repaired).
-# ---------------------------------------------------------------------------
-
-SQLITE_STAGE_MAP = {"queued": "proposed", "running": "active",
-                    "needs_review": "review", "needs_attention": "waiting",
-                    "resolved": "resolved"}
-
-
-def sqlite_projection(repo, job):
-    """Best-effort read of a Desk SQLite cache; None when absent."""
-    try:
-        import sqlite3
-    except ImportError:
-        return None
-    candidates = sorted((repo / ".local").glob("*.sqlite*")) + \
-        sorted((repo / ".local").glob("*.db"))
-    for dbpath in candidates:
-        try:
-            conn = sqlite3.connect("file:%s?mode=ro" % dbpath, uri=True)
-            try:
-                rows = conn.execute(
-                    "SELECT state FROM jobs WHERE id=?", (job,)).fetchall()
-            finally:
-                conn.close()
-            if rows:
-                return {"db": str(dbpath), "state": rows[0][0]}
-        except Exception:
-            continue
-    return None
-
-
-def check_divergence(repo, job, git_stage):
-    proj = sqlite_projection(repo, job)
-    if not proj:
-        return
-    mapped = SQLITE_STAGE_MAP.get(str(proj["state"]))
-    terminal_git = git_stage in ("resolved", "cancelled")
-    if mapped and mapped != git_stage and not (
-            terminal_git and proj["state"] == "resolved"):
-        # resolved/cancelled granularity differs; only flag real conflicts.
-        if git_stage == "cancelled" and proj["state"] == "resolved":
-            pass
-        else:
-            raise AgitError("divergence",
-                            "SQLite (%s=%s) disagrees with git (%s); git "
-                            "wins and advancement is blocked until a human "
-                            "reconciles" % (proj["db"], proj["state"],
-                                            git_stage))
-
-# ---------------------------------------------------------------------------
 # Subcommands.
 # ---------------------------------------------------------------------------
 
@@ -787,7 +737,6 @@ def cmd_ready(args):
     repo = find_repo(args.repo)
     job = validate_job_id(args.job)
     record = current_record(repo, job)
-    check_divergence(repo, job, record["stage"])
     if record["stage"] == "ready":
         raise AgitError("bad-stage", "job %r is already Ready" % job)
     if record["stage"] != "proposed":
@@ -843,7 +792,6 @@ def cmd_run(args):
     job = validate_job_id(args.job)
     intent = validate_intent(args.intent or args.job)
     record = current_record(repo, job)
-    check_divergence(repo, job, record["stage"])
     if record["stage"] != "ready":
         raise AgitError("bad-stage",
                         "run needs Ready, job %r is %s"
@@ -903,7 +851,6 @@ def cmd_prove(args):
     repo = find_repo(args.repo)
     job = validate_job_id(args.job)
     record = current_record(repo, job)
-    check_divergence(repo, job, record["stage"])
     stage = record["stage"]
     if stage not in ("active", "waiting", "review"):
         raise AgitError("bad-stage",
@@ -937,7 +884,6 @@ def cmd_review(args):
     job = validate_job_id(args.job)
     intent = validate_intent(args.intent or args.job)
     record = current_record(repo, job)
-    check_divergence(repo, job, record["stage"])
     stage = record["stage"]
     cand_path = Path(args.candidate).expanduser().resolve()
     candidate = cand_path.read_bytes()
@@ -1139,7 +1085,6 @@ def cmd_accept(args):
         raise AgitError("bad-stage",
                         "accept needs Review, job %r is %s"
                         % (job, record["stage"]))
-    check_divergence(repo, job, record["stage"])
     # Gate first: any failure below writes nothing.
     ctx = gate_accept(repo, record, reviewer, args.source_id)
     intent = validate_intent(args.intent or args.job)
@@ -1259,7 +1204,6 @@ def cmd_state(args):
     job = validate_job_id(args.job)
     record = current_record(repo, job)
     tip = record["commits"][-1] if record["commits"] else None
-    proj = sqlite_projection(repo, job)
     info = {
         "job": job,
         "stage": record["stage"],
@@ -1273,7 +1217,6 @@ def cmd_state(args):
         "review_tags": record["review_tags"],
         "resolved_tag": record["resolved_tag"],
         "cancelled_tag": record["cancelled_tag"],
-        "sqlite": proj,
         "blockers": record.get("blockers", []),
     }
     _, proof = freshest_proof(record)
@@ -1295,11 +1238,6 @@ def cmd_state(args):
             proof["result"],
             ",".join("%s=%s" % (law, proof["laws"].get(law, "?"))
                      for law in LAWS)))
-    if proj:
-        print("sqlite: %s=%s (git wins on disagreement)"
-              % (proj["db"], proj["state"]))
-    else:
-        print("sqlite: not found (git is the record)")
     if info["blockers"]:
         print("blocked:")
         for blocker in info["blockers"]:

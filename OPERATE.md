@@ -61,7 +61,7 @@ Contract tests: `python3 -m unittest discover -s runtime/programs -p 'test_*.py'
 
 ## 3. Remember — agit walk + human accept
 
-`agit` records every transition as a git object (commit/note/tag); it never invents digests — it copies them from `result.json` (receipt) + `proof.json`. SQLite (`.local/`) is a rebuildable cache; on disagreement **git wins**. Design: `docs/designs/agentic-git.md` (note: its §3 sketch shows `bend check` — superseded; gate is bare `bend PROOF.bend` per §1).
+`agit` records every transition as a git object (commit/note/tag); it never invents digests — it copies them from `result.json` (receipt) + `proof.json`. The Desk SQLite cache (`.local/`) was retired 2026-09-22 and its ledger is no longer written, so git objects are now the sole source of truth for job state — there is no SQLite reconciliation step. Design: `docs/designs/agentic-git.md` (note: its §3 sketch shows `bend check` — superseded; gate is bare `bend PROOF.bend` per §1).
 
 ```sh
 AGIT="python3 /Users/a3fckx/Desktop/Attri/telepathy/scripts/agit.py"
@@ -86,7 +86,7 @@ Gate inside `accept`: proof `pass` + candidate==reviewed==merged bytes + reviewe
 ## 4. Crew — who does what
 
 - **bend-forge** (`.opencode/agents/bend-forge.md`): does Bend defs/laws/`PROOF.bend` + gates with negative controls, one job per file. Never self-accepts, merges, tags, touches network/credentials, or sends externally.
-- **relay-keeper** (`.opencode/agents/relay-keeper.md`): does service/tunnel/port-4110/node-route health (`scripts/workspace-service.py status`, `npm run doctor`) + user-domain service restart on approved proposal. Never publishes, accepts, resolves, touches credentials/invites, rewires the network, or sends externally.
+- **relay-keeper** (`.opencode/agents/relay-keeper.md`): does service/tunnel/port-4110/node-route health (`scripts/workspace-service.py status`) + user-domain service restart on approved proposal. Never publishes, accepts, resolves, touches credentials/invites, rewires the network, or sends externally.
 
 Job lifecycle both assume: `Proposed -> Ready -> Active -> Waiting -> Review -> Resolved | Cancelled` (`HARNESS.md` §2). Agents draft; humans accept.
 
@@ -95,9 +95,9 @@ Job lifecycle both assume: `Proposed -> Ready -> Active -> Waiting -> Review -> 
 Per `forum/START_HERE.md`: request lives in a thread (`Result` + `Owner` + `Ready when` + `Context` + links); an operator turns an accepted request into a job; candidate comes back for review; human accepts the **exact** revision; reply **in the original thread** with accepted result + link + still-open items. Code → its repo, linked from thread. Writing → artifact, linked from thread.
 
 ```sh
-npm run desk -- help          # jobs, artifacts, Buzz drafts
-npm run check                 # runtime + plugin
-npm --prefix site run check   # website (separate)
+npm run check                                  # node scripts/check.mjs — retained runtime
+python3 scripts/workspace-service.py status    # workspace service health (optional infra)
+npm --prefix site run check                    # website (separate)
 ```
 
 Before writing: read `forum/WRITING.md`. Never put credentials, transcripts, or internal job metadata in an artifact; published `/p/` link quoted in the thread is the stable pointer, never a SQLite row id alone. Boundary: `AGENTS.md`.
@@ -110,4 +110,4 @@ Before writing: read `forum/WRITING.md`. Never put credentials, transcripts, or 
 | `LAWS.bend → 5 TODOs found` | laws asserted, not yet proved — expected | gate `PROOF.bend`, not `LAWS.bend` |
 | `bend-gate → failed` / `open` | a law is red / unproven for this program | new candidate + fresh proof; never edit the old proof note |
 | `run → failure` envelope, exit ≠ 0 | contract/type violation, 90 s timeout, or source-ID guard (output echoed a supplied `sourceIds` entry) | fix input/output, keep provenance IDs out of title/body, human re-reviews |
-| `agit accept` refuses / `gen-runner` refuses on drift | stale digest (bundle/candidate/parent moved), self-accept, open law, leak scan, or SQLite≠git | `agit state <id>` shows the blocker; reconcile to git, revalidate exact digests, human re-accepts |
+| `agit accept` refuses / `gen-runner` refuses on drift | stale digest (bundle/candidate/parent moved), self-accept, open law, leak scan, or a conflicting review note | `agit state <id>` shows the blocker; reconcile to git, revalidate exact digests, human re-accepts |

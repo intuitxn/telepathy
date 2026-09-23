@@ -4,7 +4,9 @@ How people, Buzz agents, Telepathy meta-agents, and execution runtimes connect,
 and how a Job To Be Done (JTBD) moves through them.
 
 Authoritative sources: `.opencode/agents/` (charters), `plugins/telepathy-meta-agents/registry.json`
-(declarative catalog), `runtime/desk/` (job engine), `docs/PROJECTS.md` (job lifecycle).
+(declarative catalog), `runtime/adaptive/HARNESS.md` (active build plan), `runtime/worker/`
+(checked Bend worker), `docs/PROJECTS.md` (job lifecycle). The Desk engine (`runtime/desk`)
+was retired 2026-09-22; references to it below are historical.
 
 Full inventory of canonical agents, session kinds, and the numbered
 information-flow map: [`AGENT_DIRECTORY.md`](AGENT_DIRECTORY.md).
@@ -55,9 +57,11 @@ Program details live in [`programs/*.md`](../programs/). Create the relay object
 
 ## Agent activity model
 
-All agent activity happens as threads inside the program channels. One desk runtime
-handles intake, execution, and projection. Agent updates are thread replies, not new
-channels or personas. Pollen, Fizz, and Honey are optional Desktop helpers; they are
+All agent activity happens as threads inside the program channels. The retained
+harness runs execution through standard OpenCode with native Buzz ACP and a checked
+Bend worker; the retired Desk engine (2026-09-22) previously handled intake,
+execution and projection. Agent updates are thread replies, not new channels or
+personas. Pollen, Fizz, and Honey are optional Desktop helpers; they are
 not required for the loop. Humans accept a candidate by replying `accept` in the job
 thread.
 
@@ -65,12 +69,12 @@ thread.
 
 | Agent | JTBD stage | May | Must not | Runtime |
 |---|---|---|---|---|
-| `@telepathy` (primary) | route | Route intent to the narrowest agent | Publish without approval; invent interfaces | opencode / desk |
-| `@prime` | propose, scope | Draft a job proposal (owner, reviewer, acceptance) | Execute, activate, publish, accept, resolve | desk |
-| `@build` | implement, verify | Implement in worktree, record verification evidence, draft artifact review | Accept own work, merge, resolve, publish | desk (codex or opencode) |
-| `@steward` | resolve, project, learn | Draft resolutions, changelog, activity projections, lesson entries | Author posts, change accepted history, send | desk |
-| `@research` | research | Retrieve sources, draft dossiers with source maps | Assert unverified claims, publish | desk |
-| `@relationships` | draft-external | Draft external messages from approved context | Send, record sent without delivery evidence | desk |
+| `@telepathy` (primary) | route | Route intent to the narrowest agent | Publish without approval; invent interfaces | opencode / Buzz ACP |
+| `@prime` | propose, scope | Draft a job proposal (owner, reviewer, acceptance) | Execute, activate, publish, accept, resolve | opencode |
+| `@build` | implement, verify | Implement in worktree, record verification evidence, draft artifact review | Accept own work, merge, resolve, publish | opencode or codex |
+| `@steward` | resolve, project, learn | Draft resolutions, changelog, activity projections, lesson entries | Author posts, change accepted history, send | opencode |
+| `@research` | research | Retrieve sources, draft dossiers with source maps | Assert unverified claims, publish | opencode |
+| `@relationships` | draft-external | Draft external messages from approved context | Send, record sent without delivery evidence | opencode |
 | `@bend-forge` | prove | Draft `PROOF.bend` defs, laws, proofs; gate with `bend` | Self-accept, merge, resolve, publish | local Bend |
 | `@relay-keeper` | infra | Read-only health checks; draft infra proposals; restart only within explicit operational authorization | Publish, accept, touch credentials, rewire network | local |
 
@@ -95,12 +99,15 @@ then either keep this table or replace it with the real split.
 
 | Runtime | What it runs | Where |
 |---|---|---|
-| `runtime/desk` | The job engine: SQLite jobs/artifacts/outbox/cursors, Buzz poll + ingest, worktrees, dispatch | `telepathy/runtime/desk` |
-| opencode | Standard OpenCode — native `opencode run` with the user-configured provider/model, and `opencode acp` for Buzz. No fork or beta build is required. | local install (`runtime/desk/src/runtime.js`) |
+| `runtime/adaptive/HARNESS.md` | The active harness and build plan for the retained system | `telepathy/runtime/adaptive` |
+| `runtime/worker/` | The checked Bend worker: explicit protocol transitions, Lorenz memory, native Buzz memory | `telepathy/runtime/worker` |
+| opencode | Standard OpenCode — native `opencode run` with the user-configured provider/model, and `opencode acp` for Buzz. No fork or beta build is required. | local install |
 | codex CLI | Sandboxed execution worker (`codex exec --json`) | local install |
+| `runtime/desk` (historical) | Retired 2026-09-22 job engine (SQLite jobs/artifacts/outbox/cursors, Buzz poll + ingest, worktrees, dispatch). History remains in git. | — |
 
-The active baseline runs roles through native OpenCode/Buzz; the Desk flow below
-is an optional implementation, not another required orchestrator.
+The active baseline runs roles through native OpenCode/Buzz and the checked Bend
+worker; the Desk flow described below was an optional implementation and is now
+retired, not a required orchestrator.
 
 ## JTBD lifecycle
 
@@ -108,9 +115,11 @@ is an optional implementation, not another required orchestrator.
 Proposed -> Ready -> Active -> Waiting -> Review -> Resolved | Cancelled
 ```
 
-Buzz is the human surface; optional Desk owns its own jobs; Git holds accepted revisions.
+Buzz is the human surface; standard OpenCode / native Buzz ACP and the checked Bend
+worker carry execution; Git holds accepted revisions. Desk, which previously owned
+its own jobs, was retired 2026-09-22.
 
-| Stage | Buzz surface | Desk ledger |
+| Stage | Buzz surface | Execution state (historical Desk ledger) |
 |---|---|---|
 | Proposed / Ready | Issue created on the program repo, or `/intuitxn {json}` message in the home channel | job `queued` |
 | Active | Issue assigned; thread updated | job `running`, worktree created |
@@ -118,20 +127,23 @@ Buzz is the human surface; optional Desk owns its own jobs; Git holds accepted r
 | Resolved | Human accepts; issue `resolved`; outcome reply in thread | artifact accepted, outbox `sent` |
 | Cancelled | Issue `closed` | job `cancelled` |
 
+The execution-state column names the retired Desk ledger vocabulary; it is retained
+as the contract vocabulary, not a current command reference.
+
 ## The loop — working from Buzz on a JTBD
 
 1. **Human asks** in the program's home channel: either an issue on the program repo, or a message starting with `/intuitxn ` followed by JSON (`repository`, `request`, `acceptance`, optional `runtime`).
-2. **desk polls** the configured channels, deduplicates by source event id, and creates a job.
+2. **Intake** (historical: the retired Desk engine polled the configured channels, deduplicated by source event id, and created a job).
 3. **Runtime executes** in a git worktree at the accepted base revision (codex or opencode per job).
 4. **Candidate + evidence** returns: changed files, verification results, unresolved issues, exact revision.
 5. **Human reviews and accepts** in the Buzz thread — acceptance is a named human at an exact revision.
-6. **Ledger projects** the outcome: resolution, changelog, activity; the outbox replies to the original thread.
+6. **Projection** (historical: the retired Desk ledger projected the outcome): resolution, changelog, activity; the reply returns to the original thread.
 
 ## Where state lives
 
 | State | Store |
 |---|---|
 | Human requests, acceptance, receipts | Buzz relay |
-| Job state, outbox, cursors | desk SQLite (`.local/desk.sqlite`) |
+| Job state, outbox, cursors (historical) | Desk SQLite (`.local/desk.sqlite`) — retired 2026-09-22 |
 | Instructions, source, accepted revisions | git |
 | Secrets (BUZZ_PRIVATE_KEY, provider keys) | runtime env only — never in git, never in Buzz posts |

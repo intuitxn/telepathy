@@ -45,7 +45,7 @@ def pct_go(+hs: +List<Nat>, +total: Nat) -> +List<Nat>:
     case Nil{}:
       Nil{}
     case Con{h, t}:
-      ((h * 100n) / total) <> pct_go(t, total)
+      ((h * 100n : Nat) / total : Nat) <> pct_go(t, total)
 
 def zeros_like(+hs: +List<Nat>) -> +List<Nat>:
   match hs:
@@ -66,7 +66,7 @@ def pct_each(+hs: +List<Nat>, +total: Nat) -> +List<Nat>:
   pct_branch(Nat.is_eq(total, 0n), hs, total)
 
 def fuse(lex: Nat, pct: Nat, wl: Nat, wd: Nat) -> Nat:
-  (wl * lex) + (wd * pct)
+  ((wl * lex : Nat) + (wd * pct : Nat) : Nat)
 
 def fuse_each(+ls: +List<Nat>, +ps: +List<Nat>, +wl: Nat, +wd: Nat) -> +List<Nat>:
   match ls:

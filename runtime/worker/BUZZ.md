@@ -6,9 +6,12 @@ YAML. No oc2 fork, beta build, or additional learning adapter is required.
 Offline test drivers are separate from this path.
 
 See the [baseline and historical A2A design](../../docs/designs/a2a-protocol.md).
-Buzz's relay is coordination; ACP/execution stay node-local. Reviewer is Shubham.
-The target is a keyless execution/kernel process with an owner-controlled Buzz
-signer: draft, review the exact payload, then send. The earlier deployment audit
+Buzz's relay holds coordination and retained memory; ACP/execution stay node-local.
+Follow [AUTONOMY.md](../AUTONOMY.md): ordinary task-related memory updates proceed
+after agent verification under existing authorization, without per-write human
+review. Publication beyond that scope needs its own authority.
+The target is a keyless execution/kernel process with an existing owning-agent
+signer. The earlier deployment audit
 found an inherited signing identity, so isolation still needs implementation and
 verification. No new signer or network-intent layer is implemented here.
 The former M1–M8 roadmap, port 4110 service and Lamport/federation work are not
@@ -63,16 +66,20 @@ These are templates: replace the slug and file paths deliberately. Reads:
 "$BUZZ" mem hash "selected-finding-slug"
 ```
 
-First draft a concise finding with its source revision, observed checks, scope,
-counterexamples and intended audience. Shubham reviews the exact content before
-the owner-controlled signer sends it. For a reviewed new entry, stdin supplies
-its contents; this is a send operation, not draft creation:
+Prepare and check a concise finding with its source revision, observed checks,
+scope, counterexamples and intended audience. Agent verification suffices for
+routine internal memory upkeep in the authorized agent-owner scope, including a
+core index that preserves identity and user constraints. Use the existing owning
+agent signer; do not request human approval for each write. Owner-side `--agent`
+reads cannot sign agent updates. An explicit task gate or new audience/scope still
+needs its stated authority. For an authorized new entry, stdin supplies contents;
+this writes to the relay:
 ```sh
 "$BUZZ" mem set "selected-finding-slug" - < "/private/path/selected-finding.txt"
 ```
 
 For an existing entry, read it and capture its exact hash before preparing the
-unified diff. Preview, then apply the reviewed patch against that captured hash:
+unified diff. Preview and check it, then apply it against that captured hash:
 ```sh
 "$BUZZ" mem patch "selected-finding-slug" --base-hash "CAPTURED_SHA256" --patch-file "/private/path/change.diff" --dry-run
 "$BUZZ" mem patch "selected-finding-slug" --base-hash "CAPTURED_SHA256" --patch-file "/private/path/change.diff"
@@ -82,21 +89,26 @@ Patch checks exact UTF-8 bytes and context; help does not establish server-atomi
 compare-and-swap. On conflict reread and reconcile. Avoid `--no-base-hash` for
 shared edits. Empty writes require explicit `--allow-empty`; `mem rm` tombstones
 entries and cannot remove `core`. Findings are attributed evidence, not proof
-that arbitrary worker answers are correct.
+that arbitrary worker answers are correct. Read back after writing and verify
+the selected value. Inspect ambiguous acknowledgements before retrying; the
+client hash check cannot prevent simultaneous writers racing at the relay.
 
 ## Use the existing Buzz harness and YAML
 
-For task and candidate review, use [native Buzz project PR review](../../docs/PROJECT_REVIEW.md).
+When the task or project requires native project/PR review, use
+[native Buzz project PR review](../../docs/PROJECT_REVIEW.md). This optional
+workflow does not impose human review on routine internal completion or memory.
 The inspected upstream workflow engine fails `request_approval` with
 `approval_not_supported`; CLI command availability is not evidence of an enforced
 approval gate. Do not deploy the historical JTBD YAML as automatic acceptance.
 Native PR reviews have separate commit/reviewer semantics, documented in the guide.
 
 Standard OpenCode provides `opencode acp` directly. On the inspected machine,
-`$HOME/.opencode/bin/opencode --version` returns **1.18.32**, while the Homebrew
-executable on PATH returns **1.14.20**. Select the intended executable explicitly:
-PATH resolution can differ by login shell or service environment; the explicit
-path makes the selected installation deterministic.
+`command -v opencode` resolves to `$HOME/.opencode/bin/opencode` (**1.18.32**);
+a Homebrew install (`/opt/homebrew/bin/opencode`) is **1.14.20**. PATH resolution
+can differ by login shell or service environment, so select the intended
+executable explicitly; the explicit path makes the selected installation
+deterministic.
 
 ```sh
 OPENCODE="$HOME/.opencode/bin/opencode"
@@ -119,11 +131,48 @@ Use the existing host configuration; installing this document starts no daemon.
 
 `buzz workflows create/update` accepts YAML, while `trigger`, `runs`, and
 `approve` manage execution records and approvals. Inspect their `--help` before
-an authorized change. The repository's `scripts/jtbd-workflow.yaml` uses
-`send_message` and `request_approval`. Do not invent a workflow `shell` action:
-an ACP agent with process tools executes Bend and reports its observed evidence.
+an authorized change. The former repository workflow `scripts/jtbd-workflow.yaml`
+used `send_message` and `request_approval`; it was retired 2026-09-22 because the
+inspected upstream engine returns `approval_not_supported` for `request_approval`
+and its steps were bound to the retired Desk engine. Use native project PR review
+([docs/PROJECT_REVIEW.md](../../docs/PROJECT_REVIEW.md)) instead. Do not invent a
+workflow `shell` action: an ACP agent with process tools executes Bend and reports
+its observed evidence.
 
 ## Keep the storage boundaries explicit
+For a byte-pinned, independently checked kernel candidate and the native engram
+transfer procedure, see [engrams/README.md](engrams/README.md). This preparation
+does not establish a completed remote transfer.
+
+## Agent identity and local logs
+
+Buzz agent identity is its existing signed public key and owner relationship.
+An OpenCode session ID identifies a local execution session; it is not a Buzz
+login. Keep those identities distinct. A running local session does not imply
+that this shell can publish as its enclosing Buzz agent.
+
+On macOS, the existing Buzz host keeps agent PID records and logs under
+`~/Library/Application Support/xyz.block.buzz.app/agents/agent-pids/` and
+`agents/logs/`. Use the managed agent's public key to match its records. Check
+the process as well as the file: an old PID record or connection log is not
+proof of current relay presence. Configuration and raw logs may contain private
+data; do not publish them as engrams.
+
+The existing local OpenCode mailbox registration repair is versioned in
+[plugins/telepathy-mailbox](../../plugins/telepathy-mailbox/README.md). It records
+full session IDs, role when available, workspace, host, title and lifecycle state
+in `~/.config/opencode/telepathy/peers.json`, with events in `events.jsonl`.
+These local records are not authenticated Buzz presence or a second login.
+Installing the repaired file does not reload existing OpenCode instances. Let
+their jobs finish before reloading; concurrent-writer protection requires all
+writers to adopt the repair.
+
+Native Buzz authentication and an owner-authorized channel remain necessary for
+publication. Do not copy host signing keys into a worker to bridge a missing
+login. Cross-agent kernel reuse must record the actual publisher and receiving
+identity separately, as described in the engram procedure.
+
+## Local state and retained memory
 Local Bend snapshots preserve worker claims, result provenance, explicit
 learning, and corrections in one private single-writer lineage. A selected Buzz
 engram is a separate retained summary; it does not automatically merge those

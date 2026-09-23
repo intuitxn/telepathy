@@ -1,0 +1,447 @@
+{
+  "status": "historical draft — derived from docs/AGENT_DIRECTORY.md before the 2026-09-22 Desk retirement. The 'runtime: desk' / '.local/desk.sqlite' / 'runtime/desk/*' values below are the pre-retirement draft and are NOT current; the canonical agent directory is docs/AGENT_DIRECTORY.md.",
+  "source": {
+    "directory": "docs/AGENT_DIRECTORY.md",
+    "charters": ".opencode/agents/*.md",
+    "derivation": "Part A1 agent rows plus per-agent authority; Part A2 session-kind rows; Part B trajectory hop tables"
+  },
+  "agents": [
+    {
+      "id": "A1.1",
+      "name": "Telepathy",
+      "charterPath": ".opencode/agents/telepathy.md",
+      "mode": "primary",
+      "runtime": "opencode (desk optional)",
+      "jtbd": "route",
+      "may": [
+        "Route intent to the narrowest meta-agent (telepathy.md:13-24).",
+        "Compose drafts with the telepathy_* tools (telepathy.md:40-44).",
+        "Own routing memory (telepathy.md:69-74)."
+      ],
+      "mustNot": [
+        "Publish without approval (telepathy.md:33-34).",
+        "Break the human-owned outcome rule (telepathy.md:28-29).",
+        "Expose agent internals — no transcripts, prompts, or tool calls (telepathy.md:37-38)."
+      ]
+    },
+    {
+      "id": "A1.2",
+      "name": "Prime — project steward",
+      "charterPath": ".opencode/agents/prime.md",
+      "mode": "subagent",
+      "runtime": "desk",
+      "jtbd": "propose, scope",
+      "may": [
+        "Read accepted project context and prior decisions from the relay channels and docs/HARNESS_STATE.md (prime.md:11-13).",
+        "Draft a local Markdown job proposal with owner, reviewer, acceptance criteria, and next actor (prime.md:14-16)."
+      ],
+      "mustNot": [
+        "Activate or execute work itself (prime.md:18-23).",
+        "Publish a post — it always drafts; a human reviews and sends (prime.md:18-23).",
+        "Accept an artifact or resolve a job (prime.md:18-23).",
+        "Send anything externally (prime.md:18-23)."
+      ]
+    },
+    {
+      "id": "A1.3",
+      "name": "Build — builder",
+      "charterPath": ".opencode/agents/build.md",
+      "mode": "subagent",
+      "runtime": "desk (codex or opencode)",
+      "jtbd": "implement, verify",
+      "may": [
+        "Implement the job in the owning repository (build.md:12-13, :57-65).",
+        "Run verification and record evidence (build.md:14, :27-30).",
+        "Draft a local Markdown artifact review request with the exact git revision and verification summary (build.md:15-16)."
+      ],
+      "mustNot": [
+        "Accept its own artifact (build.md:18-23).",
+        "Merge without review, resolve the job, or publish a post (build.md:18-23).",
+        "Send anything externally (build.md:18-23)."
+      ]
+    },
+    {
+      "id": "A1.4",
+      "name": "Steward — release keeper",
+      "charterPath": ".opencode/agents/steward.md",
+      "mode": "subagent",
+      "runtime": "desk",
+      "jtbd": "resolve, project, learn",
+      "may": [
+        "Read accepted context and accepted artifacts (steward.md:12).",
+        "Draft a local Markdown resolution with a written outcome (steward.md:13).",
+        "Draft a local Markdown update or announcement summarizing the accepted outcome and linking the exact revision (steward.md:14-16).",
+        "Prepare changelog entries and the human-readable activity/ projection (steward.md:16-17).",
+        "Draft docs/HARNESS_STATE.md lessons (steward.md:57-68)."
+      ],
+      "mustNot": [
+        "Author or publish a post itself — always draft for human review (steward.md:19-23).",
+        "Accept artifacts or change accepted history (steward.md:19-23).",
+        "Send anything externally (steward.md:19-23)."
+      ]
+    },
+    {
+      "id": "A1.5",
+      "name": "Research — research scout",
+      "charterPath": ".opencode/agents/research.md",
+      "mode": "subagent",
+      "runtime": "desk",
+      "jtbd": "research",
+      "may": [
+        "Retrieve and cite sources, including relay channels and notes the human pointed to (research.md:12-13).",
+        "Draft a local Markdown candidate dossier with a source map and stated uncertainty (research.md:14-16)."
+      ],
+      "mustNot": [
+        "State an unverified claim as fact (research.md:18-22).",
+        "Accept artifacts, publish posts, or send externally (research.md:18-22).",
+        "Present its own summary as a human-authored conclusion (research.md:18-22)."
+      ]
+    },
+    {
+      "id": "A1.6",
+      "name": "Relationships — relationship desk",
+      "charterPath": ".opencode/agents/relationships.md",
+      "mode": "subagent",
+      "runtime": "desk",
+      "jtbd": "draft-external",
+      "may": [
+        "Draft an external message from context a human explicitly approved for that purpose, citing the approved sources (relationships.md:12-13).",
+        "Draft local Markdown (announcement or update) with the intended recipient, evidence, and privacy boundary noted (relationships.md:14-16)."
+      ],
+      "mustNot": [
+        "Send anything externally — a named human reviews recipient, evidence, privacy, and wording before any message leaves (relationships.md:18-23).",
+        "Record a message as sent without verified delivery (relationships.md:18-23).",
+        "Expose private context that was not approved for external use (relationships.md:18-23)."
+      ]
+    },
+    {
+      "id": "A1.7",
+      "name": "Bend-forge — Bend algorithm designer",
+      "charterPath": ".opencode/agents/bend-forge.md",
+      "mode": "subagent",
+      "runtime": "local Bend",
+      "jtbd": "prove (Bend)",
+      "may": [
+        "Write Bend defs, laws, and proofs: ADTs, digest_eq-style structural checks, prove_all fan-out, gate verdicts, drive round bounds (bend-forge.md:13-15).",
+        "Gate and run with the absolute-path binary and telemetry off, against fixture evidence including at least one negative case per law (bend-forge.md:16-23).",
+        "Parallelize with fork-join: independent law bindings in prove_all and bend/when/fork/else loops for bounded iteration (bend-forge.md:24-26)."
+      ],
+      "mustNot": [
+        "Self-accept: a passing proof is never acceptance (bend-forge.md:32-34).",
+        "Merge, tag, or resolve; no git writes beyond the draft PROOF.bend (bend-forge.md:35-36).",
+        "Touch the network, credentials, transcripts, or private source IDs (bend-forge.md:37-38).",
+        "Invent digests (bend-forge.md:39-40).",
+        "Send anything externally (bend-forge.md:41)."
+      ]
+    },
+    {
+      "id": "A1.8",
+      "name": "Relay-keeper — node networking and infra health",
+      "charterPath": ".opencode/agents/relay-keeper.md",
+      "mode": "subagent",
+      "runtime": "local / host",
+      "jtbd": "infra health",
+      "may": [
+        "Run read-only health checks: python3 scripts/workspace-service.py status, npm run doctor, tunnel and loopback port 4110 probes, node reachability and routing-table reads (relay-keeper.md:12-14).",
+        "Read service logs to diagnose outages and slow paths (relay-keeper.md:15).",
+        "Restart the user-domain workspace service via scripts/workspace-service.py (logged-in launchd domain only) (relay-keeper.md:16).",
+        "Draft infra change proposals (tunnel, snapshot, network config) with evidence and rollback notes (relay-keeper.md:17)."
+      ],
+      "mustNot": [
+        "Publish a post, accept an artifact, or resolve a job (relay-keeper.md:21).",
+        "Send anything externally (relay-keeper.md:22).",
+        "Touch credentials (BUZZ_PRIVATE_KEY, keyfiles, invitation secrets) or membership/invites/auth (relay-keeper.md:23).",
+        "Rewire the network to new destinations, open new ports, or merge/push code (relay-keeper.md:24).",
+        "Restart anything outside the user-domain workspace service (relay-keeper.md:25)."
+      ]
+    }
+  ],
+  "sessionKinds": [
+    {
+      "id": "A2.1",
+      "identityMechanism": "sessionID; display name <agent>:<id8>",
+      "store": "~/.config/opencode/telepathy/",
+      "durability": "ephemeral"
+    },
+    {
+      "id": "A2.2",
+      "identityMechanism": "server-issued session ID",
+      "store": "server run/ + logs/, session store",
+      "durability": "ephemeral"
+    },
+    {
+      "id": "A2.3",
+      "identityMechanism": "codex thread_id, or opencode run submission label",
+      "store": ".local/desk.sqlite + .local/jobs/<id>/",
+      "durability": "durable"
+    },
+    {
+      "id": "A2.4",
+      "identityMechanism": "numeric event id within one snapshot lineage",
+      "store": "caller-supplied private snapshot files",
+      "durability": "durable"
+    }
+  ],
+  "trajectories": [
+    {
+      "id": "T1",
+      "title": "Human request → desk poll/ingest → job",
+      "hops": [
+        {
+          "from": "authorized human post",
+          "to": "parsed intake",
+          "store": "Buzz relay event",
+          "transition": "ingest() runtime/desk/src/buzz.js:34-49",
+          "durability": "durable"
+        },
+        {
+          "from": "relay page",
+          "to": "new job row",
+          "store": "desk SQLite jobs",
+          "transition": "newJob() buzz.js:46 → core.js:76-85",
+          "durability": "durable"
+        },
+        {
+          "from": "channel history",
+          "to": "cursor advance",
+          "store": "desk SQLite cursors",
+          "transition": "poll() buzz.js:50-70 (read :53, write :67)",
+          "durability": "durable"
+        },
+        {
+          "from": "queued job",
+          "to": "owner notification",
+          "store": "desk SQLite outbox → relay",
+          "transition": "cli.js:86-88 → notify() buzz.js:89-94",
+          "durability": "durable"
+        }
+      ]
+    },
+    {
+      "id": "T2",
+      "title": "Job → runtime session → candidate",
+      "hops": [
+        {
+          "from": "queued job",
+          "to": "claimed job",
+          "store": "desk SQLite",
+          "transition": "claim() runtime/desk/src/jobs.js:6-10",
+          "durability": "durable"
+        },
+        {
+          "from": "accepted base rev",
+          "to": "detached worktree",
+          "store": ".local/jobs/<id>/worktree",
+          "transition": "runJob() jobs.js:20-22",
+          "durability": "ephemeral"
+        },
+        {
+          "from": "job + sha256 context",
+          "to": "brief",
+          "store": ".local/jobs/<id>/brief.md",
+          "transition": "brief() jobs.js:11-13, write :29",
+          "durability": "ephemeral"
+        },
+        {
+          "from": "brief",
+          "to": "codex/opencode run",
+          "store": "job folder + SQLite",
+          "transition": "codex jobs.js:32-42; opencode :43-56",
+          "durability": "ephemeral"
+        },
+        {
+          "from": "run output + diff",
+          "to": "needs_review",
+          "store": ".local/jobs/<id>/result.md, changes.patch",
+          "transition": "jobs.js:57-61",
+          "durability": "durable"
+        }
+      ]
+    },
+    {
+      "id": "T3",
+      "title": "Candidate → human accept → projection → learning",
+      "hops": [
+        {
+          "from": "candidate",
+          "to": "thread notification",
+          "store": "outbox → relay",
+          "transition": "cli.js:92",
+          "durability": "durable"
+        },
+        {
+          "from": "accept reply",
+          "to": "matched job",
+          "store": "relay event → memory",
+          "transition": "acceptEvents() buzz.js:72-87",
+          "durability": "ephemeral"
+        },
+        {
+          "from": "accepted job",
+          "to": "resolved + commit/push",
+          "store": "git accepted revision",
+          "transition": "landJob() jobs.js:76-101; acceptJob() :68-74",
+          "durability": "durable"
+        },
+        {
+          "from": "accepted outcome",
+          "to": "activity event",
+          "store": "activity/<project>/<year>/<month>/<event-id>.md",
+          "transition": "draft only — docs/SOP.md:17-19, activity/README.md",
+          "durability": "durable"
+        },
+        {
+          "from": "accepted outcome",
+          "to": "changelog",
+          "store": "CHANGELOG.md + changelog channel",
+          "transition": "draft only — SOP.md:38-46, docs/AGENT_MAP.md:46",
+          "durability": "durable"
+        },
+        {
+          "from": "accepted outcome",
+          "to": "lesson / engram",
+          "store": "docs/HARNESS_STATE.md; Buzz memory",
+          "transition": "draft only — docs/HARNESS_STATE.md:49-63, runtime/worker/BUZZ.md:60-79",
+          "durability": "durable"
+        }
+      ]
+    },
+    {
+      "id": "T4",
+      "title": "Intra-node: orchestrator → Task subagents → telepathy mailbox",
+      "hops": [
+        {
+          "from": "session created",
+          "to": "registered peer",
+          "store": "peers.json",
+          "transition": "telepathy.ts:175-181",
+          "durability": "ephemeral"
+        },
+        {
+          "from": "orchestrator",
+          "to": "Task/server subagents",
+          "store": "server sessions",
+          "transition": "ARCHITECTURE.md:139-144",
+          "durability": "ephemeral"
+        },
+        {
+          "from": "agent handoff",
+          "to": "recipient mailbox",
+          "store": "mailboxes/<peer>.jsonl",
+          "transition": "telepathy_send telepathy.ts:248-296 (append :284)",
+          "durability": "ephemeral"
+        },
+        {
+          "from": "mailbox",
+          "to": "system prompt on next turn",
+          "store": "cursor advance",
+          "transition": "passive injection telepathy.ts:204-222",
+          "durability": "ephemeral"
+        },
+        {
+          "from": "deliberate read / ack",
+          "to": "cursor advance",
+          "store": "cursor advance",
+          "transition": "telepathy_inbox :298-317; telepathy_ack :319-327",
+          "durability": "ephemeral"
+        }
+      ]
+    },
+    {
+      "id": "T5",
+      "title": "/meta worker path: init → capture → work → worker → claim → packet → return → learn",
+      "hops": [
+        {
+          "from": "no state",
+          "to": "empty history",
+          "store": "private snapshot",
+          "transition": "init → lorenz_dispatch_pair runtime/worker/system.bend:1911-1920; lorenz_save",
+          "durability": "durable"
+        },
+        {
+          "from": "task request",
+          "to": "retained conversation",
+          "store": "snapshot",
+          "transition": "capture system.bend:1374-1377",
+          "durability": "durable"
+        },
+        {
+          "from": "conversation",
+          "to": "queued work",
+          "store": "snapshot (kind 4)",
+          "transition": "work system.bend:1445-1448, lorenz_work_found:1433-1436",
+          "durability": "durable"
+        },
+        {
+          "from": "none",
+          "to": "registered worker",
+          "store": "snapshot (kind 5)",
+          "transition": "worker system.bend:1512-1515",
+          "durability": "durable"
+        },
+        {
+          "from": "work + worker",
+          "to": "exclusive claim",
+          "store": "snapshot (kind 6)",
+          "transition": "claim system.bend:1529-1532, lorenz_claim_found:1517-1520",
+          "durability": "durable"
+        },
+        {
+          "from": "claimed work",
+          "to": "bounded packet",
+          "store": "printed task data",
+          "transition": "packet system.bend:1595-1599, fields :1573-1576",
+          "durability": "ephemeral"
+        },
+        {
+          "from": "packet",
+          "to": "delivered prompt",
+          "store": "loopback HTTP",
+          "transition": "opencode system.bend:1823-1826; request :1634-1635",
+          "durability": "ephemeral"
+        },
+        {
+          "from": "result",
+          "to": "reported result",
+          "store": "snapshot (kind 7)",
+          "transition": "return system.bend:1546-1549, lorenz_return_found:1534-1537",
+          "durability": "durable"
+        },
+        {
+          "from": "selected result",
+          "to": "learned memory",
+          "store": "snapshot (kind 8)",
+          "transition": "learn system.bend:1566-1569, lorenz_learn_found:1551-1554",
+          "durability": "durable"
+        }
+      ]
+    },
+    {
+      "id": "T6",
+      "title": "Retained learning (historical registry / evaluator)",
+      "hops": [
+        {
+          "from": "candidate core",
+          "to": "offline evaluation",
+          "store": "private temp run dir",
+          "transition": "node --test runtime/lorenz/evaluate.test.mjs — runtime/lorenz/README.md:21, :35-43",
+          "durability": "ephemeral"
+        },
+        {
+          "from": "selected finding",
+          "to": "Buzz engram",
+          "store": "Buzz memory (owner-scoped)",
+          "transition": "buzz mem set/patch — runtime/worker/BUZZ.md:70-79",
+          "durability": "durable"
+        },
+        {
+          "from": "accepted outcome",
+          "to": "human lesson log",
+          "store": "docs/HARNESS_STATE.md",
+          "transition": "draft only — docs/HARNESS_STATE.md:49-63; steward.md:57-68",
+          "durability": "durable"
+        }
+      ]
+    }
+  ]
+}

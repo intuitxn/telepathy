@@ -6,13 +6,36 @@ another process-capable harness can follow this same document directly. The
 command provides instructions to the host agent; it is not an enforced hook,
 background daemon or automatic authorization to publish.
 
-To make the command discoverable from other local projects, install a symlink
-at `~/.config/opencode/commands/meta.md` pointing to this checkout's
-`.opencode/commands/meta.md`. Preserve any existing command and coordinate its
-owner rather than overwriting it. Start a fresh OpenCode project context after
-installation. The command resolves its checkout through that symlink and keeps
+Follow [AUTONOMY.md](../AUTONOMY.md): execute the authorized goal continuously
+through checks, corrections and relevant internal memory updates. Derive concrete
+acceptance from the goal when needed. Human review is not a per-transition gate;
+preserve existing authorization and escalate only an actual missing boundary.
+
+To make the command and its `meta` role discoverable from other local projects,
+run `scripts/install-meta.sh` in the selected checkout. It installs symlinks for
+both entries and preserves existing configuration in a private backup directory.
+Start a fresh OpenCode project context after installation.
+The command resolves its checkout through that symlink and keeps
 the user's active project as the work target. Other machines need their own
 checkout, Bend executable, and local link; this does not install credentials.
+
+## Preferred host entry point
+
+Use `./mundus help` for arguments. `./mundus init ROOT` creates a private local
+lineage; `capture`, `work`, `worker`, `claim`, `return`, `learn`, `remember` and
+`correct` execute the actual Lorenz worker below. `packet`, `history`, `status`,
+`memory` and `explain` read its records. Read actual IDs from `history ROOT`, selecting the required record kind
+and reference rather than assuming the newest ID is a work ID. One conversation
+has one work record; a repeated `work` preserves that prior record. Capture a
+separate selected request for each independently delegated task.
+The shell freezes and checks the worker source for each mutation, takes a local
+writer lock, preserves each attempt, and updates `ROOT/head` only on success.
+An interrupted attempt can leave a lock; inspect its process and evidence before
+recovery. Do not automatically steal locks or retry ambiguous network delivery.
+
+`plan` and `retrieve` use separate experimental slots under `ROOT/planner`.
+They do not delegate agents, import a worker packet or retrieve Buzz memory.
+The direct Bend commands below remain available for explicit snapshot control.
 
 ## Resolve the native worker
 
@@ -100,8 +123,9 @@ single-line summaries referencing private artifacts for longer evidence:
 ```
 
 Record failures too. Return checks ownership and provenance, not correctness.
-When the operator has authorized retaining a supported finding for reuse,
-explicitly select that finding and use its result identifier:
+Routine supported learning within the authorized task is covered by the execution
+policy; do not request separate approval for each finding. Evaluate the evidence,
+explicitly select the finding and use its result identifier:
 
 ```sh
 "$BEND" "$WORKER_SOURCE" -- learn IN OUT RESULT_ID DEPENDENCY_ID ACTOR TEXT
@@ -111,10 +135,13 @@ Dependency 0 means none. Learning is attributed memory, not human acceptance
 or executable admission. A subsequent packet includes active learned memory.
 Corrections can invalidate dependent findings; inspect original evidence.
 
-For a selected finding that should survive beyond the local snapshot, draft its
-Buzz memory update for Shubham's review of the exact content/revision. The
-owner-controlled Buzz signer sends the reviewed update. Record the relevant
-source revision, actual checks, outcome and counterexamples. Buzz stores the
+For a selected finding that should survive beyond the local snapshot, prepare
+and verify its Buzz update and apply it through the existing owning-agent signer
+in the authorized scope. Routine findings, corrections and core indexes do not
+require per-write human review. Preserve unrelated content, check conflicts and
+read back the stored value; unavailable signing access is a blocker, not authority
+to extract keys. Record the source revision, checks, outcome and counterexamples.
+Buzz stores the
 finding; it does not rerun Bend or prove a worker answer automatically. Keep
 private execution details out of shared summaries.
 

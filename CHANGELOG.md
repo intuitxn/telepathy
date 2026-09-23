@@ -16,6 +16,15 @@
 - Agent charters (`.opencode/agents/`) now describe the real harness: desk engine, Codex/openCode runtimes, state stores, boundary rules, and the learning loop.
 - Runtime config prompts (`setup.js`, v2 pilot) aligned with the harness.
 - Execution runtime decision: Codex is the default worker; openCode v2 remains for interactive planning only (its free zen models returned `ModelUnavailable` in a live job test).
+- **2026-09-22 (agent-prepared scope):** root `npm run check` replaced by `scripts/check.mjs`, which verifies the retained runtime (Bend worker/adaptive/Lorenz cores, retained plugins and agent charters, `site/` and `activity/`) and guards the Desk retirement. The earlier Unreleased entries describing the Desk engine and openCode v2 are historical. The separate workspace service (`runtime/workspace`, `scripts/workspace-service.py`, port 4110) is retained and is not part of this retirement.
+
+### Removed
+
+- **2026-09-22 (agent-prepared scope):** Desk engine retired — `runtime/desk`, its npm workspace and the `setup`/`doctor`/`desk`/`opencode`/watch scripts removed. History remains in git.
+- **2026-09-22 (agent-prepared scope):** retired oc2 pilot `runtime/opencode-v2` removed; last commit `03439cf2fe35052aee434ecd9f3a86a67782bf36`. History remains in git.
+- **2026-09-22 (agent-prepared scope):** retired custom `plugins/telepathy` integration removed; last commit `c6e802fbf71f003b37405e335ff53e584d07d08b`. History remains in git.
+
+Agent-prepared scope: the entries above record agent work and verification, not human acceptance.
 
 ### Fixed
 

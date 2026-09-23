@@ -42,5 +42,5 @@ they do not prove credential isolation or enforce every tool permission.
 
 Buzz holds shared discussion and selected memory. Bend snapshots hold local
 worker transitions; Git holds source revisions. Standard OpenCode executes the
-roles. Desk is optional for its existing local ledger. The old custom Telepathy
+roles. The old custom Telepathy
 plugin is retired from the active configuration.
