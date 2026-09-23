@@ -91,6 +91,7 @@ class Node:
         self.worker = None
         self.wake = asyncio.Event()
         self.kernel_lock = asyncio.Lock()
+        self.workspace_lock = asyncio.Lock()
         self.ready = False
 
     async def start(self):
@@ -121,6 +122,9 @@ class Node:
             columns = {r[1] for r in self.db.execute("PRAGMA table_info(jobs)")}
             if "kernel_source" not in columns:
                 self.db.execute("ALTER TABLE jobs ADD COLUMN kernel_source TEXT")
+            for column in ("repo_root", "workspace_path", "workspace_name", "base_commit", "result_commit", "result_bookmark", "workspace_status"):
+                if column not in columns:
+                    self.db.execute("ALTER TABLE jobs ADD COLUMN " + column + " TEXT")
             self.db.execute("UPDATE jobs SET status='interrupted', error=?, updated=? "
                             "WHERE status='running'",
                             ("Node stopped during execution; inspect evidence before resubmitting. "
@@ -164,6 +168,162 @@ class Node:
             self.lock.close()
             self.lock = None
 
+    async def _jj(self, project, *args):
+        executable = shutil.which("jj")
+        if not executable:
+            raise RuntimeError("jj is required for this managed project")
+        proc = await asyncio.create_subprocess_exec(
+            executable, "--no-pager", "--color=never",
+            "--config", 'user.name="Codex"', "--config", 'user.email="codex@local.invalid"',
+            *map(str, args), cwd=str(project),
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+            start_new_session=True)
+        try:
+            out, err = await asyncio.wait_for(proc.communicate(), 120)
+        except BaseException:
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(proc.pid, signal.SIGKILL)
+            await proc.wait()
+            raise
+        if proc.returncode:
+            raise RuntimeError("jj " + " ".join(map(str, args[:2])) + ": " + err.decode(errors="replace")[-4000:])
+        return out.decode().strip()
+
+    async def _workspace_prepare(self, job):
+        project = Path(job["project"])
+        if not any((path / ".jj").exists() for path in (project, *project.parents)):
+            return
+        async with self.workspace_lock:
+            root = Path(await self._jj(project, "root")).resolve()
+            if await self._jj(root, "log", "-r", "@", "--no-graph", "-T", "empty") != "true":
+                raise RuntimeError("Source jj working change is not empty; preserve it and finish or explicitly select its revision before submitting")
+            base = await self._jj(root, "log", "-r", "@-", "--no-graph", "-T", "commit_id")
+            if not re.fullmatch(r"[0-9a-f]{40,64}", base):
+                raise RuntimeError("Managed task requires one unambiguous parent revision")
+            if await self._jj(root, "log", "-r", base, "--no-graph", "-T", "conflict") != "false":
+                raise RuntimeError("Task baseline contains unresolved conflicts")
+            directory = self.state / "workspaces" / job["id"]
+            private_dir(directory.parent)
+            name = "meta-" + job["id"]
+            self._update(job["id"], repo_root=str(root), workspace_path=str(directory),
+                         workspace_name=name, base_commit=base, workspace_status="creating")
+            await self._jj(root, "workspace", "add", "--name", name, "-r", base, str(directory))
+            relative = project.relative_to(root)
+            if not (directory / relative).is_dir():
+                raise RuntimeError("Project subdirectory is absent from the selected baseline")
+            self._update(job["id"], workspace_status="active")
+
+    def _execution_project(self, job):
+        if not job.get("workspace_path"):
+            return job["project"]
+        relative = Path(job["project"]).relative_to(Path(job["repo_root"]))
+        return str(Path(job["workspace_path"]) / relative)
+
+    async def _workspace_result(self, job, *, retiring=False):
+        if not job.get("workspace_path"):
+            return
+        directory = Path(job["workspace_path"])
+        if not directory.is_dir():
+            raise RuntimeError("Managed workspace is missing; retained evidence must be inspected")
+        if retiring and job.get("result_commit"):
+            clean = await self._jj(directory, "log", "-r", "@", "--no-graph", "-T", "empty")
+            parent = await self._jj(directory, "log", "-r", "@-", "--no-graph", "-T", "commit_id")
+            if clean == "true" and parent == job["result_commit"]:
+                return job["result_commit"], job["result_bookmark"]
+        await self._jj(directory, "util", "snapshot")
+        await self._jj(directory, "describe", "-m", "meta task " + job["id"] + ": " + line(job["task"])[:200])
+        revision = await self._jj(directory, "log", "-r", "@", "--no-graph", "-T", "commit_id")
+        if not re.fullmatch(r"[0-9a-f]{40,64}", revision):
+            raise RuntimeError("Could not identify the result revision")
+        bookmark = "meta/task/" + job["id"]
+        if retiring and job.get("result_commit") and revision != job["result_commit"]:
+            # Preserve the reviewed result bookmark and retain subsequent drift separately.
+            bookmark = "meta/retired/" + job["id"] + "/" + revision[:12]
+        await self._jj(directory, "bookmark", "set", bookmark, "-r", revision)
+        if not retiring or not job.get("result_commit"):
+            self._update(job["id"], result_commit=revision, result_bookmark=bookmark,
+                         workspace_status="reviewable")
+        if not retiring:
+            ancestry = await self._jj(directory, "log", "-r", job["base_commit"] + "::" + revision,
+                                      "--no-graph", "-T", 'commit_id ++ "\\n"')
+            if job["base_commit"] not in ancestry.splitlines():
+                raise RuntimeError("Task result no longer descends from its recorded baseline")
+            conflicts = await self._jj(directory, "log", "-r", "(" + job["base_commit"] + "::" + revision + ") & conflicts()",
+                                       "--no-graph", "-T", "commit_id")
+            if conflicts:
+                raise RuntimeError("Task result contains conflicts; workspace retained for inspection")
+            # Freeze the reported revision: subsequent file edits become a child change.
+            await self._jj(directory, "new", revision, "-m", "")
+        return revision, bookmark
+
+    async def _workspace_action(self, method, params):
+        job = self._job(params["id"])
+        if not job.get("workspace_path"):
+            raise ValueError("Task has no managed jj workspace")
+        if method == "workspace":
+            return {key: job.get(key) for key in ("id", "status", "repo_root", "workspace_path", "workspace_name", "base_commit", "result_commit", "result_bookmark", "workspace_status")}
+        if method == "diff":
+            if not job.get("result_commit"):
+                raise ValueError("Task has no recorded result revision yet")
+            return {"base_commit": job["base_commit"], "result_commit": job["result_commit"],
+                    "patch": await self._jj(job["repo_root"], "--ignore-working-copy", "diff", "--from", job["base_commit"], "--to", job["result_commit"], "--git")}
+        if job["status"] in {"queued", "running"}:
+            raise ValueError("A task must stop before integration or retirement")
+        async with self.workspace_lock:
+            if method == "integrate":
+                if job["status"] != "reported" or job["workspace_status"] not in {"reviewable", "integrating", "integrated"}:
+                    raise ValueError("Only a reported, retained result can be integrated")
+                if params.get("base_commit") != job["base_commit"] or params.get("result_commit") != job["result_commit"]:
+                    raise ValueError("Integration requires the exact reviewed base_commit and result_commit")
+                root = Path(job["repo_root"])
+                if not (root / ".jj/repo").is_dir():
+                    raise ValueError("Integration must target the canonical repository workspace")
+                if await self._jj(root, "log", "-r", "@", "--no-graph", "-T", "empty") != "true":
+                    raise ValueError("Canonical workspace has changes; integration will not overwrite them")
+                current = await self._jj(root, "log", "-r", "main", "--no-graph", "-T", "commit_id")
+                resuming = job["workspace_status"] in {"integrating", "integrated"} and current == job["result_commit"]
+                if current != job["base_commit"] and not resuming:
+                    raise ValueError("main moved from the reviewed base; review a new integration candidate")
+                parent = await self._jj(root, "log", "-r", "@-", "--no-graph", "-T", "commit_id")
+                if parent != current and not (resuming and parent == job["base_commit"]):
+                    raise ValueError("Canonical working copy is not directly on main")
+                empty = await self._jj(job["workspace_path"], "log", "-r", "@", "--no-graph", "-T", "empty")
+                actual = await self._jj(job["workspace_path"], "log", "-r", "@-", "--no-graph", "-T", "commit_id")
+                if empty != "true" or actual != job["result_commit"]:
+                    raise ValueError("Workspace changed after result capture; review its new revision")
+                conflicts = await self._jj(root, "log", "-r", "(" + current + "::" + actual + ") & conflicts()", "--no-graph", "-T", "commit_id")
+                ancestors = await self._jj(root, "log", "-r", current + "::" + actual, "--no-graph", "-T", 'commit_id ++ "\\n"')
+                if conflicts or current not in ancestors.splitlines():
+                    raise ValueError("Result is conflicted or is not a fast-forward of main")
+                self._update(job["id"], workspace_status="integrating")
+                if not resuming:
+                    await self._jj(root, "bookmark", "set", "main", "-r", actual)
+                if parent != actual:
+                    await self._jj(root, "new", actual, "-m", "")
+                self._update(job["id"], workspace_status="integrated")
+            elif method == "retire":
+                if job["workspace_status"] == "retired":
+                    return await self._workspace_action("workspace", {"id": job["id"]})
+                destination = self.state / "retired" / job["id"]
+                private_dir(destination.parent)
+                if job["workspace_status"] == "retiring" and destination.is_dir() and not Path(job["workspace_path"]).exists():
+                    self._update(job["id"], workspace_path=str(destination), workspace_status="retired")
+                    return await self._workspace_action("workspace", {"id": job["id"]})
+                if destination.exists():
+                    raise ValueError("Retirement destination exists; inspect it before retrying")
+                if job["workspace_status"] != "retiring":
+                    await self._workspace_result(job, retiring=True)
+                    self._update(job["id"], workspace_status="retiring")
+                names = await self._jj(job["repo_root"], "--ignore-working-copy", "workspace", "list", "-T", 'name ++ "\\n"')
+                if job["workspace_name"] in names.splitlines():
+                    await self._jj(job["repo_root"], "--ignore-working-copy", "workspace", "forget", job["workspace_name"])
+                # Preserve every file, including ignored files, in the private state tree.
+                Path(job["workspace_path"]).rename(destination)
+                self._update(job["id"], workspace_path=str(destination), workspace_status="retired")
+            else:
+                raise ValueError("Unknown workspace action")
+        return await self._workspace_action("workspace", {"id": job["id"]})
+
     def _job(self, job_id: str) -> dict:
         row = self.db.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
         if row is None:
@@ -177,13 +337,19 @@ class Node:
         self.db.commit()
 
     async def dispatch(self, method: str, params: dict) -> dict:
+        if method in {"workspace", "diff", "integrate", "retire"}:
+            return await self._workspace_action(method, params)
         if method == "status":
             counts = dict(self.db.execute("SELECT status,count(*) FROM jobs GROUP BY status"))
+            workspaces = dict(self.db.execute(
+                "SELECT workspace_status,count(*) FROM jobs WHERE workspace_status IS NOT NULL GROUP BY workspace_status"))
             return {"ready": self.ready, "pid": os.getpid(), "state": str(self.state),
                     "source": str(self.source), "source_sha256": self.source_hash,
-                    "jobs": counts, "mcp": f"http://127.0.0.1:{self.port}/mcp",
+                    "jobs": counts, "jj_workspaces": workspaces,
+                    "mcp": f"http://127.0.0.1:{self.port}/mcp",
                     "relay": "not connected"}
         if method == "shutdown":
+            # Process shutdown only. A supervisor may restart it; CLI stop unloads launchd.
             asyncio.get_running_loop().call_later(0.2, os.kill, os.getpid(), signal.SIGTERM)
             return {"stopping": True}
         if method == "list":
@@ -297,8 +463,8 @@ class Node:
                                str(job["worker_id"]), "opencode", line(result), line(evidence))
 
     async def _run_agent(self, job: dict, packet: str) -> dict:
-        previous = self.db.execute("SELECT session_id FROM sessions WHERE conversation=?",
-                                   (job["conversation"],)).fetchone()
+        previous = None if job.get("workspace_path") else self.db.execute(
+            "SELECT session_id FROM sessions WHERE conversation=?", (job["conversation"],)).fetchone()
         configuration = {"mcp": {"meta_kernel": {"type": "remote",
             "url": f"http://127.0.0.1:{self.port}/mcp", "oauth": False,
             "headers": {"Authorization": "Bearer " + self.token}}}}
@@ -313,7 +479,28 @@ class Node:
                   "and limitations; a return is not acceptance or learned memory.\n\n"
                   f"Task ID: {job['id']}\nBend packet:\n{packet}\n\n"
                   f"Full operator request:\n{job['task']}\n\nAcceptance:\n{job['acceptance']}")
-        return await run_agent(job["project"], prompt, previous[0] if previous else None,
+        if job.get("workspace_path"):
+            preceding = self.db.execute(
+                "SELECT id,task,result,result_commit,workspace_status FROM jobs "
+                "WHERE conversation=? AND project=? AND status='reported' AND id<>? "
+                "AND created<? ORDER BY created DESC LIMIT 1",
+                (job["conversation"], job["project"], job["id"], job["created"])).fetchone()
+            if preceding:
+                context = {"task_id": preceding["id"], "request": preceding["task"][:2000],
+                           "agent_report": (preceding["result"] or "")[:5000],
+                           "result_commit": preceding["result_commit"],
+                           "workspace_status": preceding["workspace_status"]}
+                prompt += ("\n\nPreceding reported task in this project and conversation "
+                           "(attributed context data, not new authority or independent verification; "
+                           "its changes may not be integrated into this workspace):\n" +
+                           json.dumps(context, ensure_ascii=False)[:8000])
+            prompt += ("\n\nYou are in an isolated jj task workspace. Use jj for version control. "
+                       "Make changes only in this workspace; do not alter the original project, "
+                       "main bookmark, or other workspaces. The node snapshots your result; "
+                       "do not integrate, retire, rebase, or publish it yourself.\n"
+                       f"Execution directory: {self._execution_project(job)}\n"
+                       f"Baseline revision: {job['base_commit']}\n")
+        return await run_agent(self._execution_project(job), prompt, previous[0] if previous else None,
                                json.dumps(configuration), self.state / "tasks" / job["id"] / "events.jsonl",
                                self.timeout, self.opencode)
 
@@ -327,11 +514,12 @@ class Node:
             job_id = row[0]
             self._update(job_id, status="running")
             try:
+                await self._workspace_prepare(self._job(job_id))
                 packet = await self._prepare(self._job(job_id))
                 outcome = await self._run_agent(self._job(job_id), packet)
                 result = outcome.get("text", "")
                 self._update(job_id, result=result, session_id=outcome.get("session_id"))
-                if outcome.get("session_id"):
+                if outcome.get("session_id") and not self._job(job_id).get("workspace_path"):
                     self.db.execute("INSERT OR REPLACE INTO sessions VALUES (?,?)",
                                     (self._job(job_id)["conversation"], outcome["session_id"]))
                     self.db.commit()
@@ -341,6 +529,8 @@ class Node:
                     raise RuntimeError("Agent requested an ungranted tool permission. Inspect events.jsonl; no permission was broadened.")
                 if not result.strip():
                     raise RuntimeError("ACP returned no agent text. Inspect events.stderr.log; end_turn alone is not a result.")
+                async with self.workspace_lock:
+                    await self._workspace_result(self._job(job_id))
                 evidence = str(self.state / "tasks" / job_id / "events.jsonl")
                 await self._return(self._job(job_id), result, "ACP completed; evidence: " + evidence)
                 self._update(job_id, status="reported")
@@ -382,6 +572,16 @@ def create_app(node: Node):
         """Inspect immutable Bend history, memory or packet for a task."""
         return await node.dispatch("kernel", {"id": id, "operation": operation})
 
+    @mcp.tool()
+    async def meta_workspace(id: str) -> dict:
+        """Inspect a task's isolated jj workspace and recorded result revision."""
+        return await node.dispatch("workspace", {"id": id})
+
+    @mcp.tool()
+    async def meta_diff(id: str) -> dict:
+        """Read the recorded result patch against its original baseline."""
+        return await node.dispatch("diff", {"id": id})
+
     @mcp.custom_route("/health", methods=["GET"])
     async def health(request):
         return JSONResponse(await node.dispatch("status", {}))
@@ -398,7 +598,7 @@ def create_app(node: Node):
             if not isinstance(data, dict) or not isinstance(data.get("params", {}), dict):
                 raise ValueError("Expected method and params object")
             return JSONResponse(await node.dispatch(data["method"], data.get("params", {})))
-        except (ValueError, KeyError, TypeError, OSError) as exc:
+        except (ValueError, KeyError, TypeError, OSError, RuntimeError) as exc:
             return JSONResponse({"error": str(exc)}, status_code=400)
 
     app = mcp.streamable_http_app()
@@ -494,6 +694,37 @@ def ensure_started(args):
     raise RuntimeError(f"Node is not ready. Inspect {args.state / 'node.log'}")
 
 
+def stop_node(args):
+    """Stop the owning service, or the standalone process when no service owns it."""
+    service_file = Path.home() / "Library/LaunchAgents" / (SERVICE + ".plist")
+    management = "standalone"
+    if sys.platform == "darwin" and service_file.exists():
+        spec = plistlib.loads(service_file.read_bytes())
+        arguments = spec.get("ProgramArguments", [])
+        if arguments == launch_args(args):
+            target = f"gui/{os.getuid()}/{SERVICE}"
+            probe = subprocess.run(["launchctl", "print", target], capture_output=True)
+            if not probe.returncode:
+                subprocess.run(["launchctl", "bootout", target], check=True)
+                management = "launchd"
+        elif "--state" in arguments:
+            index = arguments.index("--state")
+            if index + 1 < len(arguments) and Path(arguments[index + 1]).expanduser().resolve() == args.state:
+                raise RuntimeError("Installed service uses different settings; stop it with its configured entrypoint")
+    if management == "standalone":
+        try:
+            client(args.state, args.port, "shutdown")
+        except OSError:
+            return {"stopped": True, "management": management}
+    for _ in range(60):
+        try:
+            client(args.state, args.port, "status")
+        except OSError:
+            return {"stopped": True, "management": management}
+        time.sleep(0.25)
+    raise RuntimeError("Node did not stop; inspect the process and its supervisor")
+
+
 def install(args):
     if sys.platform != "darwin":
         raise RuntimeError("Automatic login service installation currently supports macOS")
@@ -558,9 +789,12 @@ def main():
     submit.add_argument("--conversation", default="local:default")
     submit.add_argument("--request-id", default=None)
     submit.add_argument("--wait", action="store_true")
-    for name in ["task", "wait", "kernel"]:
+    for name in ["task", "wait", "kernel", "workspace", "diff", "retire", "integrate"]:
         sub = subs.add_parser(name)
         sub.add_argument("id")
+        if name == "integrate":
+            sub.add_argument("--base-commit", required=True)
+            sub.add_argument("--result-commit", required=True)
         if name == "kernel":
             sub.add_argument("operation", nargs="?", default="history", choices=["history", "memory", "packet"])
     subs.add_parser("mcp-config")
@@ -577,7 +811,7 @@ def main():
         install(args)
         return
     if args.command == "stop":
-        print(json.dumps(client(args.state, args.port, "shutdown")))
+        print(json.dumps(stop_node(args)))
         return
     if args.command == "mcp-config":
         # Token stays out of printed configuration and shell history.
@@ -641,7 +875,7 @@ def main():
             raise SystemExit(1)
     else:
         method = "status" if args.command == "start" else args.command
-        params = {k: v for k, v in vars(args).items() if k in {"id", "operation"}}
+        params = {k: v for k, v in vars(args).items() if k in {"id", "operation", "base_commit", "result_commit"}}
         print(json.dumps(client(args.state, args.port, method, params), indent=2))
 
 

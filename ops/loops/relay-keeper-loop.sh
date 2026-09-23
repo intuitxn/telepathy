@@ -51,8 +51,9 @@ bump_red() { RED=$((RED + 1)); }
 bump_yellow() { YELLOW=$((YELLOW + 1)); }
 
 log "=== relay-keeper-loop start ts=$TS ==="
-HEAD="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || printf 'unknown')"
-log "repo HEAD=$HEAD (read-only observation)"
+JJ_BIN="${JJ:-jj}"
+RECORDED_REVISION="$("$JJ_BIN" --ignore-working-copy -R "$ROOT" log -r @ --no-graph -T 'commit_id' 2>/dev/null || printf 'unknown')"
+log "recorded jj revision=$RECORDED_REVISION (read-only; excludes unsnapshotted edits)"
 
 # --- 1. workspace service status (read-only subcommand) --------------------
 log "--- check: workspace-service status"

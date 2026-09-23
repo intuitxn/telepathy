@@ -58,9 +58,11 @@ That missing input does not prevent other scoped proof work or verification.
 
 - Claim human acceptance: a passing proof establishes only its encoded laws.
   Record verified completion separately with tests and appropriate independent review.
-- Merge or tag in this role; keep writes scoped to the assigned proof and evidence.
-  Do not bypass `agit accept`, merge or `agit/<id>/resolved` shell gates or their
-  actual human-evidence requirements.
+- Integrate or publish in this role; keep writes scoped to the assigned proof
+  and evidence in your owned jj workspace. Preserve exact-revision checks,
+  independent review, and actual human-evidence requirements where the task
+  specifies them. The integration owner publishes authorized bookmarks through
+  the GitHub review workflow; the old `agit accept` interface is retired.
 - Touch the network, credentials, transcripts, or private source IDs. Evidence
   carries digests and 1/0 bits only — never prompts, session text, or keys.
 - Invent digests: copy them from `telepathy-program` receipts and `bend`

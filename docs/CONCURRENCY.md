@@ -1,60 +1,32 @@
 # One writer per unit of work
 
-Concurrency rule for multiple agents in one repository. Isolation is covered by
-[WORKTREE_LIFECYCLE.md](./WORKTREE_LIFECYCLE.md), landing by
-[AUTO_MERGE.md](./AUTO_MERGE.md), execution by [../runtime/AUTONOMY.md](../runtime/AUTONOMY.md).
-This file covers the gap those leave: **exclusive ownership**, so two agents never
-write the same thing at the same time.
+Use one jj workspace per independent writer and one explicit owner per shared
+file, task, or runtime snapshot lineage. A jj workspace gives separate files;
+it is not a filesystem sandbox, a lease service, or a distributed lock.
 
-## Rule order
+1. State the task, workspace, owned paths, base revision, and acceptance check
+   before editing. Coordinate ownership through the existing host; a prose
+   claim does not enforce exclusivity.
+2. Keep each worker's writes in its owned workspace. The integration owner owns
+   shared surfaces and integration changes. Workers propose changes to shared
+   files rather than racing to update the same copy.
+3. Inspect `jj status` before work. Unknown edits require coordination with
+   their owner; do not stash, restore, abandon, or include them silently.
+4. Snapshot and describe your own change. Preserve its change ID, checked commit
+   ID, and evidence. A later edit invalidates evidence bound to earlier bytes.
+5. One integration owner combines verified changes and resolves conflicts.
+   Recheck the resulting revision. Remote GitHub publication uses explicit
+   bookmarks and the existing authorization/review rules.
 
-```
-worktree isolation  >  exclusive claim  >  single-writer state  >  serialized merge
-```
+Never use Git checkout, stash, reset, clean, or merge inside the active jj
+workflow. Never remove another agent's workspace or rewrite its change without
+coordination. Old worktrees remain untouched until their owners pause and a
+migration preserves their dirty files, unique commits, and private state.
 
-If the first holds, the rest are cheap. The failure this file exists to stop is
-two agents editing one checkout, one stashing the other's work, PRs opened and
-closed under each other, and the run entry point drifting.
+For Bend, one coordinator still writes each lineage of immutable snapshots.
+Parallel workers return results to that coordinator. jj history does not make
+Bend state writes atomic or grant globally exclusive worker claims.
 
-## One writer per unit
-
-- Every unit of work — a branch, a file, a job, a snapshot — has **exactly one
-  writer** at a time.
-- **Claim before you write.** If you cannot claim it, do not write it.
-- A claim carries a **lease**. A stale lease is reclaimed, never shared.
-
-Prior art already in the system: Desk's `claim-once` transition; the Bend worker
-snapshot rule (`OUT` must be new, single writer — [META.md](../runtime/adaptive/META.md));
-the telepathy peer registry (one writer per store).
-
-## Shared files
-
-- Shared surfaces — `main`, `docs/INDEX.md`, `package.json`, `Makefile` — are
-  owned by the **integration owner**. Other agents **propose** changes (a PR, a
-  note); they do not edit them directly.
-- Write your own work under your own namespace: your worktree, or
-  `docs/drafts/<agent>/`.
-- One branch is checked out in one worktree only; do not reuse a branch another
-  worktree holds.
-
-## Never rewrite another agent's work
-
-- Do not `git stash` a tree you do not own. A shared checkout is **read-only**
-  unless you hold its claim.
-- To retire or absorb a branch, **close it as `SUPERSEDED`** and prove containment
-  (`git merge-base --is-ancestor <tip> <integration-head>`). Do not force-push,
-  rebase, or delete another agent's branch.
-
-## Detection
-
-- Refuse to start if the checkout you were given is dirty and not yours.
-- Before editing, confirm the branch is not already merged
-  (`scripts/worktree-guard.sh`).
-- If you find uncommitted changes you did not author, **stop and hand off**; do
-  not commit them.
-
-## Serialized integration
-
-One integration owner lands to `main`, one PR at a time. A superseded branch is
-kept (its commits stay in history) and closed, not merged twice. Small owned PRs,
-not one large consolidation.
+See [WORKTREE_LIFECYCLE.md](WORKTREE_LIFECYCLE.md) for commands and recovery,
+[AUTO_MERGE.md](AUTO_MERGE.md) for GitHub landing rules, and
+[../runtime/AUTONOMY.md](../runtime/AUTONOMY.md) for execution authority.

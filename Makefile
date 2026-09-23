@@ -16,7 +16,7 @@ check: ## Run retained runtime checks, requiring Bend and protocol tests
 	$(MAKE) ctx verify-kernels
 
 test: ## Run the retained pure node test suite
-	$(NODE) --test scripts/telepathy-discover.test.mjs runtime/evaluation/workflow-transfer.test.mjs scripts/agit-retirement.test.mjs scripts/ops-driver.test.mjs
+	$(NODE) --test scripts/telepathy-discover.test.mjs runtime/evaluation/workflow-transfer.test.mjs scripts/agit-retirement.test.mjs scripts/jj-workspace.test.mjs scripts/ops-driver.test.mjs
 
 ctx: ## Check the Bend context equation (the required kernel set)
 	BEND_NO_TELEMETRY=1 $(BEND) runtime/ops/ctx.bend --check-only

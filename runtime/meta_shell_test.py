@@ -7,7 +7,10 @@ import asyncio
 import sqlite3
 import tempfile
 import unittest
+import plistlib
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from starlette.testclient import TestClient
 
@@ -207,6 +210,40 @@ class TransportTests(unittest.TestCase):
             asyncio.run(exercise())
             self.assertEqual(len(received), 2)
             self.assertEqual(sent[0]["status"], 413)
+
+
+class ServiceLifecycleTests(unittest.TestCase):
+    def test_managed_stop_unloads_then_start_bootstraps_without_standalone_process(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory).resolve()
+            args = SimpleNamespace(state=home / "state", port=47831,
+                source=home / "system.bend", bend="bend", opencode="opencode", model=None)
+            service = home / "Library/LaunchAgents" / (meta_shell.SERVICE + ".plist")
+            service.parent.mkdir(parents=True)
+            service.write_bytes(plistlib.dumps({"ProgramArguments": meta_shell.launch_args(args)}))
+            with patch.object(meta_shell.Path, "home", return_value=home), \
+                 patch.object(meta_shell.sys, "platform", "darwin"), \
+                 patch.object(meta_shell.subprocess, "Popen") as popen:
+                with patch.object(meta_shell.subprocess, "run",
+                                  return_value=SimpleNamespace(returncode=0)) as run, \
+                     patch.object(meta_shell, "client", side_effect=OSError) as client:
+                    result = meta_shell.stop_node(args)
+                    self.assertEqual(result, {"stopped": True, "management": "launchd"})
+                    self.assertEqual([c.args[0][1] for c in run.call_args_list], ["print", "bootout"])
+                    self.assertTrue(all(c.args[2] == "status" for c in client.call_args_list))
+                with patch.object(meta_shell.subprocess, "run", side_effect=[
+                    SimpleNamespace(returncode=1), SimpleNamespace(returncode=0)]) as run, \
+                     patch.object(meta_shell, "client", side_effect=[OSError(), {"state": str(args.state)}]):
+                    self.assertEqual(meta_shell.ensure_started(args)["state"], str(args.state))
+                    self.assertEqual([c.args[0][1] for c in run.call_args_list], ["print", "bootstrap"])
+                popen.assert_not_called()
+                args.model = "mismatched-settings"
+                with patch.object(meta_shell.subprocess, "run") as run, \
+                     patch.object(meta_shell, "client") as client:
+                    with self.assertRaisesRegex(RuntimeError, "different settings"):
+                        meta_shell.stop_node(args)
+                    run.assert_not_called()
+                    client.assert_not_called()
 
 
 if __name__ == "__main__":

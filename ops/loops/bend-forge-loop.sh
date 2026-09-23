@@ -5,7 +5,7 @@
 #   (no Desk dependency; read-only check-only Bend gates only).
 #
 # DOES (read-only + check-only):
-#   - Records repo HEAD (read-only), Bend version pin (expect bend 2.0.5).
+#   - Records the last snapshotted jj revision (read-only), Bend version pin (expect bend 2.0.5).
 #   - Re-runs the bare-file gate `bend PROOF.bend` over
 #     runtime/programs/bend-laws/PROOF.bend and
 #     runtime/programs/retrieval/PROOF.bend
@@ -50,8 +50,9 @@ bump_red() { RED=$((RED + 1)); }
 bump_yellow() { YELLOW=$((YELLOW + 1)); }
 
 log "=== bend-forge-loop start ts=$TS ==="
-HEAD="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || printf 'unknown')"
-log "repo HEAD=$HEAD (read-only observation)"
+JJ_BIN="${JJ:-jj}"
+RECORDED_REVISION="$("$JJ_BIN" --ignore-working-copy -R "$ROOT" log -r @ --no-graph -T 'commit_id' 2>/dev/null || printf 'unknown')"
+log "recorded jj revision=$RECORDED_REVISION (read-only; excludes unsnapshotted edits)"
 
 # --- toolchain pin -------------------------------------------------------
 # Draft pin: Bend 2.0.5. The installed binary on the 2026-09-22 host reports

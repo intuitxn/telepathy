@@ -1,113 +1,86 @@
-# Telepathy — operate (one page)
+# Telepathy — operate
 
-Root for every command below: `/Users/a3fckx/Desktop/Attri/telepathy`.
-```sh
-cd /Users/a3fckx/Desktop/Attri/telepathy
-```
+Use the canonical checkout at `/Users/a3fckx/Desktop/Attri/telepathy` or an owned
+jj workspace based on its current integration revision. Local code ownership
+uses jj; runtime task ownership uses the resident meta shell and Bend. GitHub
+remains the publication/review destination.
 
-> Pointers, not repeats. Rationale lives in linked docs.
-> System: `docs/designs/SYSTEM.md` · Harness: `HARNESS.md` · Programs: `runtime/programs/README.md` · State store: `docs/designs/agentic-git.md` · People flow: `forum/START_HERE.md` (+ `forum/WRITING.md` before artifacts).
-
-## 1. Prove — the Bend gate
-
-Toolchain: `bend 2.0.5` only at `/Users/a3fckx/.bend/bin/bend`. Always absolute path, always `BEND_NO_TELEMETRY=1`. Never bare `bend`. There is **no `bend check`** on 2.0.5.
+## Inspect and isolate work
 
 ```sh
-export BEND_NO_TELEMETRY=1
-BEND=/Users/a3fckx/.bend/bin/bend
-
-$BEND --version
-# expect: bend 2.0.5
-
-# THE GATE — must print `All terms check.`, exit 0:
-$BEND /Users/a3fckx/Desktop/Attri/telepathy/runtime/programs/bend-laws/PROOF.bend
-
-# Negative control — must FAIL with `5 TODOs found` (laws without proofs):
-$BEND /Users/a3fckx/Desktop/Attri/telepathy/runtime/programs/bend-laws/LAWS.bend
+jj status
+jj log -r '@ | @-'
 ```
 
-Per-program law verdict (over that program's inline `bend-law`/`bend-proof` fences):
+Follow [docs/WORKTREE_LIFECYCLE.md](docs/WORKTREE_LIFECYCLE.md) and
+[docs/CONCURRENCY.md](docs/CONCURRENCY.md). Use a separate jj workspace for an
+independent writer. Do not use Git worktree, checkout, stash, reset, clean, or
+merge for the local lifecycle. Existing pre-migration work remains preserved
+until its owners coordinate migration.
+
+## Run the meta shell
 
 ```sh
-/Users/a3fckx/Desktop/Attri/telepathy/runtime/programs/telepathy-program bend-gate <name>
-# verdict: proven | open | failed | needs-toolchain
+meta status
+meta shell --project "$PWD"
+meta submit 'Describe the requested task here' --project "$PWD" --wait
+meta list
+meta task TASK_ID
 ```
 
-Detail: `runtime/programs/bend-laws/TOOLCHAIN.md`, `runtime/programs/bend-laws/README.md`.
+See [runtime/META_SHELL.md](runtime/META_SHELL.md) for installation, private
+state, MCP, conversation recovery, and interruption behavior. The shell uses
+the installed OpenCode meta agent. Results are attributed reports; a completed
+agent turn is not independent verification. Relay status must be inspected;
+do not infer a network connection from a live local service.
 
-## 2. Transact — one program run
-
-Binary: `/Users/a3fckx/Desktop/Attri/telepathy/runtime/programs/telepathy-program`. Model default `opencode-go/deepseek-v4-flash` (`--model` / `TELEPATHY_PROGRAM_MODEL` overrides). Auth stays in your existing profile; nothing credential-like goes into bundles/receipts.
+For direct Bend operations:
 
 ```sh
-TP=/Users/a3fckx/Desktop/Attri/telepathy/runtime/programs/telepathy-program
-
-$TP list
-$TP compile <name>                                   # immutable bundle + digest, no model call
-$TP inspect <name>                                   # {source,digest,frozenDigest} of active source
-$TP bend-gate <name>                                 # §1 verdict for this program
-printf '%s' '{"title":"…","body":"…","sourceIds":[]}' | $TP run <name> --input - > result.json
-$TP gen-runner <name>                                # digest-pinned runner in runtime/programs/runners/ (gitignored); refuses on drift
+./mundus help
+BEND_NO_TELEMETRY=1 "$HOME/.bend/bin/bend" version
+BEND_NO_TELEMETRY=1 "$HOME/.bend/bin/bend" runtime/worker/system.bend --check-only
 ```
 
-Lesson sub-flow (proposal only — activation still needs a human reviewer + exact digests):
+Require exit zero and `All terms check.`. Use the worker protocol documented in
+[runtime/adaptive/META.md](runtime/adaptive/META.md), with one writer and a new
+snapshot output at every transition. Do not mutate node-owned snapshots from
+another process.
+
+## Verify and retain
 
 ```sh
-$TP validate-candidate <name> --input - < candidate.json  # {source,parentDigest} → {valid,digests}
-$TP promote-candidate <name> --input - < review.json      # exact-digest, locked, atomic pointer move
+npm run check
+# Stronger local gate, including all required kernels:
+make check
+# Website changes have a separate gate:
+npm --prefix site run check
 ```
 
-Contract tests: `python3 -m unittest discover -s runtime/programs -p 'test_*.py'` from the repo root (stdlib-only; runs without the nudge checkout). Live-model runs: `runtime/programs/LIVE_RUN.md`. Full rules: `runtime/programs/README.md`.
+Run checks relevant to the change, record their results and exact candidate
+revision, and preserve failures. Select reusable findings explicitly; raw
+transcripts and private task metadata are not published artifacts. Native Buzz
+memory remains agent-owner scoped; follow [runtime/worker/BUZZ.md](runtime/worker/BUZZ.md).
 
-## 3. Remember — agit walk + human accept
+`scripts/agit.py` is retired and rejects old job lifecycle operations. Do not
+use its historical Git branch/note/tag workflow for new tasks. Its old records
+remain evidence, and its source is retained in repository history.
 
-`agit` records every transition as a git object (commit/note/tag); it never invents digests — it copies them from `result.json` (receipt) + `proof.json`. The Desk SQLite cache (`.local/`) was retired 2026-09-22 and its ledger is no longer written, so git objects are now the sole source of truth for job state — there is no SQLite reconciliation step. Design: `docs/designs/agentic-git.md` (note: its §3 sketch shows `bend check` — superseded; gate is bare `bend PROOF.bend` per §1).
+## Recover and publish
 
 ```sh
-AGIT="python3 /Users/a3fckx/Desktop/Attri/telepathy/scripts/agit.py"
-
-$AGIT propose --job <id> --program <name> --request request.json
-$AGIT ready   --job <id>                        # refs/notes/agit-state
-# … run the program (§2), prove with Bend (§1) …
-$AGIT run     --job <id>                        # Active commit (bundle digest + receipt id)
-$AGIT prove   --job <id> --proof proof.json     # Waiting note (refs/notes/agit-proof)
-$AGIT review  --job <id>                        # Review commit (candidate digest)
-
-# ONLY a named human, on the exact reviewed revision:
-$AGIT accept  --job <id> --reviewer "Name"      # gate re-check → merge --no-ff → tag agit/<id>/resolved
-$AGIT cancel  --job <id> --by "Name" --reason "…"
-
-$AGIT log   <id>    # transition history from git alone
-$AGIT state <id>    # current stage + digests + what blocks next
+./mundus guard check
+./mundus guard snapshot
+jj op log
 ```
 
-Gate inside `accept`: proof `pass` + candidate==reviewed==merged bytes + reviewer human ≠ worker + bundle digest == active compile digest + no open law. Any failure: no merge, no tag, named rule.
+Recovery snapshots and bookmarks are private local evidence, not automatic
+remote backups. Inspect recovery operations before applying them. The
+integration owner combines checked changes and resolves conflicts, then
+publishes only the authorized bookmark through `jj git push`. GitHub checks
+and exact-revision reviews still apply where configured; local jj commands do
+not claim human acceptance or authorize external communication.
 
-## 4. Crew — who does what
-
-- **bend-forge** (`.opencode/agents/bend-forge.md`): does Bend defs/laws/`PROOF.bend` + gates with negative controls, one job per file. Never self-accepts, merges, tags, touches network/credentials, or sends externally.
-- **relay-keeper** (`.opencode/agents/relay-keeper.md`): does service/tunnel/port-4110/node-route health (`scripts/workspace-service.py status`) + user-domain service restart on approved proposal. Never publishes, accepts, resolves, touches credentials/invites, rewires the network, or sends externally.
-
-Job lifecycle both assume: `Proposed -> Ready -> Active -> Waiting -> Review -> Resolved | Cancelled` (`HARNESS.md` §2). Agents draft; humans accept.
-
-## 5. Share / publish — thread → accept → artifact → link
-
-Per `forum/START_HERE.md`: request lives in a thread (`Result` + `Owner` + `Ready when` + `Context` + links); an operator turns an accepted request into a job; candidate comes back for review; human accepts the **exact** revision; reply **in the original thread** with accepted result + link + still-open items. Code → its repo, linked from thread. Writing → artifact, linked from thread.
-
-```sh
-npm run check                                  # node scripts/check.mjs — retained runtime
-python3 scripts/workspace-service.py status    # workspace service health (optional infra)
-npm --prefix site run check                    # website (separate)
-```
-
-Before writing: read `forum/WRITING.md`. Never put credentials, transcripts, or internal job metadata in an artifact; published `/p/` link quoted in the thread is the stable pointer, never a SQLite row id alone. Boundary: `AGENTS.md`.
-
-## 6. Troubleshoot — 5 reds
-
-| Red | Means | Fix |
-|---|---|---|
-| `bend: too many arguments` on `bend check …` | 2.0.5 has no `check` subcommand | use bare form §1 |
-| `LAWS.bend → 5 TODOs found` | laws asserted, not yet proved — expected | gate `PROOF.bend`, not `LAWS.bend` |
-| `bend-gate → failed` / `open` | a law is red / unproven for this program | new candidate + fresh proof; never edit the old proof note |
-| `run → failure` envelope, exit ≠ 0 | contract/type violation, 90 s timeout, or source-ID guard (output echoed a supplied `sourceIds` entry) | fix input/output, keep provenance IDs out of title/body, human re-reviews |
-| `agit accept` refuses / `gen-runner` refuses on drift | stale digest (bundle/candidate/parent moved), self-accept, open law, leak scan, or a conflicting review note | `agit state <id>` shows the blocker; reconcile to git, revalidate exact digests, human re-accepts |
+The governing execution policy is [runtime/AUTONOMY.md](runtime/AUTONOMY.md).
+Complete authorized work, distinguish verification from acceptance, and report
+actual results and limitations. Read `forum/WRITING.md` before company artifacts.

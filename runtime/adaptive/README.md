@@ -104,9 +104,10 @@ Labels are not cryptographic hashes and do not authenticate their supplier.
 
 ## Agit evidence boundary
 
-The repository's existing `scripts/agit.py` accepts proof-envelope JSON and
-does not itself execute Bend. It is not invoked by this program. The prototype
-uses native source-bound evidence plus an independently captured local Git
+The former `scripts/agit.py` Git mutation lifecycle is retired; its compatibility
+entrypoint rejects operations and points to the jj workflow. It is not invoked
+by this program. Historical prototype runs used native source-bound evidence
+plus an independently captured local Git
 snapshot under `.local/adaptive/agit` when created by the verification session.
 That snapshot binds actual checker output, source SHA256, toolchain identity,
 execution evidence, and the explicit problem/evaluator description.

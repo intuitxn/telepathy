@@ -73,7 +73,8 @@ The native path is standard OpenCode, Buzz and Bend:
   A job needs owner, repository, runtime, request, acceptance; optional context
   files are snapshotted with sha256.
 - **State stores:** Buzz relay (human requests, threads, acceptance), the
-  telepathy-mailbox plugin (ephemeral agent coordination), git (accepted revisions).
+  telepathy-mailbox plugin (ephemeral agent coordination), jj (local revisions),
+  GitHub (authorized publication and review).
 - **Boundary:** `runtime/AUTONOMY.md` governs execution and completion. Record
   verified completion separately from human acceptance; preserve publication authority.
 - **Learning:** after verified outcomes, `@steward` records evidence-backed lessons
@@ -83,10 +84,12 @@ The native path is standard OpenCode, Buzz and Bend:
 
 ## How execution runs
 
-Work in a detached Git worktree at the selected base revision, or directly in the
-owning repository following its isolation rules. Run a standard OpenCode session
-there; Codex (sandboxed, `workspace-write`) is another configured worker option.
-Record the session, result, and `git diff`/status as evidence. Report changed
+Work in an owned jj workspace at an explicit base revision; follow
+`docs/WORKTREE_LIFECYCLE.md` and `docs/CONCURRENCY.md`. Do not use Git worktree,
+checkout, stash, reset, clean, or merge for the local lifecycle. Run a standard
+OpenCode session there; Codex is another configured worker option.
+Record the private session evidence, result, `jj diff`/status, change ID and
+checked commit ID. Report changed
 files, verification commands and outcomes, unresolved issues, and the exact
 candidate revision. State limits honestly — an unverified claim in your evidence
 is worse than no claim.

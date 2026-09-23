@@ -1,58 +1,75 @@
-# Git worktrees: candidate isolation
+# jj workspaces and candidate changes
 
-A worktree is where a candidate is prepared. It is not where knowledge lives.
+Local development uses Jujutsu (`jj`). Git worktree and branch switching are
+retired. Git remains the storage/export format for GitHub publication and for
+historical refs; do not use Git checkout, stash, reset, clean, or merge to manage
+an active jj workspace.
 
-## What it is
+One workspace has one writer. A workspace contains a working-copy change (`@`),
+which jj snapshots automatically during ordinary commands. A stable change ID
+survives revisions; a commit ID identifies the exact bytes and parents that
+were checked. Neither an automatic snapshot nor an operation-log entry proves
+correctness or establishes ownership.
 
-One repository, several working directories. Every worktree shares the clone's
-object store, refs and remote; each has its own HEAD and index. It is an
-isolation unit, not an OS sandbox ([report](../artifacts/reports/2026-09-08-telepathy-labs-technical-report.md)).
+## Start and work
 
-Use one worktree per parallel candidate: a job, an agent, an experiment. The
-stable checkout stays on `main`; the candidate works on its own branch with no
-stashing or branch switching.
-
-## Lifecycle
-
+```sh
+jj status
+jj log -r '@ | @-'
+# Separate writable directory for an independent task, from an explicit revision:
+jj workspace add --name TASK /absolute/path/to/task-workspace -r BASE_REVISION
+# In the task workspace:
+jj describe -m 'Concrete task and outcome'
+# Edit only the files owned by this task, then inspect and check:
+jj diff
+npm run check
+jj log -r @ --no-graph -T 'change_id ++ " " ++ commit_id ++ "\n"'
 ```
-create from committed HEAD -> branch per candidate -> work -> verify
-  -> candidate + evidence + exact revision -> human accepts that revision
-  -> merge -> remove worktree -> delete branch
+
+Replace the uppercase placeholders deliberately. The integration owner chooses
+`BASE_REVISION`; do not silently default to a stale Git `main` bookmark. Use
+`jj new` to start a subsequent change in your owned workspace. Do not edit a
+workspace another agent is using. See [CONCURRENCY.md](CONCURRENCY.md).
+
+`scripts/worktree-guard.sh` is a compatibility name for a jj workspace/status
+check. It makes no network request and performs no remote-branch ancestry
+policy. Status can snapshot local edits; it is not a claim or a lease.
+
+## Recovery
+
+`./mundus guard check` reports whether `@` has changes relative to its parents;
+`./mundus guard snapshot` makes a local recovery bookmark and a private external
+snapshot. Preserve operation history and recovery bookmarks. Use `jj op log`
+and `jj op show` to inspect earlier operations before selecting a repair. Never
+run a broad undo/restore against somebody else's work.
+
+jj history does not protect ignored private state. The external recovery
+archive includes ignored files while excluding `.git` and `.jj`; keep it
+private because it can contain secrets. A recovery bookmark is local and is
+not remote backup. Do not push recovery bookmarks.
+
+## Integrate and publish
+
+The integration owner combines verified changes and checks the resulting exact
+revision. Resolve conflicts explicitly; do not treat a jj conflict as completed
+integration. Record acceptance tests, source revision, reviewer findings, and
+remaining limitations.
+
+When publication is authorized, put a named bookmark on the intended revision:
+
+```sh
+jj bookmark create TASK -r VERIFIED_REVISION
+jj git push --bookmark TASK
 ```
 
-| Layer | Primitive | Lifetime |
-| --- | --- | --- |
-| Candidate code | worktree + branch | disposable |
-| Accepted code | `main` after merge | durable |
-| Learning | attributed memory | durable, separate |
+Use `jj bookmark set` when advancing an existing owned bookmark. A GitHub PR
+still has a Git commit head, required checks, and review rules; publication is
+not implied by local snapshotting. Preserve the user's existing authority and
+any exact-revision review gate. `scripts/agit.py` no longer mutates Git job
+branches, notes, tags, or merges. Historical agit records remain evidence.
 
-- **Worktree: disposable.** Remove it when the candidate is merged or rejected.
-- **Branch / Candidate: durable until accepted**, carrying the exact revision.
-- **Learning: never the worktree.** It is attributed memory ([META.md](../runtime/adaptive/META.md)).
-- Commit from committed HEAD and never leave a worktree half-dirty; the design
-  creates each job from committed HEAD ([BUZZ.md](../runtime/worker/BUZZ.md)).
-
-## When to merge
-
-Only when the candidate passes its checks and a named human accepts that exact
-revision ([SOP.md](./SOP.md), [HARNESS.md](../runtime/adaptive/HARNESS.md)).
-Reject means discard the branch and remove the worktree: an experiment that
-scored zero.
-
-A candidate may **auto-merge** once it is mergeable: checks green on an up-to-date
-branch, one independent approving review, no unresolved conversations. Auto-merge
-lands the *reviewed state*, pinned to the reviewed head; a new commit re-runs
-checks and invalidates the stale review. It is not self-approval ([AUTO_MERGE.md](./AUTO_MERGE.md)).
-
-## Guard
-
-`scripts/worktree-guard.sh` fails before work starts if the current branch already
-merged into `origin/main`. Run it as a preflight; if it fails, make a fresh
-worktree instead of reusing the merged one. Nothing to prune by hand.
-
-## Limits
-
-- A worktree is **not** a security boundary ([report](../artifacts/reports/2026-09-08-telepathy-labs-technical-report.md)).
-- Branches do not enforce exclusive claims; concurrent agents still need the
-  worker `claim` discipline ([META.md](../runtime/adaptive/META.md)).
-- A merge is evidence a finding can point to; it does not retain the finding.
+After integration, the owner can forget a finished task workspace with
+`jj workspace forget TASK`. This unregisters it; it does not delete its files.
+Archive or remove the directory only after checking that it has no remaining
+owned work or private state. Do not remove live pre-migration worktrees until
+their owners have paused and their contents have been preserved.

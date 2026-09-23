@@ -133,6 +133,7 @@ const PURE_TESTS = [
   'runtime/evaluation/workflow-transfer.test.mjs',
   'scripts/telepathy-discover.test.mjs',
   'scripts/agit-retirement.test.mjs',
+  'scripts/jj-workspace.test.mjs',
   'scripts/ops-driver.test.mjs',
 ];
 const pure = runNode(['--test', ...PURE_TESTS]);
