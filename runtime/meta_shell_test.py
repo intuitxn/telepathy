@@ -213,6 +213,22 @@ class TransportTests(unittest.TestCase):
 
 
 class ServiceLifecycleTests(unittest.TestCase):
+    def test_start_waits_past_old_readiness_cutoff_for_kernel_check(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory).resolve()
+            args = SimpleNamespace(state=home / "state", port=47831,
+                source=home / "system.bend", bend="bend", opencode="opencode", model=None)
+            status = {"state": str(args.state)}
+            # Initial probe plus more than the former 180 half-second readiness polls.
+            responses = [OSError() for _ in range(182)] + [status]
+            with patch.object(meta_shell.Path, "home", return_value=home), \
+                 patch.object(meta_shell.subprocess, "Popen") as popen, \
+                 patch.object(meta_shell, "client", side_effect=responses), \
+                 patch.object(meta_shell.time, "sleep") as sleep:
+                popen.return_value.poll.return_value = None
+                self.assertEqual(meta_shell.ensure_started(args), status)
+                self.assertEqual(sleep.call_count, 181)
+
     def test_managed_stop_unloads_then_start_bootstraps_without_standalone_process(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory).resolve()

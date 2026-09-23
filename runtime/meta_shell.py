@@ -36,6 +36,8 @@ DEFAULT_STATE = Path.home() / ".local/state/intuitxn-meta"
 DEFAULT_SOURCE = Path(__file__).resolve().parent / "worker/system.bend"
 DEFAULT_PORT = 47831
 SERVICE = "space.intuitxn.meta"
+KERNEL_TIMEOUT = 180
+STARTUP_TIMEOUT = KERNEL_TIMEOUT + 60
 
 
 def private_dir(path: Path):
@@ -413,7 +415,7 @@ class Node:
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
             start_new_session=True)
         try:
-            out, _ = await asyncio.wait_for(proc.communicate(), 180)
+            out, _ = await asyncio.wait_for(proc.communicate(), KERNEL_TIMEOUT)
         except BaseException:
             with contextlib.suppress(ProcessLookupError):
                 os.killpg(proc.pid, signal.SIGKILL)
@@ -681,7 +683,8 @@ def ensure_started(args):
         with open(args.state / "node.log", "a") as log:
             proc = subprocess.Popen(launch_args(args), stdin=subprocess.DEVNULL,
                                     stdout=log, stderr=log, start_new_session=True, env=env)
-    for _ in range(180):
+    # Startup includes a full kernel check; allow its deadline plus import/service overhead.
+    for _ in range(STARTUP_TIMEOUT * 2):
         try:
             status = client(args.state, args.port, "status")
             if Path(status["state"]) != args.state:
