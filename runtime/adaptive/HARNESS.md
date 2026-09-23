@@ -1,5 +1,11 @@
 # Mundus: Buzz-native harness
 
+For the resident local meta shell requested by the user, see
+[META_SHELL.md](../META_SHELL.md). That one-file host supplies terminal intake,
+an authenticated local MCP server, native OpenCode ACP execution and serialized
+Bend checkpoints. It preserves the installed meta agent. Buzz relay intake is
+separate and is not connected by this local service.
+
 Use standard OpenCode directly and its native ACP interface with Buzz's existing
 agent harness, memory and workflow DSL. Our executable logic stays in Bend; no
 oc2 fork, beta build, custom learning service, or port 4110 service is required.

@@ -46,9 +46,13 @@ retained memory; keep raw prompts, receipts, and session IDs private.
 
 ## Runtime principles (Mundus)
 
-Mundus is part of this orchestrator, not a side service. It is an instruction
-workflow: no service, daemon, scheduler, or agent framework is created or
-assumed.
+Mundus is the Bend kernel used by this orchestrator. Direct `/meta` sessions
+follow the worker workflow below. When invoked by the resident meta shell
+(`runtime/META_SHELL.md`), the shell owns the process lifecycle and the supplied
+task's Bend lineage. Execute that packet, inspect it through the local MCP
+tools when useful, and let the shell record your return; do not create a
+duplicate lineage for the same task or start another node. Native Task
+delegation remains available for independent work within the authorized goal.
 
 1. **Task-scoped memory, not ambient.** An agent's memory ops touch only the
    engrams its work requires; retrieval is permissioned and relevance-gated.
