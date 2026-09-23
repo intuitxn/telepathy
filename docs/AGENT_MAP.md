@@ -134,7 +134,9 @@ as the contract vocabulary, not a current command reference.
 
 1. **Human asks** in the program's home channel: either an issue on the program repo, or a message starting with `/intuitxn ` followed by JSON (`repository`, `request`, `acceptance`, optional `runtime`).
 2. **Intake** (historical: the retired Desk engine polled the configured channels, deduplicated by source event id, and created a job).
-3. **Runtime executes** in a git worktree at the accepted base revision (codex or opencode per job).
+3. **Runtime executes** in an isolated jj workspace at a pinned base revision
+   when submitted through the resident meta shell. The older Desk intake used a
+   Git worktree; that engine is retired.
 4. **Candidate + evidence** returns: changed files, verification results, unresolved issues, exact revision.
 5. **Human reviews and accepts** in the Buzz thread — acceptance is a named human at an exact revision.
 6. **Projection** (historical: the retired Desk ledger projected the outcome): resolution, changelog, activity; the reply returns to the original thread.

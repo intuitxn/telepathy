@@ -109,6 +109,8 @@ API. Its tools are:
 - `meta_submit`: enqueue authorized work without waiting.
 - `meta_task`: inspect a task and its reported result or failure.
 - `meta_kernel`: inspect a task's history, memory, or packet.
+- `meta_workspace`: inspect a task's jj workspace and recorded revision.
+- `meta_diff`: read the recorded patch against the task's pinned base.
 
 ```sh
 meta mcp-config

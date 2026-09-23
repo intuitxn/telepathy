@@ -7,16 +7,17 @@ remote branches have not been published or rewritten by this migration.
 
 The previous directories were Git worktrees sharing one repository, rather than
 nine independent copies of its history. The agent-registration, ctx, policy,
-review, wt-docs and wt-validator worktrees have been retired into private storage.
+review, wt-docs, wt-validator, meta and mundus worktrees have been retired into
+private storage.
 Their branches and complete directory contents, including ignored files, remain
 recoverable. The retired custom `agit` commands now reject mutations.
 
-The meta, mundus and shared-learning worktrees remain temporarily in place:
-other sessions were adding work during migration. Mundus and shared-learning
-also have unique experimental commits. Their preservation snapshots are recovery
-records, not evidence that those experiments were integrated or verified. Stop
-their writers, capture any later changes, and archive their complete directories
-before removing their Git worktree registrations. Do not force-remove them.
+The shared-learning worktree remains temporarily in place because another
+session is still writing there. Mundus and shared-learning also have unique
+experimental commits. Their preservation snapshots are recovery records, not
+evidence that those experiments were integrated or verified. Once its writer
+has stopped, capture any later shared-learning changes and archive its complete
+directory before removing its Git worktree registration. Do not force-remove it.
 
 Private migration evidence lives under
 `~/.local/state/intuitxn-meta/migrations/20260924-003121-jj/`:
