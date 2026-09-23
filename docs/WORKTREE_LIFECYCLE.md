@@ -38,15 +38,18 @@ policy. Status can snapshot local edits; it is not a claim or a lease.
 ## Recovery
 
 `./mundus guard check` reports whether `@` has changes relative to its parents;
-`./mundus guard snapshot` makes a local recovery bookmark and a private external
-snapshot. Preserve operation history and recovery bookmarks. Use `jj op log`
+`./mundus guard snapshot` makes a local recovery tag and a private external
+snapshot. Snapshot finalizes the current change with a tag and lets jj continue
+in a new child change with the same files. The tag binds the original commit,
+so later edits cannot move the recovery reference. Preserve operation history
+and recovery tags. Use `jj op log`
 and `jj op show` to inspect earlier operations before selecting a repair. Never
 run a broad undo/restore against somebody else's work.
 
 jj history does not protect ignored private state. The external recovery
 archive includes ignored files while excluding `.git` and `.jj`; keep it
-private because it can contain secrets. A recovery bookmark is local and is
-not remote backup. Do not push recovery bookmarks.
+private because it can contain secrets. A recovery tag is local and is
+not remote backup. Do not push recovery tags or use broad all-ref/all-tag publication.
 
 ## Integrate and publish
 

@@ -44,7 +44,7 @@ def verify(directory):
 def main():
     if mode in ('help', '-h', '--help'):
         print('usage: durability-guard.sh [check | snapshot | verify SNAPSHOT_DIR]')
-        print('jj @ is automatically snapshotted; snapshot adds a private recovery bookmark and archive.')
+        print('jj @ is automatically snapshotted; snapshot finalizes @ with a private recovery tag and continues in a child change.')
         return 0
     if mode == 'verify':
         if len(sys.argv) != 3:
@@ -72,10 +72,10 @@ def main():
     snapshot.mkdir(mode=0o700)
     revision = run('log', '-r', '@', '--no-graph', '-T', 'commit_id', cwd=root).strip()
     change = run('log', '-r', '@', '--no-graph', '-T', 'change_id', cwd=root).strip()
-    bookmark = 'recovery/' + name
-    run('bookmark', 'create', bookmark, '-r', revision, cwd=root)
+    tag = 'recovery/' + name
+    run('tag', 'set', tag, '-r', revision, cwd=root)
     manifest = {'format': 'jj-recovery/v1', 'workspace': str(root), 'change_id': change,
-                'commit_id': revision, 'bookmark': bookmark,
+                'commit_id': revision, 'tag': tag,
                 'scope': 'Private filesystem backup, including ignored files; .git and .jj excluded.'}
     (snapshot / 'MANIFEST').write_text(json.dumps(manifest, indent=2) + '\n')
     (snapshot / 'status.txt').write_text(status)
@@ -92,15 +92,15 @@ def main():
                 if source.is_file() or source.is_dir() or source.is_symlink():
                     archive.add(source, arcname=str(source.relative_to(root)), recursive=False)
     run('status', cwd=root)
-    current = run('log', '-r', '@', '--no-graph', '-T', 'commit_id', cwd=root).strip()
-    if current != revision:
-        raise RuntimeError('Workspace changed during snapshot; archive is not verified. Initial revision remains at ' + bookmark)
+    changed = run('diff', '--from', revision, '--to', '@', '--summary', cwd=root)
+    if changed.strip():
+        raise RuntimeError('Workspace changed during snapshot; archive is not verified. Initial revision remains at tag ' + tag)
     (snapshot / 'README.txt').write_text('Inspect MANIFEST and archive with durability-guard.sh verify.\n'
-        'Recovery bookmark retains the exact original revision. Archive contains ignored private files too; do not publish it.\n'
+        'Recovery tag retains the exact original revision; @ continues as a new child change. Archive contains ignored private files too; do not publish it.\n'
         'Restore only into an explicitly owned workspace after reviewing the candidate; never overwrite another writer.\n'
-        'Keep this local recovery bookmark private; do not push it.\n')
+        'Keep this local recovery tag private; never publish recovery tags or push all refs.\n')
     print(snapshot)
-    print('durability-guard: recovery bookmark ' + bookmark, file=sys.stderr)
+    print('durability-guard: recovery tag ' + tag + '; current change finalized, continuing in a child change', file=sys.stderr)
     return 0
 
 try:

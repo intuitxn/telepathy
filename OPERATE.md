@@ -74,7 +74,7 @@ remain evidence, and its source is retained in repository history.
 jj op log
 ```
 
-Recovery snapshots and bookmarks are private local evidence, not automatic
+Recovery snapshots and tags are private local evidence, not automatic
 remote backups. Inspect recovery operations before applying them. The
 integration owner combines checked changes and resolves conflicts, then
 publishes only the authorized bookmark through `jj git push`. GitHub checks
