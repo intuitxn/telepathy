@@ -71,7 +71,14 @@ anything, starts no daemon, and a passing gate is not acceptance (convention
 
 ## Invocation
 
+The repo entry point `./mundus op <args...>` delegates here; from the repo root
+that is equivalent to `runtime/ops/run.sh`.
+
 ```sh
+./mundus op list
+./mundus op run fold
+./mundus op run status --id e2e
+
 runtime/ops/run.sh list
 runtime/ops/run.sh run fold
 runtime/ops/run.sh run status --id e2e

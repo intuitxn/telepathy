@@ -1,0 +1,89 @@
+#!/bin/sh
+# mundus — one host entry point over the Bend state kernel.
+#
+# Why this exists (the mkdir gap): the kernel is pure. Given a root S and a
+# verb V it derives the transition directory S/V and the write path
+# S/V.state, but Bend Base has no mkdir/readdir/exec, so the kernel cannot
+# create the directory it must write into. A fresh (nested) root therefore
+# fails with [No such file or directory] before the verb runs. The host closes
+# that gap: derive the target with the kernel's own `path` verb, `mkdir -p`
+# its directory, then run the verb. Nothing else is added — no network, no
+# daemon, no accept/merge/push/publish/send/resolve.
+#
+# Usage: ./mundus <verb> <root> [args...]
+
+set -u
+
+# Resolve everything relative to this script so any cwd works.
+SELF_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+KERNEL="$SELF_DIR/runtime/mundus.bend"
+BEND="${BEND:-$HOME/.bend/bin/bend}"
+export BEND_NO_TELEMETRY=1
+OPS="$SELF_DIR/runtime/ops/run.sh"
+GUARD="$SELF_DIR/scripts/durability-guard.sh"
+
+usage() {
+	cat <<'EOF'
+usage: ./mundus <verb> <root> [args...]
+
+kernel verbs (the host creates <root>'s state directory first):
+  init <root>                   write the genesis state into <root>
+  capture <root> <task>         write the next state (capture)
+  plan <root> <budget> <depth>  plan(Task) -> Plan; prints it
+  work|claim|packet|return|learn|correct <root>
+                                one state transition each
+  retrieve <root>               diffusion-style retrieval from <root>/graph
+  status <root>                 canonical one-line-per-slot projection
+  path <root> <verb>            print the derived transition path
+
+delegating verbs:
+  op <args...>                  run runtime/ops/run.sh
+  guard <args...>               run scripts/durability-guard.sh
+  help                          print the kernel's verb list
+
+Bend Base has no mkdir; the host does `mkdir -p` on the derived state
+directory so a fresh nested root works with no manual setup.
+EOF
+}
+
+verb="${1:-}"
+
+case "$verb" in
+"")
+	exec "$BEND" "$KERNEL" -- help
+	;;
+help | -h | --help)
+	exec "$BEND" "$KERNEL" -- help
+	;;
+op)
+	shift
+	exec "$OPS" "$@"
+	;;
+guard)
+	shift
+	exec "$GUARD" "$@"
+	;;
+esac
+
+root="${2:-}"
+case "$verb" in
+init | capture | plan | work | claim | packet | return | learn | correct | retrieve | status | path)
+	if [ -z "$root" ]; then
+		echo "mundus: verb '$verb' requires a <root> directory" >&2
+		usage >&2
+		exit 64
+	fi
+	;;
+*)
+	echo "mundus: unknown verb: $verb" >&2
+	usage >&2
+	exit 64
+	;;
+esac
+
+# Derive the target with the kernel's own path verb, then create the one
+# directory Bend cannot, then run the verb and propagate its exit code.
+target=$("$BEND" "$KERNEL" -- path "$root" "$verb") || exit $?
+mkdir -p "$(dirname "$target")"
+shift 2
+exec "$BEND" "$KERNEL" -- "$verb" "$root" "$@"

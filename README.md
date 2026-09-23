@@ -12,6 +12,33 @@ The [active build plan](runtime/adaptive/HARNESS.md#what-the-system-should-build
 
 It gives Shubham, Om, and Kush one place to publish decisions, updates, questions, asks, and accepted outcomes. People remain the visible authors and owners. Agent Manager, worker agents, routing, summarization, and artifact processing operate beneath that surface.
 
+## Mundus entry point
+
+The Bend state kernel is driven through one host entry point:
+
+```sh
+./mundus <verb> <root> [args...]
+```
+
+| Verb | Effect |
+| --- | --- |
+| `init <root>` | write the genesis state into `<root>` |
+| `capture <root> <task>` | write the next state (capture) |
+| `plan <root> <budget> <depth>` | `plan(Task) -> Plan`; prints it |
+| `work` `claim` `packet` `return` `learn` `correct <root>` | one state transition each |
+| `retrieve <root>` | diffusion-style retrieval from `<root>/graph` |
+| `status <root>` | canonical one-line-per-slot projection |
+| `path <root> <verb>` | print the derived transition path |
+| `op <args...>` | delegate to `runtime/ops/run.sh` |
+| `guard <args...>` | delegate to `scripts/durability-guard.sh` |
+| `help` | print the kernel's verb list |
+
+The host does one thing the kernel cannot: it `mkdir -p`s the derived state
+directory before running a verb. Bend Base has no `mkdir`, so a fresh (even
+nested) `<root>` otherwise fails with `[No such file or directory]`; there is
+no manual setup. `BEND` overrides the binary path (default
+`$HOME/.bend/bin/bend`).
+
 ## Product rule
 
 > Telepathy exists to improve human communication. It must not turn internal agent traffic into a product for people to monitor.
