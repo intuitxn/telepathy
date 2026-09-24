@@ -1,0 +1,39 @@
+# A readable, typed program. The node receives one compiled plan.
+program review_and_plan version 0.1.0
+about "Inspect a request, choose a route, and produce a checked plan."
+
+input request: string
+input workspace: string
+
+effect read_workspace: read "Read files in the selected workspace."
+effect write_workspace: write "Edit only the selected jj workspace."
+
+choice route from input.request, step.inspect.summary:
+  ask "Choose the next route after inspection."
+  options implement, ask_for_clarification, report_blocked
+
+noul ready_confidence from step.inspect.summary:
+  ask "Estimate whether the request is ready to implement."
+  threshold 0.70
+
+score risk_score from step.inspect.summary, decision.route:
+  ask "Score implementation risk from 0 (trivial) to 5 (broad)."
+  range 0..5
+  threshold 3
+  rubric "Higher scores require broader independent checks."
+
+step inspect:
+  agent meta
+  use input.request, input.workspace
+  allow read_workspace
+  ask "Read the request and code context; report sources and a concise summary."
+  output summary: string
+  decide route
+
+step plan after inspect:
+  agent meta
+  use input.request, step.inspect.summary, decision.route
+  allow read_workspace
+  ask "Produce a concrete plan and verification checklist for the route."
+  output plan: string
+  decide risk_score

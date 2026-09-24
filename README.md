@@ -12,7 +12,7 @@ terminal / local MCP
   agent program  -- typed plan (one node task)
 ```
 
-The live node is local only. It does not provide cross-device scheduling, global consensus, neural-weight training, or proof that an agent's answer is correct. Its MCP endpoint is authenticated and bound to loopback. Model judgments are advisory; actual effects remain subject to the host and operator authority. See [runtime/META_SHELL.md](runtime/META_SHELL.md) for setup, CLI, and recovery, and [runtime/worker/README.md](runtime/worker/README.md) for the Bend contract.
+The live node is local only. It does not provide cross-device scheduling, global consensus, neural-weight training, or proof that an agent's answer is correct. Its MCP endpoint is authenticated and bound to loopback. Model judgments are advisory; actual effects remain subject to the host and operator authority. See [the meta shell](runtime/META_SHELL.md) for setup and recovery, [the agent language](docs/designs/agent-program-language.md) for syntax and its limits, and [the Bend kernel](runtime/worker/README.md) for the checked contract.
 
 ```sh
 uv run --script runtime/meta_shell.py start
