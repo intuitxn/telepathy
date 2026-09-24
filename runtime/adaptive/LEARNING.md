@@ -3,6 +3,42 @@
 This is agent-authored project memory, not a training update or a proof receipt.
 Read it before proposing changes; recheck claims against the current source.
 
+## Harness DSL run, 2026-09-24
+
+Canonical Bend source SHA256:
+`60dcbfaa46e09c34259c14f5884800c4c1a3c1aba80f16943f6512bf88577114`.
+The source passed Bend 2.0.21 `--check-only` with `All terms check.` The
+`runtime/harness/README.md` describes its language and exact local commands.
+The normal `npm run test:harness` command passed 31 groups using Bend-generated
+JavaScript in Bun; four existing Lorenz/worker regression groups also passed.
+Direct `bend runtime/system.bend -- init ...` saved a fresh local snapshot.
+
+On the four public maximum fixtures, the baseline scored 2/4 with two effects
+per case; the bounded retry scored 4/4 with three effects per case and passed the
+configured selector. A live OpenCode model effect returned `{"answer": 9}` for
+`[3,9,2]`; the separate verifier accepted it, and control flow replay made no
+new model call. The model proposed a four-attempt version after seeing aggregate
+history. It matched the two-attempt version at 4/4 and three mean effects;
+selection rejected it for no measured gain or savings. A two-round offline evolution
+test retained the improved two-attempt program and rejected the later four-attempt
+program. Local private receipts
+retain the exact task and observation data; the comparison report keeps accepted
+and rejected program text, scores, costs and policy settings.
+
+The first live `evolve --rounds 1` proposal nested `repeat` inside `verify` and
+was rejected at 2/4 with unchanged mean effect count. After the proposer prompt
+spelled out the retry/verification semantics, a second live one-round run proposed
+`repeat 2 ok verify maximum model maximum`; it scored 4/4 at three mean effects,
+and Bend accepted it. The local frontier and result are in
+`.local/harness/evolution-guided-20260924`. This is proposer guidance and
+in-suite selection, not a demonstrated out-of-distribution improvement.
+
+This fixture tests control, evidence capture and selection, not generalization.
+The cost measure is effect count, not policy tokens. No calibrated noise band,
+leakage critic, held-out transfer evaluation, component pruning or model
+weight update is established by these runs. Do not infer neural learning gains
+from the test double or from a single live answer.
+
 ## Current direction: Buzz native, Bend executable logic
 
 The user chose Buzz's existing memory, ACP agent harness and ordinary workflow
@@ -137,7 +173,7 @@ inside the existing one-file program.
 
 ## Worker integration and operational findings
 
-The native worker implementation is now packaged in `runtime/worker/system.bend`.
+The native worker implementation is now packaged in `runtime/system.bend`.
 Its 78 named laws pass Bend 2.0.21 checking. Independent fresh-process tests cover
 claim ownership, rejected duplicate/wrong-worker returns, explicit learning,
 later memory retrieval and transitive invalidation after correction. A local

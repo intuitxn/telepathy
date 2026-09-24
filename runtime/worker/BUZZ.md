@@ -32,7 +32,7 @@ also documents the distinction between core injection and other memory retrieval
 ```sh
 BUZZ="$HOME/.local/bin/buzz"
 BEND="$HOME/.bend/bin/bend"
-WORKER_SOURCE="/absolute/path/to/telepathy/runtime/worker/system.bend"
+WORKER_SOURCE="/absolute/path/to/telepathy/runtime/system.bend"
 export BEND_NO_TELEMETRY=1
 "$BUZZ" --help
 "$BUZZ" mem --help

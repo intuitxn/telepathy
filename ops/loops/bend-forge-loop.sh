@@ -2,12 +2,10 @@
 # bend-forge-loop — unattended re-run of the Bend proof gates.
 #
 # DOES (read-only + check-only):
-#   - Records repo HEAD (read-only), Bend version pin (expect bend 2.0.5).
-#   - Re-runs the bare-file gate `bend PROOF.bend` over
+#   - Records repo HEAD (read-only), Bend version pin (expect bend 2.0.21).
+#   - Re-runs `bend FILE --check-only` over
 #     runtime/programs/bend-laws/PROOF.bend and
-#     runtime/programs/retrieval/PROOF.bend
-#     (canonical form per runtime/programs/bend-laws/TOOLCHAIN.md;
-#     there is no `bend check` subcommand in 2.0.5).
+#     runtime/system.bend (the consolidated system DSL).
 #   - Re-runs program fences via `telepathy-program bend-gate NAME`
 #     for each registry program (artifact-design, lesson-proposal,
 #     lesson-review).
@@ -27,7 +25,7 @@ set -u
 
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)"
 RUNS="$ROOT/ops/runs"
-BEND=/Users/a3fckx/.bend/bin/bend
+BEND=${BEND:-"$HOME/.bend/bin/bend"}
 export BEND_NO_TELEMETRY=1
 TS="$(date -u +%Y%m%dT%H%M%SZ)"
 
@@ -52,25 +50,25 @@ log "repo HEAD=$HEAD (read-only observation)"
 
 # --- toolchain pin -------------------------------------------------------
 if [ -x "$BEND" ]; then
-  BEND_VER="$("$BEND" --version 2>&1)"
+  BEND_VER="$("$BEND" version 2>&1)"
   log "bend version: $BEND_VER"
   case "$BEND_VER" in
-    "bend 2.0.5") log "VERDICT GREEN toolchain-pin :: $BEND_VER" ;;
-    *) log "VERDICT RED toolchain-pin :: expected 'bend 2.0.5', got '$BEND_VER'"; bump_red ;;
+    "bend 2.0.21") log "VERDICT GREEN toolchain-pin :: $BEND_VER" ;;
+    *) log "VERDICT RED toolchain-pin :: expected 'bend 2.0.21', got '$BEND_VER'"; bump_red ;;
   esac
 else
   log "VERDICT RED toolchain-pin :: missing executable at $BEND"
   bump_red
 fi
 
-# --- bare-file PROOF.bend gates ------------------------------------------
+# --- Bend checker gates --------------------------------------------------
 gate_bend() {
   name="$1"
   rel="$2"
   log "--- gate: $name ($rel)"
-  tmp="$(mktemp /private/var/folders/61/b705h_dd3_lggk6zs8jzcnx80000gn/T/bend-forge-XXXXXX)"
+  tmp="$(mktemp "${TMPDIR:-/tmp}/bend-forge-XXXXXX")"
   if [ -x "$BEND" ]; then
-    (cd "$ROOT" && "$BEND" "$rel" >"$tmp" 2>&1); code=$?
+    (cd "$ROOT" && "$BEND" "$rel" --check-only >"$tmp" 2>&1); code=$?
   else
     printf 'missing Bend binary at %s\n' "$BEND" >"$tmp"; code=127
   fi
@@ -86,13 +84,13 @@ gate_bend() {
 }
 
 gate_bend "bend-laws" "runtime/programs/bend-laws/PROOF.bend"
-gate_bend "retrieval" "runtime/programs/retrieval/PROOF.bend"
+gate_bend "system" "runtime/system.bend"
 
 # --- program fences via bend-gate -----------------------------------------
 gate_program() {
   name="$1"
   log "--- gate: bend-gate $name"
-  tmp="$(mktemp /private/var/folders/61/b705h_dd3_lggk6zs8jzcnx80000gn/T/bend-gate-XXXXXX)"
+  tmp="$(mktemp "${TMPDIR:-/tmp}/bend-gate-XXXXXX")"
   ("$ROOT/runtime/programs/telepathy-program" bend-gate "$name" >"$tmp" 2>&1); code=$?
   cat "$tmp" >> "$OUT"
   status="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("status","parse_error"))' "$tmp" 2>/dev/null || printf 'parse_error')"

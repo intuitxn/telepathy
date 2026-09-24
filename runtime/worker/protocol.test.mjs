@@ -8,7 +8,7 @@ import { promisify } from 'node:util';
 import { execFile } from 'node:child_process';
 import http from 'node:http';
 const exec = promisify(execFile);
-const source = fileURLToPath(new URL('system.bend', import.meta.url));
+const source = fileURLToPath(new URL('../system.bend', import.meta.url));
 const bend = process.env.BEND || path.join(os.homedir(), '.bend/bin/bend');
 const run = async args => (await exec(bend, [source, ...args], {
   env: { ...process.env, BEND_NO_TELEMETRY: '1' }, timeout: 120000, maxBuffer: 4 * 1024 * 1024,

@@ -13,6 +13,8 @@
     "doctor": "node runtime/desk/src/cli.js doctor",
     "desk": "node runtime/desk/src/cli.js",
     "opencode": "node runtime/desk/src/cli.js opencode",
+    "harness": "python3 runtime/harness/run.py",
+    "test:harness": "python3 -m unittest discover -s runtime/harness -p 'test_*.py' -v",
     "test": "node --test runtime/desk/test/*.test.js",
     "check": "npm test"
   }

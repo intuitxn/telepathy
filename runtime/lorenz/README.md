@@ -1,23 +1,23 @@
 # Lorenz explicit memory core
 
-`system.bend` is one executable source file, separate from the adaptive maximum
-core. It retains explicitly selected conversation text, promotes statements to
-memory, records corrections without deleting history, invalidates dependent
-statements transitively, and records work as queued data. It does not execute
+[`runtime/system.bend`](../system.bend) is the consolidated executable Bend source.
+Its Lorenz commands retain explicitly selected conversation text, promote statements to
+memory, record corrections without deleting history, invalidate dependent
+statements transitively, and record work as queued data. They do not execute
 queued work or automatically capture conversations or train a model.
 
 From the repository root, using Bend 2.0.21:
 
 ```sh
 export BEND_NO_TELEMETRY=1
-~/.bend/bin/bend runtime/lorenz/system.bend --check-only
-~/.bend/bin/bend runtime/lorenz/system.bend -- help
+~/.bend/bin/bend runtime/system.bend --check-only
+~/.bend/bin/bend runtime/system.bend -- help
 mkdir -p .local/lorenz
 RUN_DIR=$(mktemp -d .local/lorenz/session.XXXXXX)
-~/.bend/bin/bend runtime/lorenz/system.bend -- init "$RUN_DIR/0"
-~/.bend/bin/bend runtime/lorenz/system.bend -- capture "$RUN_DIR/0" "$RUN_DIR/1" retain operator episode:example 'Investigate retry behavior'
-~/.bend/bin/bend runtime/lorenz/system.bend -- remember "$RUN_DIR/1" "$RUN_DIR/2" 1 0 agent 'Retries need idempotent writes'
-~/.bend/bin/bend runtime/lorenz/system.bend -- memory "$RUN_DIR/2"
+~/.bend/bin/bend runtime/system.bend -- init "$RUN_DIR/0"
+~/.bend/bin/bend runtime/system.bend -- capture "$RUN_DIR/0" "$RUN_DIR/1" retain operator episode:example 'Investigate retry behavior'
+~/.bend/bin/bend runtime/system.bend -- remember "$RUN_DIR/1" "$RUN_DIR/2" 1 0 agent 'Retries need idempotent writes'
+~/.bend/bin/bend runtime/system.bend -- memory "$RUN_DIR/2"
 node --test runtime/lorenz/evaluate.test.mjs
 ```
 

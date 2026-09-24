@@ -7,14 +7,13 @@ human hands. They surface REDs for human review; they never resolve anything.
 
 ### bend-forge-loop.sh (proposed cadence: every 60 min)
 
-Re-runs the Bend proof gates exactly as the toolchain pins them
-(`runtime/programs/bend-laws/TOOLCHAIN.md`, Bend 2.0.5, absolute path
-`/Users/a3fckx/.bend/bin/bend` with `BEND_NO_TELEMETRY=1`):
+Re-runs the Bend proof gates with Bend 2.0.21 (`$BEND` or
+`$HOME/.bend/bin/bend`, with `BEND_NO_TELEMETRY=1`):
 
-1. Toolchain pin: `bend --version` must print `bend 2.0.5`.
-2. Bare-file gates (there is no `bend check` in 2.0.5):
+1. Toolchain pin: `bend version` must print `bend 2.0.21`.
+2. Checker gates (`bend FILE --check-only`):
    - `runtime/programs/bend-laws/PROOF.bend` → expect `All terms check.`
-   - `runtime/programs/retrieval/PROOF.bend` → expect `All terms check.`
+   - `runtime/system.bend` → expect `All terms check.` (consolidated system DSL)
 3. Program fences via `telepathy-program bend-gate NAME` for
    `artifact-design`, `lesson-proposal`, `lesson-review`
    (registry mirrors `REGISTRY` in `runtime/programs/cli.py`).

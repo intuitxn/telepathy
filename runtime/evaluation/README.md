@@ -23,7 +23,7 @@ node runtime/evaluation/transfer.mjs --seed 2571500135 --output /tmp/bend-transf
 Set `BEND` to an alternative Bend executable. `--source FILE` evaluates a
 different source snapshot; that source must supply `solve` and `chunked_max`
 and pass Bend checking. This script is an external measurement adapter;
-the algorithms and laws remain in the single `runtime/adaptive/system.bend`.
+the algorithms and laws remain in the single `runtime/system.bend`.
 It executes local Bend source and is not an execution sandbox.
 
 ## What happens

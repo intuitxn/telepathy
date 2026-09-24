@@ -18,9 +18,9 @@ meta-agents; keep provider wiring and interface design out of scope.
    no cross-waiting. Keep swarm size proportional.
 3. **Spawn** — one agent per subtask, via the Task tool or a server session. Give
    each an explicit deliverable, an explicit scope, and a "no shared files" note.
-4. **Coordinate** — agents push findings with `telepathy_send`, publish
-   `telepathy_status`; you read `telepathy_inbox` and unblock. Telepathy is
-   coordination only, never durable memory.
+4. **Coordinate** — agents return findings through the host’s native task/session
+   interface; the coordinator reads those results and unblocks work. Do not
+   require a separate mailbox plugin.
 5. **Synthesize** — merge outputs, find contradictions, produce one artifact with
    attribution. Raw findings x N is not a result.
 6. **Promote** — record durable outcomes; write only accepted, reviewed knowledge.
@@ -34,7 +34,7 @@ For `/meta` runs, keep one coordinator writing one Lorenz snapshot lineage:
 reads `IN` and writes a new `OUT`. `return` is a reported result, not verified
 truth; `learn` is explicit and attributed, never automatic. Resolve the worker
 source per `runtime/adaptive/META.md`; the packaged source is
-`runtime/worker/system.bend`. Native OpenCode delivery is loopback-only and
+`runtime/system.bend`. Native OpenCode delivery is loopback-only and
 `HTTP 204` means delivery, not completion. Follow `runtime/worker/BUZZ.md` for
 retained memory; keep raw prompts, receipts, and session IDs private.
 
@@ -63,9 +63,8 @@ assumed.
 ## Async delegation
 
 - Delegation is asynchronous and mailbox-based: spawn via the Task tool or a
-  server session; agents push findings with `telepathy_send` and publish
-  `telepathy_status`; the coordinator reads `telepathy_inbox` and unblocks.
-  Telepathy is coordination only, never durable memory.
+  server session; agents return findings through the host’s native task/session
+  interface. Coordination messages are distinct from retained evidence.
 - Swarm size is proportional to the complexity budget, not a fixed number.
   Small tasks get one agent; larger tasks may fan out widely (the budget may
   authorize hundreds to thousands of parallel workers) ONLY when the
@@ -86,20 +85,13 @@ assumed.
 - Proposals to change the meta loop or its programs are drafts for human
   review; the coordinator never accepts its own artifact.
 
-## Engram write path (verified 2026-09-22)
+## Retained findings
 
-- `buzz mem` slugs: `mem/` is prepended automatically; segments split on `/`;
-  each segment first byte `[a-z0-9]`, rest `[a-z0-9_-]`, <=64 bytes/segment;
-  `core` is reserved.
-- Memory is AGENT-scoped: the owner CANNOT write directly (relay rejects
-  owner-scope with "agent-engram event must have exactly one `p` tag"). Sign as
-  an attested agent: agent nsec from the macOS keychain (`agent:<pubkey>`) +
-  `BUZZ_AUTH_TAG` from
-  `~/Library/Application Support/xyz.block.buzz.app/agents/managed-agents.json`.
-- First write is `set`; later edits `patch --base-hash`. Never put keys in args
-  or files.
-- Existing entries: `mem/engram/write-path`, `mem/mundus/runtime-2026-09-22`,
-  `mem/kernels/diffusion-retrieval`, `mem/ops/dispatch-convention`.
+Use native Buzz memory only through an already configured owner-controlled host;
+follow `runtime/worker/BUZZ.md`. When unavailable, read local
+`runtime/adaptive/LEARNING.md` and report the limitation. Do not retrieve signing
+keys or repair credentials inside a worker. Draft selected findings locally;
+publication is a separate authorized operation.
 
 ## Rules you never break
 

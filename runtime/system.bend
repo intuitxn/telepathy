@@ -1,5 +1,1153 @@
 import Base
 
+# ---- system.bend: the whole pure system as ONE Bend file --------------------
+# Consolidated from:
+#   runtime/programs/retrieval/{graph,rank,route,LAWS,PROOF}.bend  (retrieval DSL)
+#   runtime/ops/status.bend                                        (status projection)
+#   runtime/ops/fold.bend                                          (associative reduction)
+#
+# One file, one gate:
+#   BEND_NO_TELEMETRY=1 ~/.bend/bin/bend runtime/system.bend --check-only
+#   BEND_NO_TELEMETRY=1 ~/.bend/bin/bend runtime/system.bend            # fixture
+#
+# A pure core (types, transitions, named laws) plus explicit harness effects.
+# Effect classes:
+#   1. pure core + laws  — no effect.
+#   2. harness effects   — snapshot files (store_read/store_write) and loopback
+#      delivery to a running OpenCode session (TCP.connect -> POST
+#      /session/<id>/prompt_async). This is the harness process lifecycle in
+#      Bend: which worker, which claim, and how a session is started/prompted.
+#   3. OS primitives     — exec, keychain, TLS stay in the host driver.
+# A passing check proves the terms and named laws; it is not truth, human
+# acceptance, or a verified worker answer. The five-entity vocabulary and the
+# retrieval ranking remain proposals.
+
+# =============================================================================
+# 1. STATUS — canonical projection of normalized records
+# =============================================================================
+
+# The five canonical entities from the draft's minimal set.
+type Entity is Data:
+  Agent{}
+  Job{}
+  Memory{}
+  Evidence{}
+  Session{}
+
+# Normalized session record: one already-normalized entity observation. The
+# `event` field is the monotonic local ordinal (Bend `id = 1 + size`); reference
+# is the conversation/work id it points at (or 0). Strings are supplied labels,
+# never authenticated identities.
+type Record is Data:
+  Record{entity: Entity, key: String, state: String, event: Nat, reference: Nat, source: String}
+
+# Canonical status row: the fixed projection shape of the draft's output table.
+type Row is Data:
+  Row{entity: String, key: String, state: String, event: Nat, reference: Nat, source: String, durability: String}
+
+def to_row(r: Record) -> Row:
+  match r:
+    case Record{e, k, s, n, ref, src}:
+      match e:
+        case Agent{}:
+          Row{"agent", k, s, n, ref, src, "snapshot-single-writer"}
+        case Job{}:
+          Row{"job", k, s, n, ref, src, "snapshot-single-writer"}
+        case Memory{}:
+          Row{"memory", k, s, n, ref, src, "snapshot-single-writer"}
+        case Evidence{}:
+          Row{"evidence", k, s, n, ref, src, "snapshot-single-writer"}
+        case Session{}:
+          Row{"session", k, s, n, ref, src, "external-unbound"}
+
+def map_rows(+rs: +List<Record>) -> +List<Row>:
+  match rs:
+    case Nil{}:
+      Nil{}
+    case Con{r, t}:
+      to_row(r) <> map_rows(t)
+
+def row_before(a: Row, b: Row) -> Bool:
+  match a:
+    case Row{ea, ka, sa, na, ra, xa, da}:
+      match b:
+        case Row{eb, kb, sb, nb, rb, xb, db}:
+          Nat.is_lt(na, nb)
+
+def insert_row(+r: Row, +rows: +List<Row>) -> +List<Row>:
+  match rows:
+    case Nil{}:
+      [r]
+    case Con{h, t}:
+      Bool.pick(+List<Row>, row_before(r, h), r <> (h <> t), h <> insert_row(r, t))
+
+def sort_rows(+rows: +List<Row>) -> +List<Row>:
+  match rows:
+    case Nil{}:
+      Nil{}
+    case Con{h, t}:
+      insert_row(h, sort_rows(t))
+
+def project(+rs: +List<Record>) -> +List<Row>:
+  sort_rows(map_rows(rs))
+
+def record_count(+rs: +List<Record>) -> Nat:
+  match rs:
+    case Nil{}:
+      0n
+    case Con{r, t}:
+      1n+record_count(t)
+
+def row_count(+rows: +List<Row>) -> Nat:
+  match rows:
+    case Nil{}:
+      0n
+    case Con{h, t}:
+      1n+row_count(t)
+
+def text_nonblank(text: String) -> Bool:
+  match text:
+    case SNil{}:
+      False{}
+    case SCon{+h, t}:
+      (Bool.not(Char.is_eq(h, ' ')) && Bool.not(Char.is_eq(h, '\t'))) || text_nonblank(t)
+
+# Session is external-unbound (event 0); every other entity needs a positive id.
+def event_rule(e: Entity, n: Nat) -> Bool:
+  match e:
+    case Session{}:
+      Nat.is_eq(n, 0n)
+    case Agent{}:
+      Nat.is_gt(n, 0n)
+    case Job{}:
+      Nat.is_gt(n, 0n)
+    case Memory{}:
+      Nat.is_gt(n, 0n)
+    case Evidence{}:
+      Nat.is_gt(n, 0n)
+
+def record_well_formed(r: Record) -> Bool:
+  match r:
+    case Record{e, k, s, n, ref, src}:
+      text_nonblank(k) && text_nonblank(s) && text_nonblank(src) && event_rule(e, n)
+
+def all_records_well_formed(+rs: +List<Record>) -> Bool:
+  match rs:
+    case Nil{}:
+      True{}
+    case Con{r, t}:
+      record_well_formed(r) && all_records_well_formed(t)
+
+def duration_ok(is_external: Bool, n: Nat) -> Bool:
+  match is_external:
+    case True{}:
+      Nat.is_eq(n, 0n)
+    case False{}:
+      Nat.is_gt(n, 0n)
+
+def row_well_formed(r: Row) -> Bool:
+  match r:
+    case Row{e, k, s, n, ref, src, d}:
+      text_nonblank(e) && text_nonblank(k) && text_nonblank(s) && text_nonblank(src) && duration_ok(String.eq(d, "external-unbound"), n)
+
+def view_well_formed(+rows: +List<Row>) -> Bool:
+  match rows:
+    case Nil{}:
+      True{}
+    case Con{h, t}:
+      row_well_formed(h) && view_well_formed(t)
+
+def pad_amount(s: String, w: Nat) -> Nat:
+  match s:
+    case SNil{}:
+      w
+    case SCon{h, t}:
+      match w:
+        case 0n:
+          0n
+        case 1n+p:
+          pad_amount(t, p)
+
+def spaces(n: Nat) -> String:
+  match n:
+    case 0n:
+      ""
+    case 1n+p:
+      " " ++ spaces(p)
+
+def pad(+s: String, w: Nat) -> String:
+  s ++ spaces(pad_amount(s, w))
+
+def render_row(r: Row) -> String:
+  match r:
+    case Row{e, k, s, n, ref, src, d}:
+      pad(e, 9n) ++ pad(k, 9n) ++ pad(s, 17n) ++ pad(Nat.show(n), 10n) ++ pad(Nat.show(ref), 10n) ++ pad(src, 21n) ++ d ++ "\n"
+
+def render_rows(+rows: +List<Row>) -> String:
+  match rows:
+    case Nil{}:
+      ""
+    case Con{h, t}:
+      render_row(h) ++ render_rows(t)
+
+def header_line() -> String:
+  pad("entity", 9n) ++ pad("key", 9n) ++ pad("state", 17n) ++ pad("event_id", 10n) ++ pad("reference", 10n) ++ pad("source", 21n) ++ "durability"
+
+def valid_fixture() -> +List<Record>:
+  [Record{Agent{}, "worker-a", "worker", 6n, 0n, "local-worker"},
+   Record{Evidence{}, "1", "conversation", 1n, 0n, "operator"},
+   Record{Job{}, "5", "claimed", 7n, 5n, "conversation:example"},
+   Record{Memory{}, "8", "active", 8n, 1n, "operator"},
+   Record{Session{}, "-", "external-unbound", 0n, 0n, "-"}]
+
+# The negative case a named law must reject: blank key, blank source, and a
+# non-session entity with a zero event id.
+def malformed_record() -> Record:
+  Record{Job{}, "", "queued", 0n, 0n, ""}
+
+def full_fixture() -> +List<Record>:
+  malformed_record() <> valid_fixture()
+
+law status_one_row_per_record:
+  for +rs: +List<Record>
+  {row_count(map_rows(rs)) == record_count(rs) : Nat}
+
+def status_one_row_per_record(rs):
+  match rs:
+    case Nil{}:
+      {==}
+    case Con{r, t}:
+      Equal.cong(Nat, Nat, x => 1n+x, row_count(map_rows(t)), record_count(t), status_one_row_per_record(t))
+
+law status_projection_total:
+  {row_count(project(full_fixture())) == record_count(full_fixture()) : Nat}
+
+def status_projection_total():
+  {==}
+
+law status_rows_well_formed:
+  {view_well_formed(project(valid_fixture())) == True{} : Bool}
+
+def status_rows_well_formed():
+  {==}
+
+def reverse_go(+rs: +List<Record>, +acc: +List<Record>) -> +List<Record>:
+  match rs:
+    case Nil{}:
+      acc
+    case Con{r, t}:
+      reverse_go(t, r <> acc)
+
+def reverse_records(+rs: +List<Record>) -> +List<Record>:
+  reverse_go(rs, Nil{})
+
+law status_order_independent:
+  {project(valid_fixture()) == project(reverse_records(valid_fixture())) : +List<Row>}
+
+def status_order_independent():
+  {==}
+
+law status_malformed_rejected:
+  {record_well_formed(malformed_record()) == False{} : Bool}
+
+def status_malformed_rejected():
+  {==}
+
+law status_valid_records_well_formed:
+  {all_records_well_formed(valid_fixture()) == True{} : Bool}
+
+def status_valid_records_well_formed():
+  {==}
+
+# =============================================================================
+# 2. FOLD — a reusable associative reduction over Nat lists
+# =============================================================================
+
+type Op is Data:
+  Add{}
+  Max{}
+
+def apply(op: Op, a: Nat, b: Nat) -> Nat:
+  match op:
+    case Add{}:
+      Nat.add(a, b)
+    case Max{}:
+      Nat.max(a, b)
+
+def ident(op: Op) -> Nat:
+  match op:
+    case Add{}:
+      0n
+    case Max{}:
+      0n
+
+def fold(+op: Op, +xs: +List<Nat>) -> Nat:
+  match xs:
+    case Nil{}:
+      ident(op)
+    case Con{h, t}:
+      apply(op, h, fold(op, t))
+
+# list concatenation: the monoid the fold is a homomorphism *from*
+def append(+xs: +List<Nat>, +ys: +List<Nat>) -> +List<Nat>:
+  match xs:
+    case Nil{}:
+      ys
+    case Con{h, t}:
+      h <> append(t, ys)
+
+type FoldInput is Data:
+  FoldInput{op: Op, values: +List<Nat>}
+
+def run(input: FoldInput) -> Nat:
+  match input:
+    case FoldInput{op, values}:
+      fold(op, values)
+
+def demo() -> FoldInput:
+  FoldInput{Add{}, [3n, 1n, 4n, 1n, 5n]}
+
+def demo_max() -> FoldInput:
+  FoldInput{Max{}, [3n, 1n, 4n, 1n, 5n]}
+
+law fold_add_assoc:
+  for +a: Nat
+  for +b: Nat
+  for +c: Nat
+  {Nat.add(Nat.add(a, b), c) == Nat.add(a, Nat.add(b, c)) : Nat}
+
+def fold_add_assoc(a, b, c):
+  match a:
+    case 0n:
+      {==}
+    case 1n+p:
+      %fold_add_assoc(p, b, c) : {1n+Nat.add(Nat.add(p, b), c) == 1n+_ : Nat}
+      {==}
+
+law add_zero_r:
+  for +a: Nat
+  {Nat.add(a, 0n) == a : Nat}
+
+def add_zero_r(a):
+  match a:
+    case 0n:
+      {==}
+    case 1n+p:
+      %add_zero_r(p) : {1n+Nat.add(p, 0n) == 1n+_ : Nat}
+      {==}
+
+law max_zero_r:
+  for +a: Nat
+  {Nat.max(a, 0n) == a : Nat}
+
+def max_zero_r(a):
+  match a:
+    case 0n:
+      {==}
+    case 1n+p:
+      {==}
+
+law fold_max_assoc:
+  for +a: Nat
+  for +b: Nat
+  for +c: Nat
+  {Nat.max(Nat.max(a, b), c) == Nat.max(a, Nat.max(b, c)) : Nat}
+
+def fold_max_assoc(a, b, c):
+  match a b c:
+    case 0n _ _:
+      {==}
+    case 1n+ap 0n _:
+      {==}
+    case 1n+ap 1n+bp 0n:
+      max_zero_r(1n+Nat.max(ap, bp))
+    case 1n+ap 1n+bp 1n+cp:
+      %fold_max_assoc(ap, bp, cp) : {1n+Nat.max(Nat.max(ap, bp), cp) == 1n+_ : Nat}
+      {==}
+
+def fold_chunk_add(+xs: +List<Nat>, +ys: +List<Nat>) -> {fold(Add{}, append(xs, ys)) == apply(Add{}, fold(Add{}, xs), fold(Add{}, ys)) : Nat}:
+  match xs:
+    case Nil{}:
+      {==}
+    case Con{h, t}:
+      %Equal.sym(Nat, fold(Add{}, append(t, ys)), Nat.add(fold(Add{}, t), fold(Add{}, ys)), fold_chunk_add(t, ys)) : {Nat.add(h, _) == Nat.add(Nat.add(h, fold(Add{}, t)), fold(Add{}, ys)) : Nat}
+      Equal.sym(Nat, Nat.add(Nat.add(h, fold(Add{}, t)), fold(Add{}, ys)), Nat.add(h, Nat.add(fold(Add{}, t), fold(Add{}, ys))), fold_add_assoc(h, fold(Add{}, t), fold(Add{}, ys)))
+
+def fold_chunk_max(+xs: +List<Nat>, +ys: +List<Nat>) -> {fold(Max{}, append(xs, ys)) == apply(Max{}, fold(Max{}, xs), fold(Max{}, ys)) : Nat}:
+  match xs:
+    case Nil{}:
+      {==}
+    case Con{h, t}:
+      %Equal.sym(Nat, fold(Max{}, append(t, ys)), Nat.max(fold(Max{}, t), fold(Max{}, ys)), fold_chunk_max(t, ys)) : {Nat.max(h, _) == Nat.max(Nat.max(h, fold(Max{}, t)), fold(Max{}, ys)) : Nat}
+      Equal.sym(Nat, Nat.max(Nat.max(h, fold(Max{}, t)), fold(Max{}, ys)), Nat.max(h, Nat.max(fold(Max{}, t), fold(Max{}, ys))), fold_max_assoc(h, fold(Max{}, t), fold(Max{}, ys)))
+
+law fold_identity:
+  for +op: Op
+  {fold(op, Nil{}) == ident(op) : Nat}
+
+def fold_identity(op):
+  {==}
+
+law fold_singleton:
+  for +op: Op
+  for +x: Nat
+  {fold(op, [x]) == x : Nat}
+
+def fold_singleton(op, x):
+  match op:
+    case Add{}:
+      add_zero_r(x)
+    case Max{}:
+      max_zero_r(x)
+
+law fold_chunk:
+  for +op: Op
+  for +xs: +List<Nat>
+  for +ys: +List<Nat>
+  {fold(op, append(xs, ys)) == apply(op, fold(op, xs), fold(op, ys)) : Nat}
+
+def fold_chunk(op, xs, ys):
+  match op:
+    case Add{}:
+      fold_chunk_add(xs, ys)
+    case Max{}:
+      fold_chunk_max(xs, ys)
+
+# =============================================================================
+# 3. RETRIEVAL — CSR graph, heat diffusion, fusion + route
+# =============================================================================
+
+# ---- graph: CSR adjacency over Job / Post / Artifact nodes ------------------
+
+type NodeKind is Data:
+  JobKind{}
+  PostKind{}
+  ArtifactKind{}
+
+type Graph is Data:
+  Graph{count: Nat, offsets: +List<Nat>, nbrs: +List<Nat>, kinds: +List<NodeKind>}
+
+def demo_graph() -> Graph:
+  Graph{6n, [0n, 4n, 5n, 7n, 9n, 11n, 12n], [1n, 2n, 3n, 4n, 0n, 0n, 3n, 4n, 5n, 0n, 5n, 0n], [JobKind{}, JobKind{}, PostKind{}, PostKind{}, ArtifactKind{}, ArtifactKind{}]}
+
+# saturating subtraction: total on Nat, no underflow trap
+def nsub(a: Nat, b: Nat) -> Nat:
+  match a:
+    case 0n:
+      0n
+    case 1n+q:
+      match b:
+        case 0n:
+          1n+q
+        case 1n+p:
+          nsub(q, p)
+
+def list_len(+xs: +List<Nat>) -> Nat:
+  match xs:
+    case Nil{}:
+      0n
+    case Con{h, t}:
+      1n+list_len(t)
+
+def list_sum(+xs: +List<Nat>, acc: Nat) -> Nat:
+  match xs:
+    case Nil{}:
+      acc
+    case Con{h, t}:
+      list_sum(t, (acc + h : Nat))
+
+def nth(+xs: +List<Nat>, i: Nat, dflt: Nat) -> Nat:
+  match xs:
+    case Nil{}:
+      dflt
+    case Con{h, t}:
+      match i:
+        case 0n:
+          h
+        case 1n+p:
+          nth(t, p, dflt)
+
+def kind_nth(+xs: +List<NodeKind>, i: Nat) -> NodeKind:
+  match xs:
+    case Nil{}:
+      PostKind{}
+    case Con{h, t}:
+      match i:
+        case 0n:
+          h
+        case 1n+p:
+          kind_nth(t, p)
+
+def take(k: Nat, +xs: +List<Nat>) -> +List<Nat>:
+  match k:
+    case 0n:
+      Nil{}
+    case 1n+p:
+      match xs:
+        case Nil{}:
+          Nil{}
+        case Con{h, t}:
+          h <> take(p, t)
+
+def drop(k: Nat, +xs: +List<Nat>) -> +List<Nat>:
+  match k:
+    case 0n:
+      xs
+    case 1n+p:
+      match xs:
+        case Nil{}:
+          Nil{}
+        case Con{h, t}:
+          drop(p, t)
+
+def zeros(n: Nat) -> +List<Nat>:
+  match n:
+    case 0n:
+      Nil{}
+    case 1n+p:
+      0n <> zeros(p)
+
+def add_at(+xs: +List<Nat>, i: Nat, v: Nat) -> +List<Nat>:
+  match xs:
+    case Nil{}:
+      Nil{}
+    case Con{h, t}:
+      match i:
+        case 0n:
+          (h + v : Nat) <> t
+        case 1n+p:
+          h <> add_at(t, p, v)
+
+def pad_to(+hs: +List<Nat>, n: Nat) -> +List<Nat>:
+  match hs:
+    case Nil{}:
+      zeros(n)
+    case Con{h, t}:
+      match n:
+        case 0n:
+          h <> t
+        case 1n+p:
+          h <> pad_to(t, p)
+
+def count_of(+g: Graph) -> Nat:
+  match g:
+    case Graph{c, _, _, _}:
+      c
+
+def nbrs_of(+g: Graph) -> +List<Nat>:
+  match g:
+    case Graph{_, _, n, _}:
+      n
+
+def out_begin(+g: Graph, i: Nat) -> Nat:
+  match g:
+    case Graph{_, o, _, _}:
+      nth(o, i, 0n)
+
+def out_end(+g: Graph, i: Nat) -> Nat:
+  match g:
+    case Graph{_, o, _, _}:
+      nth(o, 1n+i, 0n)
+
+def out_degree(+g: Graph, +i: Nat) -> Nat:
+  nsub(out_end(g, i), out_begin(g, i))
+
+def neighbors_of(+g: Graph, +i: Nat) -> +List<Nat>:
+  take(nsub(out_end(g, i), out_begin(g, i)), drop(out_begin(g, i), nbrs_of(g)))
+
+def kind_of(+g: Graph, i: Nat) -> NodeKind:
+  match g:
+    case Graph{_, _, _, k}:
+      kind_nth(k, i)
+
+# ---- rank: personalized heat diffusion over the graph -----------------------
+
+def demo_heat() -> +List<Nat>:
+  [1200n, 0n, 0n, 0n, 0n, 0n]
+
+def demo_seed() -> +List<Nat>:
+  [1n, 0n, 0n, 0n, 0n, 0n]
+
+def seed_count() -> Nat:
+  1n
+
+def alpha_num() -> Nat:
+  150n
+
+def alpha_den() -> Nat:
+  1000n
+
+def heat_sum(+h: +List<Nat>) -> Nat:
+  list_sum(h, 0n)
+
+def half_count(n: Nat) -> Nat:
+  (n / 2n : Nat)
+
+def take_each(+hs: +List<Nat>, +num: Nat, +den: Nat) -> +List<Nat>:
+  match hs:
+    case Nil{}:
+      Nil{}
+    case Con{h, t}:
+      ((h * num : Nat) / den : Nat) <> take_each(t, num, den)
+
+def zip_add(+xs: +List<Nat>, +ys: +List<Nat>) -> +List<Nat>:
+  match xs:
+    case Nil{}:
+      ys
+    case Con{h, t}:
+      match ys:
+        case Nil{}:
+          h <> t
+        case Con{k, u}:
+          (h + k : Nat) <> zip_add(t, u)
+
+def zip_sub(+xs: +List<Nat>, +ys: +List<Nat>) -> +List<Nat>:
+  match xs:
+    case Nil{}:
+      Nil{}
+    case Con{x, t}:
+      match ys:
+        case Nil{}:
+          x <> zip_sub(t, Nil{})
+        case Con{y, u}:
+          nsub(x, y) <> zip_sub(t, u)
+
+def spread(+ns: +List<Nat>, +acc: +List<Nat>, +q: Nat) -> +List<Nat>:
+  match ns:
+    case Nil{}:
+      acc
+    case Con{j, t}:
+      spread(t, add_at(acc, j, q), q)
+
+def scatter_branch(dangling: Bool, +acc: +List<Nat>, +ns: +List<Nat>, +i: Nat, +h: Nat, +d: Nat) -> +List<Nat>:
+  match dangling:
+    case True{}:
+      add_at(acc, i, h)
+    case False{}:
+      spread(ns, add_at(acc, i, nsub(h, ((h / d : Nat) * d : Nat))), (h / d : Nat))
+
+def scatter_one(+acc: +List<Nat>, +ns: +List<Nat>, +i: Nat, +h: Nat, +d: Nat) -> +List<Nat>:
+  scatter_branch(Nat.is_eq(d, 0n), acc, ns, i, h, d)
+
+def scatter_node(+g: Graph, +acc: +List<Nat>, +idx: Nat, +h: Nat) -> +List<Nat>:
+  scatter_one(acc, neighbors_of(g, idx), idx, h, out_degree(g, idx))
+
+def scatter_all(+hs: +List<Nat>, +g: Graph, +acc: +List<Nat>, +idx: Nat) -> +List<Nat>:
+  match hs:
+    case Nil{}:
+      acc
+    case Con{h, t}:
+      scatter_all(t, g, scatter_node(g, acc, idx, h), 1n+idx)
+
+def diffuse_phase(+g: Graph, +h: +List<Nat>) -> +List<Nat>:
+  +padded = pad_to(h, count_of(g))
+  +n = list_len(padded)
+  +m = half_count(n)
+  lo = take(m, padded)
+  hi = drop(m, padded)
+  acc_lo acc_hi = scatter_all(lo, g, zeros(n), 0n) scatter_all(hi, g, zeros(n), m)
+  zip_add(acc_lo, acc_hi)
+
+def give_back(+base: +List<Nat>, +flags: +List<Nat>, +share: Nat, +rem: Nat) -> +List<Nat>:
+  match base flags:
+    case Nil{} _:
+      Nil{}
+    case Con{b, bt} Nil{}:
+      b <> give_back(bt, Nil{}, share, rem)
+    case Con{b, bt} Con{f, ft}:
+      match f:
+        case 0n:
+          match rem:
+            case 0n:
+              b <> give_back(bt, ft, share, 0n)
+            case 1n+u:
+              b <> give_back(bt, ft, share, 1n+u)
+        case 1n+w:
+          match rem:
+            case 0n:
+              (b + share : Nat) <> give_back(bt, ft, share, 0n)
+            case 1n+u:
+              (b + share + (1n+u) : Nat) <> give_back(bt, ft, share, 0n)
+
+def teleport_branch(noseed: Bool, +h: +List<Nat>, +seed: +List<Nat>, +s: Nat, +num: Nat, +den: Nat) -> +List<Nat>:
+  match noseed:
+    case True{}:
+      h
+    case False{}:
+      +takes = take_each(h, num, den)
+      +pool = heat_sum(takes)
+      base = zip_sub(h, takes)
+      +share = (pool / s : Nat)
+      rem = nsub(pool, (share * s : Nat))
+      give_back(base, seed, share, rem)
+
+def teleport(+h: +List<Nat>, +seed: +List<Nat>, +s: Nat, +num: Nat, +den: Nat) -> +List<Nat>:
+  teleport_branch(Nat.is_eq(s, 0n), h, seed, s, num, den)
+
+def step(+g: Graph, +h: +List<Nat>, +seed: +List<Nat>, +s: Nat, +num: Nat, +den: Nat) -> +List<Nat>:
+  teleport(diffuse_phase(g, h), seed, s, num, den)
+
+def diffuse(fuel: Nat, +g: Graph, +h: +List<Nat>, +seed: +List<Nat>, +s: Nat, +num: Nat, +den: Nat) -> +List<Nat>:
+  match fuel:
+    case 0n:
+      h
+    case 1n+p:
+      diffuse(p, g, step(g, h, seed, s, num, den), seed, s, num, den)
+
+def demo_rank() -> +List<Nat>:
+  diffuse(3n, demo_graph(), demo_heat(), demo_seed(), seed_count(), alpha_num(), alpha_den())
+
+# ---- route: lexical vs diffusion fusion + confidence + abstain ---------------
+
+type Best is Data:
+  Best{top: Nat, idx: Nat, second: Nat}
+
+type Route is Data:
+  Answer{doc: Nat, confidence: Nat}
+  Abstain{code: Nat}
+
+def demo_lex() -> +List<Nat>:
+  [9n, 2n, 7n, 8n, 6n, 1n]
+
+def lex_weight() -> Nat:
+  1n
+
+def dif_weight() -> Nat:
+  2n
+
+def demo_threshold() -> Nat:
+  30n
+
+def demo_margin() -> Nat:
+  3n
+
+def pct_go(+hs: +List<Nat>, +total: Nat) -> +List<Nat>:
+  match hs:
+    case Nil{}:
+      Nil{}
+    case Con{h, t}:
+      ((h * 100n : Nat) / total : Nat) <> pct_go(t, total)
+
+def zeros_like(+hs: +List<Nat>) -> +List<Nat>:
+  match hs:
+    case Nil{}:
+      Nil{}
+    case Con{h, t}:
+      0n <> zeros_like(t)
+
+def pct_branch(empty: Bool, +hs: +List<Nat>, +total: Nat) -> +List<Nat>:
+  match empty:
+    case True{}:
+      zeros_like(hs)
+    case False{}:
+      pct_go(hs, total)
+
+def pct_each(+hs: +List<Nat>, +total: Nat) -> +List<Nat>:
+  pct_branch(Nat.is_eq(total, 0n), hs, total)
+
+def fuse(lex: Nat, pct: Nat, wl: Nat, wd: Nat) -> Nat:
+  ((wl * lex : Nat) + (wd * pct : Nat) : Nat)
+
+def fuse_each(+ls: +List<Nat>, +ps: +List<Nat>, +wl: Nat, +wd: Nat) -> +List<Nat>:
+  match ls:
+    case Nil{}:
+      Nil{}
+    case Con{l, t}:
+      match ps:
+        case Nil{}:
+          fuse(l, 0n, wl, wd) <> fuse_each(t, Nil{}, wl, wd)
+        case Con{p, u}:
+          fuse(l, p, wl, wd) <> fuse_each(t, u, wl, wd)
+
+def best_two(+ss: +List<Nat>, +idx: Nat, +top: Nat, +idx_top: Nat, +second: Nat) -> Best:
+  match ss:
+    case Nil{}:
+      Best{top, idx_top, second}
+    case Con{s, t}:
+      +gt = Nat.is_gt(s, top)
+      +top2 = Bool.pick(Nat, gt, s, top)
+      +itop2 = Bool.pick(Nat, gt, idx, idx_top)
+      +sec2 = Bool.pick(Nat, gt, top, Bool.pick(Nat, Nat.is_gt(s, second), s, second))
+      best_two(t, 1n+idx, top2, itop2, sec2)
+
+def route_margin(wide: Bool, +i: Nat, +margin: Nat) -> Route:
+  match wide:
+    case True{}:
+      Answer{i, margin}
+    case False{}:
+      Abstain{1n}
+
+def route_cell(strong: Bool, +t: Nat, +i: Nat, +s: Nat, +min_margin: Nat) -> Route:
+  match strong:
+    case True{}:
+      route_margin(Nat.is_ge(nsub(t, s), min_margin), i, nsub(t, s))
+    case False{}:
+      Abstain{0n}
+
+def route_after(+b: Best, +threshold: Nat, +min_margin: Nat) -> Route:
+  match b:
+    case Best{t, i, s}:
+      route_cell(Nat.is_ge(t, threshold), t, i, s, min_margin)
+
+def route(+scores: +List<Nat>, +threshold: Nat, +min_margin: Nat) -> Route:
+  route_after(best_two(scores, 0n, 0n, 0n, 0n), threshold, min_margin)
+
+def exposes_source(+r: Route) -> Bool:
+  match r:
+    case Answer{d, c}:
+      False{}
+    case Abstain{e}:
+      False{}
+
+def demo_fused() -> +List<Nat>:
+  +r = demo_rank()
+  fuse_each(demo_lex(), pct_each(r, heat_sum(r)), lex_weight(), dif_weight())
+
+def demo_route() -> Route:
+  route(demo_fused(), demo_threshold(), demo_margin())
+
+# ---- retrieval proof helpers (machine-checked lemmas) -----------------------
+
+def add_zero(+n: Nat) -> {Nat.add(n, 0n) == n : Nat}:
+  match n:
+    case 0n:
+      {==}
+    case 1n+p:
+      %add_zero(p) : {1n+Nat.add(p, 0n) == 1n+_ : Nat}
+      {==}
+
+def add_right_succ(+a: Nat, +b: Nat) -> {Nat.add(a, 1n+b) == 1n+Nat.add(a, b) : Nat}:
+  match a:
+    case 0n:
+      {==}
+    case 1n+p:
+      %add_right_succ(p, b) : {1n+Nat.add(p, 1n+b) == 1n+_ : Nat}
+      {==}
+
+def add_comm(+a: Nat, +b: Nat) -> {Nat.add(a, b) == Nat.add(b, a) : Nat}:
+  match a:
+    case 0n:
+      Equal.sym(Nat, Nat.add(b, 0n), b, add_zero(b))
+    case 1n+p:
+      match b:
+        case 0n:
+          add_zero(1n+p)
+        case 1n+q:
+          %Equal.sym(Nat, Nat.add(p, 1n+q), 1n+Nat.add(p, q), add_right_succ(p, q)) : {1n+_ == 1n+Nat.add(q, 1n+p) : Nat}
+          %Equal.sym(Nat, Nat.add(q, 1n+p), 1n+Nat.add(q, p), add_right_succ(q, p)) : {1n+(1n+Nat.add(p, q)) == 1n+_ : Nat}
+          %add_comm(p, q) : {1n+(1n+Nat.add(p, q)) == 1n+(1n+_) : Nat}
+          {==}
+
+def add_assoc(+a: Nat, +b: Nat, +c: Nat) -> {Nat.add(Nat.add(a, b), c) == Nat.add(a, Nat.add(b, c)) : Nat}:
+  match a:
+    case 0n:
+      {==}
+    case 1n+p:
+      %add_assoc(p, b, c) : {1n+Nat.add(Nat.add(p, b), c) == 1n+_ : Nat}
+      {==}
+
+def add_shuffle_base(+b: Nat, +c: Nat, +d: Nat) -> {Nat.add(b, Nat.add(c, d)) == Nat.add(c, Nat.add(b, d)) : Nat}:
+  %Equal.sym(Nat, Nat.add(b, Nat.add(c, d)), Nat.add(Nat.add(c, d), b), add_comm(b, Nat.add(c, d))) : {_ == (c + (b + d) : Nat) : Nat}
+  %Equal.sym(Nat, Nat.add(Nat.add(c, d), b), Nat.add(c, Nat.add(d, b)), add_assoc(c, d, b)) : {_ == (c + (b + d) : Nat) : Nat}
+  %Equal.sym(Nat, Nat.add(d, b), Nat.add(b, d), add_comm(d, b)) : {Nat.add(c, _) == (c + (b + d) : Nat) : Nat}
+  {==}
+
+def add_shuffle(+a: Nat, +b: Nat, +c: Nat, +d: Nat) -> {Nat.add(Nat.add(a, b), Nat.add(c, d)) == Nat.add(Nat.add(a, c), Nat.add(b, d)) : Nat}:
+  match a:
+    case 0n:
+      add_shuffle_base(b, c, d)
+    case 1n+p:
+      %add_shuffle(p, b, c, d) : {1n+Nat.add(Nat.add(p, b), (c + d : Nat)) == 1n+_ : Nat}
+      {==}
+
+def list_sum_acc(+xs: +List<Nat>, +acc: Nat) -> {list_sum(xs, acc) == (acc + heat_sum(xs) : Nat) : Nat}:
+  match xs:
+    case Nil{}:
+      Equal.sym(Nat, Nat.add(acc, 0n), acc, add_zero(acc))
+    case Con{h, t}:
+      %Equal.sym(Nat, list_sum(t, h), (h + heat_sum(t) : Nat), list_sum_acc(t, h)) : {list_sum(t, (acc + h : Nat)) == (acc + _ : Nat) : Nat}
+      %add_assoc(acc, h, heat_sum(t)) : {list_sum(t, (acc + h : Nat)) == _ : Nat}
+      list_sum_acc(t, (acc + h : Nat))
+
+def zip_add_sum(+xs: +List<Nat>, +ys: +List<Nat>) -> {heat_sum(zip_add(xs, ys)) == (heat_sum(xs) + heat_sum(ys) : Nat) : Nat}:
+  match xs:
+    case Nil{}:
+      {==}
+    case Con{h, t}:
+      match ys:
+        case Nil{}:
+          Equal.sym(Nat, (heat_sum(h <> t) + 0n : Nat), heat_sum(h <> t), add_zero(heat_sum(h <> t)))
+        case Con{k, u}:
+          %Equal.sym(Nat, list_sum(t, h), (h + heat_sum(t) : Nat), list_sum_acc(t, h)) : {list_sum(zip_add(t, u), (h + k : Nat)) == (_ + list_sum(u, k) : Nat) : Nat}
+          %Equal.sym(Nat, list_sum(u, k), (k + heat_sum(u) : Nat), list_sum_acc(u, k)) : {list_sum(zip_add(t, u), (h + k : Nat)) == ((h + heat_sum(t)) + _ : Nat) : Nat}
+          %Equal.sym(Nat, list_sum(zip_add(t, u), (h + k : Nat)), ((h + k) + heat_sum(zip_add(t, u)) : Nat), list_sum_acc(zip_add(t, u), (h + k : Nat))) : {_ == ((h + heat_sum(t)) + (k + heat_sum(u)) : Nat) : Nat}
+          %Equal.sym(Nat, heat_sum(zip_add(t, u)), (heat_sum(t) + heat_sum(u) : Nat), zip_add_sum(t, u)) : {((h + k) + _ : Nat) == ((h + heat_sum(t)) + (k + heat_sum(u)) : Nat) : Nat}
+          add_shuffle(h, k, heat_sum(t), heat_sum(u))
+
+def nsub_zero(+b: Nat) -> {nsub(b, 0n) == b : Nat}:
+  match b:
+    case 0n:
+      {==}
+    case 1n+p:
+      {==}
+
+def nsub_add(+a: Nat, +b: Nat) -> {nsub(Nat.add(a, b), a) == b : Nat}:
+  match a:
+    case 0n:
+      nsub_zero(b)
+    case 1n+p:
+      %nsub_add(p, b) : {nsub(Nat.add(p, b), p) == _ : Nat}
+      {==}
+
+def nsub_refl(+n: Nat) -> {nsub(n, n) == 0n : Nat}:
+  match n:
+    case 0n:
+      {==}
+    case 1n+p:
+      %nsub_refl(p) : {nsub(p, p) == _ : Nat}
+      {==}
+
+def go_one(+n: Nat, +d: Nat) -> {Nat.div.fin(Nat.divmod.go(n, 0n, d, 0n)) == (d + n : Nat) : Nat}:
+  match n:
+    case 0n:
+      %Equal.sym(Nat, Nat.add(d, 0n), d, add_zero(d)) : {d == _ : Nat}
+      {==}
+    case 1n+p:
+      %Equal.sym(Nat, Nat.add(d, 1n+p), 1n+Nat.add(d, p), add_right_succ(d, p)) : {Nat.div.fin(Nat.divmod.go(p, 0n, 1n+d, 0n)) == _ : Nat}
+      go_one(p, 1n+d)
+
+def div_one(+n: Nat) -> {Nat.div(n, 1n) == n : Nat}:
+  %go_one(n, 0n) : {Nat.div.fin(Nat.divmod.go(n, 0n, 0n, 0n)) == _ : Nat}
+  {==}
+
+def mul_one(+n: Nat) -> {Nat.mul(n, 1n) == n : Nat}:
+  match n:
+    case 0n:
+      {==}
+    case 1n+p:
+      %mul_one(p) : {Nat.add(1n, Nat.mul(p, 1n)) == 1n+_ : Nat}
+      {==}
+
+def node_one(+h: Nat) -> {Nat.add(nsub(h, Nat.mul(Nat.div(h, 1n), 1n)), Nat.mul(Nat.div(h, 1n), 1n)) == h : Nat}:
+  %Equal.sym(Nat, Nat.div(h, 1n), h, div_one(h)) : {Nat.add(nsub(h, Nat.mul(_, 1n)), Nat.mul(_, 1n)) == h : Nat}
+  %Equal.sym(Nat, Nat.mul(h, 1n), h, mul_one(h)) : {Nat.add(nsub(h, _) , _) == h : Nat}
+  %Equal.sym(Nat, nsub(h, h), 0n, nsub_refl(h)) : {Nat.add(_, h) == h : Nat}
+  {==}
+
+def tele_one(+pool: Nat) -> {Nat.add(Nat.mul(Nat.div(pool, 1n), 1n), nsub(pool, Nat.mul(Nat.div(pool, 1n), 1n))) == pool : Nat}:
+  %Equal.sym(Nat, Nat.div(pool, 1n), pool, div_one(pool)) : {Nat.add(Nat.mul(_, 1n), nsub(pool, Nat.mul(_, 1n))) == pool : Nat}
+  %Equal.sym(Nat, Nat.mul(pool, 1n), pool, mul_one(pool)) : {Nat.add(_, nsub(pool, _)) == pool : Nat}
+  %Equal.sym(Nat, nsub(pool, pool), 0n, nsub_refl(pool)) : {Nat.add(pool, _) == pool : Nat}
+  add_zero(pool)
+
+def go2(+n: Nat, c: Bool, +d: Nat) -> Bool.pick(Type, c, {Nat.add(Nat.mul(d, 2n), n) == Nat.add(Nat.mul(Nat.div.fin(Nat.divmod.go(n, 1n, d, 0n)), 2n), Nat.mod.fin(Nat.divmod.go(n, 1n, d, 0n))) : Nat}, {Nat.add(Nat.add(Nat.mul(d, 2n), 1n), n) == Nat.add(Nat.mul(Nat.div.fin(Nat.divmod.go(n, 0n, d, 1n)), 2n), Nat.mod.fin(Nat.divmod.go(n, 0n, d, 1n))) : Nat}):
+  match n:
+    case 0n:
+      match c:
+        case False{}:
+          %add_zero(Nat.add(Nat.mul(d, 2n), 1n)) : {Nat.add(Nat.add(Nat.mul(d, 2n), 1n), 0n) == _ : Nat}
+          {==}
+        case True{}:
+          {==}
+    case 1n+p:
+      match c:
+        case False{}:
+          %Equal.sym(Nat, Nat.add(Nat.add(Nat.mul(d, 2n), 1n), 1n+p), Nat.add(Nat.mul(d, 2n), Nat.add(1n, 1n+p)), add_assoc(Nat.mul(d, 2n), 1n, 1n+p)) : {_ == Nat.add(Nat.mul(Nat.div.fin(Nat.divmod.go(p, 1n, 1n+d, 0n)), 2n), Nat.mod.fin(Nat.divmod.go(p, 1n, 1n+d, 0n))) : Nat}
+          %Equal.sym(Nat, Nat.add(Nat.mul(d, 2n), Nat.add(2n, p)), Nat.add(2n, Nat.add(Nat.mul(d, 2n), p)), add_shuffle_base(Nat.mul(d, 2n), 2n, p)) : {_ == Nat.add(Nat.mul(Nat.div.fin(Nat.divmod.go(p, 1n, 1n+d, 0n)), 2n), Nat.mod.fin(Nat.divmod.go(p, 1n, 1n+d, 0n))) : Nat}
+          %add_assoc(2n, Nat.mul(d, 2n), p) : {_ == Nat.add(Nat.mul(Nat.div.fin(Nat.divmod.go(p, 1n, 1n+d, 0n)), 2n), Nat.mod.fin(Nat.divmod.go(p, 1n, 1n+d, 0n))) : Nat}
+          go2(p, True{}, 1n+d)
+        case True{}:
+          %add_assoc(Nat.mul(d, 2n), 1n, p) : {_ == Nat.add(Nat.mul(Nat.div.fin(Nat.divmod.go(p, 0n, d, 1n)), 2n), Nat.mod.fin(Nat.divmod.go(p, 0n, d, 1n))) : Nat}
+          go2(p, False{}, d)
+
+def node_two(+h: Nat) -> {Nat.add(nsub(h, Nat.mul(Nat.div(h, 2n), 2n)), Nat.mul(Nat.div(h, 2n), 2n)) == h : Nat}:
+  %Equal.sym(Nat, h, Nat.add(Nat.mul(Nat.div(h, 2n), 2n), Nat.mod(h, 2n)), go2(h, True{}, 0n)) : {Nat.add(nsub(_, Nat.mul(Nat.div(h, 2n), 2n)), Nat.mul(Nat.div(h, 2n), 2n)) == h : Nat}
+  %Equal.sym(Nat, nsub(Nat.add(Nat.mul(Nat.div(h, 2n), 2n), Nat.mod(h, 2n)), Nat.mul(Nat.div(h, 2n), 2n)), Nat.mod(h, 2n), nsub_add(Nat.mul(Nat.div(h, 2n), 2n), Nat.mod(h, 2n))) : {Nat.add(_, Nat.mul(Nat.div(h, 2n), 2n)) == h : Nat}
+  %Equal.sym(Nat, Nat.add(Nat.mod(h, 2n), Nat.mul(Nat.div(h, 2n), 2n)), Nat.add(Nat.mul(Nat.div(h, 2n), 2n), Nat.mod(h, 2n)), add_comm(Nat.mod(h, 2n), Nat.mul(Nat.div(h, 2n), 2n))) : {_ == h : Nat}
+  Equal.sym(Nat, h, Nat.add(Nat.mul(Nat.div(h, 2n), 2n), Nat.mod(h, 2n)), go2(h, True{}, 0n))
+
+type Q4 is Data:
+  Q0{}
+  Q1{}
+  Q2{}
+  Q3{}
+
+def go4m(q: Q4) -> Nat:
+  match q:
+    case Q0{}:
+      3n
+    case Q1{}:
+      2n
+    case Q2{}:
+      1n
+    case Q3{}:
+      0n
+
+def go4r(q: Q4) -> Nat:
+  match q:
+    case Q0{}:
+      0n
+    case Q1{}:
+      1n
+    case Q2{}:
+      2n
+    case Q3{}:
+      3n
+
+def go4(+n: Nat, q: Q4, +d: Nat) -> {Nat.add(Nat.mul(d, 4n), Nat.add(go4r(q), n)) == Nat.add(Nat.mul(Nat.div.fin(Nat.divmod.go(n, go4m(q), d, go4r(q))), 4n), Nat.mod.fin(Nat.divmod.go(n, go4m(q), d, go4r(q)))) : Nat}:
+  match n:
+    case 0n:
+      match q:
+        case Q0{}:
+          {==}
+        case Q1{}:
+          {==}
+        case Q2{}:
+          {==}
+        case Q3{}:
+          {==}
+    case 1n+p:
+      match q:
+        case Q0{}:
+          go4(p, Q1{}, d)
+        case Q1{}:
+          go4(p, Q2{}, d)
+        case Q2{}:
+          go4(p, Q3{}, d)
+        case Q3{}:
+          %Equal.sym(Nat, Nat.add(3n, 1n+p), 1n+Nat.add(3n, p), add_right_succ(3n, p)) : {Nat.add(Nat.mul(d, 4n), _) == Nat.add(Nat.mul(Nat.div.fin(Nat.divmod.go(p, 3n, 1n+d, 0n)), 4n), Nat.mod.fin(Nat.divmod.go(p, 3n, 1n+d, 0n))) : Nat}
+          %Equal.sym(Nat, Nat.add(Nat.mul(d, 4n), Nat.add(4n, p)), Nat.add(4n, Nat.add(Nat.mul(d, 4n), p)), add_shuffle_base(Nat.mul(d, 4n), 4n, p)) : {_ == Nat.add(Nat.mul(Nat.div.fin(Nat.divmod.go(p, 3n, 1n+d, 0n)), 4n), Nat.mod.fin(Nat.divmod.go(p, 3n, 1n+d, 0n))) : Nat}
+          %add_assoc(4n, Nat.mul(d, 4n), p) : {_ == Nat.add(Nat.mul(Nat.div.fin(Nat.divmod.go(p, 3n, 1n+d, 0n)), 4n), Nat.mod.fin(Nat.divmod.go(p, 3n, 1n+d, 0n))) : Nat}
+          go4(p, Q0{}, 1n+d)
+
+def node_four(+h: Nat) -> {Nat.add(nsub(h, Nat.mul(Nat.div(h, 4n), 4n)), Nat.mul(Nat.div(h, 4n), 4n)) == h : Nat}:
+  %Equal.sym(Nat, h, Nat.add(Nat.mul(Nat.div(h, 4n), 4n), Nat.mod(h, 4n)), go4(h, Q0{}, 0n)) : {Nat.add(nsub(_, Nat.mul(Nat.div(h, 4n), 4n)), Nat.mul(Nat.div(h, 4n), 4n)) == h : Nat}
+  %Equal.sym(Nat, nsub(Nat.add(Nat.mul(Nat.div(h, 4n), 4n), Nat.mod(h, 4n)), Nat.mul(Nat.div(h, 4n), 4n)), Nat.mod(h, 4n), nsub_add(Nat.mul(Nat.div(h, 4n), 4n), Nat.mod(h, 4n))) : {Nat.add(_, Nat.mul(Nat.div(h, 4n), 4n)) == h : Nat}
+  %Equal.sym(Nat, Nat.add(Nat.mod(h, 4n), Nat.mul(Nat.div(h, 4n), 4n)), Nat.add(Nat.mul(Nat.div(h, 4n), 4n), Nat.mod(h, 4n)), add_comm(Nat.mod(h, 4n), Nat.mul(Nat.div(h, 4n), 4n))) : {_ == h : Nat}
+  Equal.sym(Nat, h, Nat.add(Nat.mul(Nat.div(h, 4n), 4n), Nat.mod(h, 4n)), go4(h, Q0{}, 0n))
+
+def add_shift(+h: Nat, +v: Nat, +s: Nat) -> {Nat.add(Nat.add(h, v), s) == Nat.add(Nat.add(h, s), v) : Nat}:
+  %Equal.sym(Nat, Nat.add(Nat.add(h, v), s), Nat.add(h, Nat.add(v, s)), add_assoc(h, v, s)) : {_ == Nat.add(Nat.add(h, s), v) : Nat}
+  %Equal.sym(Nat, Nat.add(v, s), Nat.add(s, v), add_comm(v, s)) : {Nat.add(h, _) == Nat.add(Nat.add(h, s), v) : Nat}
+  %add_assoc(h, s, v) : {_ == Nat.add(Nat.add(h, s), v) : Nat}
+  {==}
+
+def add_at_zero(+t: +List<Nat>, +h: Nat, +v: Nat) -> {list_sum(t, (h + v : Nat)) == (list_sum(t, h) + v : Nat) : Nat}:
+  %Equal.sym(Nat, list_sum(t, (h + v : Nat)), ((h + v) + heat_sum(t) : Nat), list_sum_acc(t, (h + v : Nat))) : {_ == (list_sum(t, h) + v : Nat) : Nat}
+  %Equal.sym(Nat, list_sum(t, h), (h + heat_sum(t) : Nat), list_sum_acc(t, h)) : {((h + v) + heat_sum(t) : Nat) == (_ + v : Nat) : Nat}
+  add_shift(h, v, heat_sum(t))
+
+def add_at_len(+xs: +List<Nat>, +i: Nat, +v: Nat) -> {list_len(add_at(xs, i, v)) == list_len(xs) : Nat}:
+  match xs:
+    case Nil{}:
+      match i:
+        case 0n:
+          {==}
+        case 1n+p:
+          {==}
+    case Con{h, t}:
+      match i:
+        case 0n:
+          {==}
+        case 1n+p:
+          %add_at_len(t, p, v) : {1n+list_len(add_at(t, p, v)) == 1n+_ : Nat}
+          {==}
+
+def add_at_sum(+xs: +List<Nat>, +i: Nat, +v: Nat) -> {heat_sum(add_at(xs, i, v)) == (heat_sum(xs) + Bool.pick(Nat, Nat.is_lt(i, list_len(xs)), v, 0n) : Nat) : Nat}:
+  match xs:
+    case Nil{}:
+      match i:
+        case 0n:
+          {==}
+        case 1n+p:
+          {==}
+    case Con{h, t}:
+      match i:
+        case 0n:
+          %Equal.sym(Nat, heat_sum(add_at(h <> t, 0n, v)), list_sum(t, (h + v : Nat)), {==}) : {_ == (heat_sum(h <> t) + v : Nat) : Nat}
+          %Equal.sym(Nat, heat_sum(h <> t), list_sum(t, h), {==}) : {list_sum(t, (h + v : Nat)) == (_ + v : Nat) : Nat}
+          add_at_zero(t, h, v)
+        case 1n+p:
+          %Equal.sym(Nat, heat_sum(add_at(h <> t, 1n+p, v)), list_sum(add_at(t, p, v), h), {==}) : {_ == (heat_sum(h <> t) + Bool.pick(Nat, Nat.is_lt(p, list_len(t)), v, 0n) : Nat) : Nat}
+          %Equal.sym(Nat, heat_sum(h <> t), list_sum(t, h), {==}) : {list_sum(add_at(t, p, v), h) == (_ + Bool.pick(Nat, Nat.is_lt(p, list_len(t)), v, 0n) : Nat) : Nat}
+          %Equal.sym(Nat, list_sum(add_at(t, p, v), h), (h + heat_sum(add_at(t, p, v)) : Nat), list_sum_acc(add_at(t, p, v), h)) : {_ == (list_sum(t, h) + Bool.pick(Nat, Nat.is_lt(p, list_len(t)), v, 0n) : Nat) : Nat}
+          %Equal.sym(Nat, list_sum(t, h), (h + heat_sum(t) : Nat), list_sum_acc(t, h)) : {(h + heat_sum(add_at(t, p, v)) : Nat) == (_ + Bool.pick(Nat, Nat.is_lt(p, list_len(t)), v, 0n) : Nat) : Nat}
+          %Equal.sym(Nat, heat_sum(add_at(t, p, v)), (heat_sum(t) + Bool.pick(Nat, Nat.is_lt(p, list_len(t)), v, 0n) : Nat), add_at_sum(t, p, v)) : {(h + _ : Nat) == ((h + heat_sum(t)) + Bool.pick(Nat, Nat.is_lt(p, list_len(t)), v, 0n) : Nat) : Nat}
+          Equal.sym(Nat, ((h + heat_sum(t)) + Bool.pick(Nat, Nat.is_lt(p, list_len(t)), v, 0n) : Nat), (h + (heat_sum(t) + Bool.pick(Nat, Nat.is_lt(p, list_len(t)), v, 0n)) : Nat), add_assoc(h, heat_sum(t), Bool.pick(Nat, Nat.is_lt(p, list_len(t)), v, 0n)))
+
+def spread_gain(+ns: +List<Nat>, +n: Nat, +q: Nat) -> Nat:
+  match ns:
+    case Nil{}:
+      0n
+    case Con{j, t}:
+      (Bool.pick(Nat, Nat.is_lt(j, n), q, 0n) + spread_gain(t, n, q) : Nat)
+
+# ---- retrieval laws (each proven by the def of the same name) ---------------
+
+law mass_conservation:
+  for +h: +List<Nat>
+  {heat_sum(diffuse(0n, demo_graph(), h, demo_seed(), seed_count(), alpha_num(), alpha_den())) == heat_sum(h) : Nat}
+
+def mass_conservation(h):
+  {==}
+
+law fuel_zero_identity:
+  for +h: +List<Nat>
+  {diffuse(0n, demo_graph(), h, demo_seed(), seed_count(), alpha_num(), alpha_den()) == h : +List<Nat>}
+
+def fuel_zero_identity(h):
+  {==}
+
+law route_deterministic:
+  for +scores: +List<Nat>
+  for threshold: Nat
+  for min_margin: Nat
+  {route(scores, threshold, min_margin) == route(scores, threshold, min_margin) : Route}
+
+def route_deterministic(scores, threshold, min_margin):
+  {==}
+
+law no_leak:
+  for +r: Route
+  {exposes_source(r) == False{} : Bool}
+
+def no_leak(r):
+  match r:
+    case Answer{d, c}:
+      {==}
+    case Abstain{e}:
+      {==}
+
+law step_preserves_heat:
+  {heat_sum(step(demo_graph(), Nil{}, demo_seed(), seed_count(), alpha_num(), alpha_den())) == heat_sum(Nil{}) : Nat}
+
+def step_preserves_heat():
+  {==}
+
+# =============================================================================
+# 4. One fixture run for the whole system
+# =============================================================================
+
+def route_confidence(+r: Route) -> Nat:
+  match r:
+    case Answer{d, c}:
+      c
+    case Abstain{e}:
+      e
+
+def system_fixtures() -> IO(Unit):
+  do IO<Unit>:
+    IO.print("status_rows " ++ Nat.show(row_count(project(full_fixture()))))
+    IO.print("fold " ++ Nat.show(run(demo())))
+    IO.print("fold_max " ++ Nat.show(run(demo_max())))
+    IO.print("graph_out_degree " ++ Nat.show(out_degree(demo_graph(), 0n)))
+    IO.print("rank_heat_sum " ++ Nat.show(heat_sum(demo_rank())))
+    IO.print("route_confidence " ++ Nat.show(route_confidence(demo_route())))
+
+# =============================================================================
+# 5. WORKER — memory, protocol, connector (migrated from runtime/worker/system.bend)
+# =============================================================================
+
 # Agent-authored prototype specifications, not owner-approved requirements.
 # Trusted boundary: the external Bend checker/compiler and Base library.
 # All experiment computation is in this file; only named laws are proved.
@@ -1760,23 +2908,26 @@ def lorenz_connected(result: Result<&1, &1, U32 & String, Socket>, +request: Str
         sent : Socket & Result<&1, &1, U32 & String, Unit> <- TCP.send(socket, request)
         lorenz_sent_pair(sent, receipt, context ++ "\nrequest:\n" ++ request)
 
-def lorenz_send_new(previous: Maybe<&2, String>, +port: Nat, session: String, +packet: String, receipt: String, context: String) -> IO(Unit):
+def lorenz_send_body(agent: String, packet: String) -> String:
+  "{\"agent\":\"" ++ lorenz_json_escape(agent) ++ "\",\"parts\":[{\"type\":\"text\",\"text\":\"" ++ lorenz_json_escape(packet) ++ "\"}]}"
+
+def lorenz_send_new(previous: Maybe<&2, String>, +port: Nat, session: String, agent: String, +packet: String, receipt: String, context: String) -> IO(Unit):
   match previous:
     case Some{old}:
       IO.die(Unit, 1, "opencode_receipt_exists: no request sent")
     case None{}:
       do IO<Unit>:
         opened : Result<&1, &1, U32 & String, Socket> <- TCP.connect("127.0.0.1", U32.from_nat(port))
-        lorenz_connected(opened, lorenz_http_request(session, port, "{\"agent\":\"general\",\"parts\":[{\"type\":\"text\",\"text\":\"" ++ lorenz_json_escape(packet) ++ "\"}]}"), receipt, context)
+        lorenz_connected(opened, lorenz_http_request(session, port, lorenz_send_body(agent, packet)), receipt, context)
 
-def lorenz_send_valid(valid: Bool, port: Nat, session: String, packet: String, +receipt: String, context: String) -> IO(Unit):
+def lorenz_send_valid(valid: Bool, port: Nat, session: String, agent: String, packet: String, +receipt: String, context: String) -> IO(Unit):
   match valid:
     case False{}:
       IO.die(Unit, 1, "opencode_invalid_port_session_or_packet")
     case True{}:
       do IO<Unit>:
         previous : Maybe<&2, String> <- store_read(receipt)
-        lorenz_send_new(previous, port, session, packet, receipt, context)
+        lorenz_send_new(previous, port, session, agent, packet, receipt, context)
 
 def lorenz_delivery_worker(worker: LorenzEvent) -> Bool:
   match worker:
@@ -1794,7 +2945,7 @@ def lorenz_opencode_ready(valid: Bool, +history: +List<LorenzEvent>, +work: Lore
       IO.die(Unit, 1, "opencode_requires_unfinished_work_claimed_by_opencode_worker")
     case True{}:
       +packet = lorenz_packet_fields(history, work, lorenz_work_event(history, 6n, lorenz_event_id(work)))
-      lorenz_send_valid(lorenz_session_valid(session) && Nat.is_le(String.length(packet), 16000n), port, session, packet, receipt, "lorenz-opencode-delivery/v1\nsnapshot:\n" ++ lorenz_snapshot(history))
+      lorenz_send_valid(lorenz_session_valid(session) && Nat.is_le(String.length(packet), 16000n), port, session, "general", packet, receipt, "lorenz-opencode-delivery/v1\nsnapshot:\n" ++ lorenz_snapshot(history))
 
 def lorenz_opencode_found(+history: +List<LorenzEvent>, +work: LorenzEvent, port: Nat, session: String, receipt: String) -> IO(Unit):
   lorenz_opencode_ready(Nat.is_eq(lorenz_event_kind(work), 4n) && lorenz_claim_worker(history, lorenz_work_event(history, 6n, lorenz_event_id(work))) && Nat.is_eq(lorenz_event_kind(lorenz_work_event(history, 7n, lorenz_event_id(work))), 0n), history, work, port, session, receipt)
@@ -1862,6 +3013,38 @@ def lorenz_geist_valid(known: Bool, +name: String, source: String, out: String) 
 def lorenz_geist(+name: String, source: String, out: String) -> IO(Unit):
   lorenz_geist_valid(lorenz_geist_known(name), name, source, out)
 
+# Geist as a harness process: deliver the Geist agent to a live OpenCode
+# session over the same loopback socket used for worker delivery. The kernel
+# chooses the agent (`geist-<name>`); the session runs it. No shell, no exec.
+def lorenz_geist_agent(name: String) -> String:
+  "geist-" ++ name
+
+def lorenz_geist_prompt(name: String) -> String:
+  "Begin as Geist " ++ name ++ ". Your identity and memory are in your agent prompt. Spawn meta agents when useful; draft only; the owner sends."
+
+def lorenz_geist_send_valid(valid: Bool, +name: String, port: Nat, +session: String, receipt: String) -> IO(Unit):
+  match valid:
+    case False{}:
+      IO.die(Unit, 1, "geist_invalid_name_or_session")
+    case True{}:
+      lorenz_send_valid(lorenz_session_valid(session), port, session, lorenz_geist_agent(name), lorenz_geist_prompt(name), receipt, "lorenz-geist-delivery/v1\nname:\n" ++ name)
+
+def lorenz_geist_send_parsed(+name: String, port: Maybe<&2, Nat>, session: String, receipt: String) -> IO(Unit):
+  match port:
+    case Some{p}:
+      lorenz_geist_send_valid(lorenz_geist_known(name), name, p, session, receipt)
+    case None{}:
+      IO.die(Unit, 1, "geist_invalid_port")
+
+def lorenz_geist_send(name: String, +port: String, session: String, receipt: String) -> IO(Unit):
+  lorenz_geist_send_parsed(name, lorenz_port_short(Nat.is_le(String.length(port), 5n), port), session, receipt)
+
+law lorenz_geist_agent_prefix:
+  {lorenz_geist_agent("honey") == "geist-honey" : String}
+
+def lorenz_geist_agent_prefix():
+  {==}
+
 def lorenz_geist_names_ok() -> Bool:
   lorenz_geist_known("pollen") && lorenz_geist_known("fizz") && lorenz_geist_known("honey")
 
@@ -1886,8 +3069,62 @@ law lorenz_geist_body_scales_with_engram:
 def lorenz_geist_body_scales_with_engram():
   {==}
 
+# ---- flow: agents as one block, stepped in parallel -------------------------
+# An agent is one block: identity, role, the meta agents it may route to, and a
+# memory label. The flow moves by each block choosing a route for the current
+# observation. Independent blocks step in parallel (the same fork/join the
+# compute probe uses); the coordinator joins the moves. Pure: no effect. Only
+# the commit (single-writer snapshot) and delivery (one session each) are serial.
+type AgentBlock is Data:
+  AgentBlock{name: String, role: String, route: String, memory: String}
+
+type FlowMove is Data:
+  FlowMove{agent: String, action: String, to: String}
+
+def lorenz_agent_step(a: AgentBlock, obs: String) -> FlowMove:
+  match a:
+    case AgentBlock{name, role, route, memory}:
+      FlowMove{name, "route:" ++ obs, route}
+
+def lorenz_flow_step(+agents: +List<AgentBlock>, +obs: String) -> +List<FlowMove>:
+  match agents:
+    case Nil{}:
+      []
+    case Con{a, rest}:
+      m = lorenz_agent_step(a, obs)
+      ms = lorenz_flow_step(rest, obs)
+      Con{m, ms}
+
+def lorenz_flow_size(+moves: +List<FlowMove>) -> Nat:
+  match moves:
+    case Nil{}:
+      0n
+    case Con{h, t}:
+      (1n + lorenz_flow_size(t) : Nat)
+
+def lorenz_geist_blocks() -> +List<AgentBlock>:
+  [AgentBlock{"pollen", "research", "prime", "core"}, AgentBlock{"fizz", "build", "build", "core"}, AgentBlock{"honey", "consolidate", "steward", "core"}]
+
+def lorenz_flow_show(+moves: +List<FlowMove>) -> String:
+  match moves:
+    case Nil{}:
+      ""
+    case Con{m, t}:
+      match m:
+        case FlowMove{agent, action, to}:
+          agent ++ " " ++ action ++ " -> " ++ to ++ "\n" ++ lorenz_flow_show(t)
+
+def lorenz_flow(obs: String) -> IO(Unit):
+  IO.print(lorenz_flow_show(lorenz_flow_step(lorenz_geist_blocks(), obs)))
+
+law lorenz_flow_steps_each_block:
+  {lorenz_flow_size(lorenz_flow_step(lorenz_geist_blocks(), "x")) == 3n : Nat}
+
+def lorenz_flow_steps_each_block():
+  {==}
+
 def lorenz_help() -> String:
-  "Lorenz: calculate, remember, inspect.\n\nCalculate:\n  max NUMBER...                 maximum of 1..128 integers, each 0..65535\n  compute cpu|gpu DEPTH          parallel diagnostic, depth 0..20\n\nRemember explicitly:\n  init OUT\n  capture IN OUT retain ACTOR ORIGIN TEXT\n  remember IN OUT CONVERSATION DEPENDENCY ACTOR TEXT\n  correct IN OUT MEMORY DEPENDENCY ACTOR REASON TEXT\n  work IN OUT CONVERSATION ACTOR OWNER ACCEPTANCE\n\nDelegate explicitly:\n  worker IN OUT ACTOR LABEL RUNTIME\n  claim IN OUT WORK WORKER ACTOR\n  packet IN WORK\n  return IN OUT WORK WORKER ACTOR RESULT EVIDENCE\n  learn IN OUT RESULT DEPENDENCY ACTOR TEXT\n  opencode IN WORK PORT SESSION RECEIPT\n\nInspect:\n  history IN                    all records, including old revisions\n  memory IN                     current memories only\n  explain IN ID                 record and its links\n  geist NAME ENGRAM_FILE OUT_FILE   write the generated Geist agent file (pollen|fizz|honey)\n\nEvidence:\n  record FILE SOURCE\n  replay FILE SOURCE\n\nIN/OUT are immutable local snapshots; OUT must be new. IDs belong to that history; dependency 0 means none. One dependency per memory; single-line fields up to 4096 characters. Use a private directory and one writer (writes are not atomic). Work records intent. Explicit opencode submits a claimed packet to the general agent at 127.0.0.1; receipt204 acknowledges delivery, not completion. Results remain reported until explicit learn. No automatic retry; timeout may mean delivery occurred. Labels are not authenticated identities. Native --threads N and --gpu on control the compute diagnostic. No arguments runs the adaptive example. Older commands prefixed with lorenz still work."
+  "Lorenz: calculate, remember, inspect.\n\nCalculate:\n  max NUMBER...                 maximum of 1..128 integers, each 0..65535\n  compute cpu|gpu DEPTH          parallel diagnostic, depth 0..20\n\nRemember explicitly:\n  init OUT\n  capture IN OUT retain ACTOR ORIGIN TEXT\n  remember IN OUT CONVERSATION DEPENDENCY ACTOR TEXT\n  correct IN OUT MEMORY DEPENDENCY ACTOR REASON TEXT\n  work IN OUT CONVERSATION ACTOR OWNER ACCEPTANCE\n\nDelegate explicitly:\n  worker IN OUT ACTOR LABEL RUNTIME\n  claim IN OUT WORK WORKER ACTOR\n  packet IN WORK\n  return IN OUT WORK WORKER ACTOR RESULT EVIDENCE\n  learn IN OUT RESULT DEPENDENCY ACTOR TEXT\n  opencode IN WORK PORT SESSION RECEIPT\n\nInspect:\n  history IN                    all records, including old revisions\n  memory IN                     current memories only\n  explain IN ID                 record and its links\n  geist NAME ENGRAM_FILE OUT_FILE   write the generated Geist agent file (pollen|fizz|honey)\n  geist-send NAME PORT SESSION RECEIPT   deliver the Geist agent to a live session (loopback)\n  flow OBS                      parallel agent-block step (pollen|fizz|honey blocks)\n\nEvidence:\n  record FILE SOURCE\n  replay FILE SOURCE\n\nIN/OUT are immutable local snapshots; OUT must be new. IDs belong to that history; dependency 0 means none. One dependency per memory; single-line fields up to 4096 characters. Use a private directory and one writer (writes are not atomic). Work records intent. Explicit opencode submits a claimed packet to the general agent at 127.0.0.1; receipt204 acknowledges delivery, not completion. Results remain reported until explicit learn. No automatic retry; timeout may mean delivery occurred. Labels are not authenticated identities. Native --threads N and --gpu on control the compute diagnostic. No arguments runs the adaptive example. Older commands prefixed with lorenz still work."
 
 # Expose the already proved maximum kernel on caller-supplied numbers. Parsing
 # uses bounded U32 parsing before conversion to Nat; the empty-list identity
@@ -1997,12 +3234,14 @@ def lorenz_dispatch(args: List<String>) -> IO(Unit):
   match args:
     case Con{command, Nil{}}:
       lorenz_io_choose(String.eq(command, "help") || String.eq(command, "--help"), IO.print(lorenz_help()), IO.die(Unit, 1, lorenz_help()))
-    case Con{+command, Con{path, Nil{}}}:
-      lorenz_dispatch_pair(String.eq(command, "init"), String.eq(command, "history"), String.eq(command, "memory"), path)
+    case Con{+command, Con{+path, Nil{}}}:
+      lorenz_io_choose(String.eq(command, "flow"), lorenz_flow(path), lorenz_dispatch_pair(String.eq(command, "init"), String.eq(command, "history"), String.eq(command, "memory"), path))
     case Con{+command, Con{+path, Con{+id, Nil{}}}}:
       lorenz_io_choose(String.eq(command, "explain"), lorenz_explain(path, id), lorenz_io_choose(String.eq(command, "compute"), lorenz_compute_parsed(path, lorenz_nat(id)), lorenz_io_choose(String.eq(command, "packet"), lorenz_packet(path, id), IO.die(Unit, 1, lorenz_help()))))
     case Con{+command, Con{+name, Con{+source, Con{+out, Nil{}}}}}:
       lorenz_io_choose(String.eq(command, "geist"), lorenz_geist(name, source, out), IO.die(Unit, 1, lorenz_help()))
+    case Con{+command, Con{+name, Con{+port, Con{+session, Con{+receipt, Nil{}}}}}}:
+      lorenz_io_choose(String.eq(command, "geist-send"), lorenz_geist_send(name, port, session, receipt), IO.die(Unit, 1, lorenz_help()))
     case Con{+command, Con{+input, Con{+output, Con{+p1, Con{+p2, Con{+p3, Nil{}}}}}}}:
       lorenz_io_choose(String.eq(command, "worker"), lorenz_worker(input, output, p1, p2, p3), lorenz_io_choose(String.eq(command, "claim"), lorenz_claim(input, output, p1, p2, p3), lorenz_io_choose(String.eq(command, "opencode"), lorenz_opencode(input, output, p1, p2, p3), IO.die(Unit, 1, lorenz_help()))))
     case Con{+command, Con{input, Con{output, Con{p1, Con{p2, Con{p3, Con{p4, Nil{}}}}}}}}:
@@ -2023,12 +3262,387 @@ def lorenz_or_dispatch(legacy: Bool, evidence: Bool, maximum: Bool, command: Str
     case _ _ _:
       lorenz_dispatch(command <> rest)
 
+# =============================================================================
+# HARNESS DSL — explicit effects, bounded control, deterministic replay.
+# Prefix wire format uses one token per line; values stay in the host's receipt.
+# An observation is only ok/fail, never executable code or a new permission.
+type Harness is Data:
+  HEffect{kind: String, reference: String}
+  HSequence{first: Harness, second: Harness}
+  HBranch{predicate: String, yes: Harness, no: Harness}
+  HRepeat{bound: Nat, stop: String, body: Harness}
+  HVerify{contract: String, body: Harness}
+  HAfterRepeat{remaining: Nat, stop: String, body: Harness}
+  HAfterVerify{contract: String}
+
+type HarnessParse is Data:
+  HParsed{program: Harness, rest: +List<String>}
+  HInvalid{}
+
+def harness_predicate(+predicate: String, +ok: Bool) -> Bool:
+  String.eq(predicate, "always") || (String.eq(predicate, "ok") && ok) || (String.eq(predicate, "fail") && Bool.not(ok))
+
+def harness_predicate_valid(+predicate: String) -> Bool:
+  String.eq(predicate, "always") || String.eq(predicate, "never") || String.eq(predicate, "ok") || String.eq(predicate, "fail")
+
+def harness_ref_valid(+reference: String) -> Bool:
+  lorenz_nonblank(reference) && lorenz_line_chars(reference) && Nat.is_le(String.length(reference), 128n)
+
+# Parsing is a bounded first-order machine. Explicit frames avoid recursive
+# higher-order callback specialization in Bend's native code generator.
+type HarnessFrame is Data:
+  HFSequenceFirst{}
+  HFSequenceSecond{first: Harness}
+  HFBranchFirst{predicate: String}
+  HFBranchSecond{predicate: String, first: Harness}
+  HFRepeat{bound: Nat, stop: String}
+  HFVerify{contract: String}
+
+type HarnessCursor is Data:
+  HCRead{depth: Nat, tokens: +List<String>, frames: +List<HarnessFrame>}
+  HCReduce{depth: Nat, program: Harness, tokens: +List<String>, frames: +List<HarnessFrame>}
+  HCFinished{parsed: HarnessParse}
+
+def harness_parse_bad() -> HarnessCursor:
+  HCFinished{HInvalid{}}
+
+def harness_parse_leaf(valid: Bool, depth: Nat, kind: String, reference: String, tokens: +List<String>, frames: +List<HarnessFrame>) -> HarnessCursor:
+  match valid:
+    case True{}:
+      HCReduce{depth, HEffect{kind, reference}, tokens, frames}
+    case False{}:
+      harness_parse_bad()
+
+def harness_parse_descend(valid: Bool, depth: Nat, frame: HarnessFrame, tokens: +List<String>, frames: +List<HarnessFrame>) -> HarnessCursor:
+  match valid depth:
+    case True{} 1n+d:
+      HCRead{d, tokens, frame <> frames}
+    case _ _:
+      harness_parse_bad()
+
+def harness_parse_bound(valid: Bool, bound: Maybe<&2, Nat>, depth: Nat, stop: String, tokens: +List<String>, frames: +List<HarnessFrame>) -> HarnessCursor:
+  match bound:
+    case Some{+n}:
+      harness_parse_descend(valid && Nat.is_gt(n, 0n) && Nat.is_le(n, 32n), depth, HFRepeat{n, stop}, tokens, frames)
+    case None{}:
+      harness_parse_bad()
+
+def harness_parse_operator(sequence: Bool, branch: Bool, repeat: Bool, verify: Bool, leaf: Bool, depth: Nat, kind: String, tokens: +List<String>, frames: +List<HarnessFrame>) -> HarnessCursor:
+  match sequence branch repeat verify leaf tokens:
+    case True{} _ _ _ _ rest:
+      harness_parse_descend(True{}, depth, HFSequenceFirst{}, rest, frames)
+    case _ True{} _ _ _ Con{+predicate, rest}:
+      harness_parse_descend(harness_predicate_valid(predicate) && Bool.not(String.eq(predicate, "never")), depth, HFBranchFirst{predicate}, rest, frames)
+    case _ _ True{} _ _ Con{bound, Con{+stop, rest}}:
+      harness_parse_bound(harness_predicate_valid(stop) && Bool.not(String.eq(stop, "always")), lorenz_value(bound), depth, stop, rest, frames)
+    case _ _ _ True{} _ Con{+contract, rest}:
+      harness_parse_descend(harness_ref_valid(contract), depth, HFVerify{contract}, rest, frames)
+    case _ _ _ _ True{} Con{+reference, rest}:
+      harness_parse_leaf(harness_ref_valid(reference), depth, kind, reference, rest, frames)
+    case _ _ _ _ _ _:
+      harness_parse_bad()
+
+def harness_parse_step(cursor: HarnessCursor) -> HarnessCursor:
+  match cursor:
+    case HCRead{0n, tokens, frames}:
+      harness_parse_bad()
+    case HCRead{1n+d, Con{+kind, tokens}, frames}:
+      harness_parse_operator(String.eq(kind, "sequence"), String.eq(kind, "branch"), String.eq(kind, "repeat"), String.eq(kind, "verify"), String.eq(kind, "model") || String.eq(kind, "tool") || String.eq(kind, "retrieve"), 1n+d, kind, tokens, frames)
+    case HCRead{depth, Nil{}, frames}:
+      harness_parse_bad()
+    case HCReduce{depth, program, tokens, Nil{}}:
+      HCFinished{HParsed{program, tokens}}
+    case HCReduce{depth, program, tokens, Con{HFSequenceFirst{}, frames}}:
+      HCRead{depth, tokens, HFSequenceSecond{program} <> frames}
+    case HCReduce{depth, program, tokens, Con{HFSequenceSecond{first}, frames}}:
+      HCReduce{1n+depth, HSequence{first, program}, tokens, frames}
+    case HCReduce{depth, program, tokens, Con{HFBranchFirst{predicate}, frames}}:
+      HCRead{depth, tokens, HFBranchSecond{predicate, program} <> frames}
+    case HCReduce{depth, program, tokens, Con{HFBranchSecond{predicate, first}, frames}}:
+      HCReduce{1n+depth, HBranch{predicate, first, program}, tokens, frames}
+    case HCReduce{depth, program, tokens, Con{HFRepeat{bound, stop}, frames}}:
+      HCReduce{1n+depth, HRepeat{bound, stop, program}, tokens, frames}
+    case HCReduce{depth, program, tokens, Con{HFVerify{contract}, frames}}:
+      HCReduce{1n+depth, HVerify{contract, program}, tokens, frames}
+    case HCFinished{parsed}:
+      HCFinished{parsed}
+
+def harness_parse_loop(fuel: Nat, cursor: HarnessCursor) -> HarnessParse:
+  match fuel cursor:
+    case _ HCFinished{parsed}:
+      parsed
+    case 0n _:
+      HInvalid{}
+    case 1n+f state:
+      harness_parse_loop(f, harness_parse_step(state))
+
+def harness_parse(depth: Nat, tokens: +List<String>) -> HarnessParse:
+  harness_parse_loop(U32.to_nat(2048), HCRead{depth, tokens, []})
+
+def harness_error(message: String) -> String:
+  "{\"status\":\"error\",\"error\":\"" ++ message ++ "\"}"
+
+def harness_effect_json(kind: String, reference: String, +index: Nat) -> String:
+  Bool.pick(String, Nat.is_lt(index, 128n), "{\"status\":\"effect\",\"index\":" ++ Nat.show(index) ++ ",\"kind\":\"" ++ lorenz_json_escape(kind) ++ "\",\"ref\":\"" ++ lorenz_json_escape(reference) ++ "\"}", harness_error("effect_budget_exhausted"))
+
+# The pending list is a continuation. Fuel is global, including loop overhead.
+# Effects suspend before execution; resumption replays the same checked program.
+def harness_run(fuel: Nat, pending: +List<Harness>, observations: +List<String>, +ok: Bool, index: Nat) -> String:
+  match fuel pending:
+    case _ Nil{}:
+      match observations:
+        case Nil{}:
+          "{\"status\":\"done\",\"ok\":" ++ bool_json(ok) ++ ",\"effects\":" ++ Nat.show(index) ++ "}"
+        case _:
+          harness_error("unused_observations")
+    case 0n _:
+      harness_error("transition_budget_exhausted")
+    case 1n+f Con{HEffect{kind, reference}, rest}:
+      match observations:
+        case Nil{}:
+          harness_effect_json(kind, reference, index)
+        case Con{"ok", tail}:
+          harness_run(f, rest, tail, True{}, 1n+index)
+        case Con{"fail", tail}:
+          harness_run(f, rest, tail, False{}, 1n+index)
+        case _:
+          harness_error("invalid_observation")
+    case 1n+f Con{HSequence{a, b}, rest}:
+      harness_run(f, a <> (b <> rest), observations, ok, index)
+    case 1n+f Con{HBranch{predicate, yes, no}, rest}:
+      harness_run(f, Bool.pick(Harness, harness_predicate(predicate, ok), yes, no) <> rest, observations, ok, index)
+    case 1n+f Con{HRepeat{0n, stop, body}, rest}:
+      harness_run(f, rest, observations, ok, index)
+    case 1n+f Con{HRepeat{1n+n, +stop, +body}, rest}:
+      harness_run(f, body <> (HAfterRepeat{n, stop, body} <> rest), observations, ok, index)
+    case 1n+f Con{HAfterRepeat{n, +stop, body}, +rest}:
+      harness_run(f, Bool.pick(+List<Harness>, harness_predicate(stop, ok), rest, HRepeat{n, stop, body} <> rest), observations, ok, index)
+    case 1n+f Con{HVerify{contract, body}, rest}:
+      harness_run(f, body <> (HAfterVerify{contract} <> rest), observations, ok, index)
+    case 1n+f Con{HAfterVerify{contract}, +rest}:
+      harness_run(f, Bool.pick(+List<Harness>, ok, HEffect{"verify", contract} <> rest, rest), observations, ok, index)
+
+def harness_tokens(+text: String) -> +List<String>:
+  Bool.pick(+List<String>, String.eq(text, ""), [], String.lines(String.trim(text)))
+
+def harness_observation_budget(fuel: Nat, xs: +List<String>) -> Bool:
+  match fuel xs:
+    case _ Nil{}:
+      True{}
+    case 0n _:
+      False{}
+    case 1n+f Con{h, t}:
+      harness_observation_budget(f, t)
+
+def harness_replay(parsed: HarnessParse, +observations: +List<String>) -> String:
+  match parsed:
+    case HParsed{program, Nil{}}:
+      Bool.pick(String, harness_observation_budget(128n, observations), harness_run(U32.to_nat(2048), [program], observations, True{}, 0n), harness_error("effect_budget_exhausted"))
+    case _:
+      harness_error("invalid_program")
+
+def harness_print(+result: String) -> IO(Unit):
+  lorenz_io_choose(String.starts_with(result, "{\"status\":\"error\""), IO.die(Unit, 1, result), IO.print(result))
+
+def harness_input(bounded: Bool, program: String, observations: String) -> IO(Unit):
+  match bounded:
+    case False{}:
+      IO.die(Unit, 1, harness_error("input_budget_exhausted"))
+    case True{}:
+      harness_print(harness_replay(harness_parse(128n, harness_tokens(program)), harness_tokens(observations)))
+
+def harness_cli(args: List<String>) -> IO(Unit):
+  match args:
+    case Con{+program, Con{+observations, Nil{}}}:
+      harness_input(Nat.is_le(String.length(program), U32.to_nat(16384)) && Nat.is_le(String.length(observations), U32.to_nat(640)), program, observations)
+    case _:
+      IO.die(Unit, 1, "usage: dsl NEWLINE_PREFIX_PROGRAM NEWLINE_OK_FAIL_OBSERVATIONS")
+
+def harness_ref_json(kind: String, reference: String) -> String:
+  "{\"kind\":\"" ++ lorenz_json_escape(kind) ++ "\",\"ref\":\"" ++ lorenz_json_escape(reference) ++ "\"}"
+
+def harness_refs(program: Harness) -> String:
+  match program:
+    case HEffect{kind, reference}:
+      harness_ref_json(kind, reference)
+    case HSequence{a, b}:
+      harness_refs(a) ++ "," ++ harness_refs(b)
+    case HBranch{predicate, a, b}:
+      harness_refs(a) ++ "," ++ harness_refs(b)
+    case HRepeat{bound, stop, body}:
+      harness_refs(body)
+    case HVerify{contract, body}:
+      harness_refs(body) ++ "," ++ harness_ref_json("verify", contract)
+    case HAfterRepeat{remaining, stop, body}:
+      harness_refs(body)
+    case HAfterVerify{contract}:
+      harness_ref_json("verify", contract)
+
+def harness_check_parsed(parsed: HarnessParse) -> IO(Unit):
+  match parsed:
+    case HParsed{program, Nil{}}:
+      IO.print("{\"status\":\"valid\",\"effects\":[" ++ harness_refs(program) ++ "]}")
+    case _:
+      IO.die(Unit, 1, harness_error("invalid_program"))
+
+def harness_check_bounded(bounded: Bool, program: String) -> IO(Unit):
+  match bounded:
+    case True{}:
+      harness_check_parsed(harness_parse(128n, harness_tokens(program)))
+    case False{}:
+      IO.die(Unit, 1, harness_error("input_budget_exhausted"))
+
+def harness_check_cli(args: List<String>) -> IO(Unit):
+  match args:
+    case Con{+program, Nil{}}:
+      harness_check_bounded(Nat.is_le(String.length(program), U32.to_nat(16384)), program)
+    case _:
+      IO.die(Unit, 1, "usage: dsl-check NEWLINE_PREFIX_PROGRAM")
+
+law harness_verify_requests_external_contract:
+  {harness_replay(harness_parse(8n, ["verify", "answer", "model", "solver"]), ["ok"]) == "{\"status\":\"effect\",\"index\":1,\"kind\":\"verify\",\"ref\":\"answer\"}" : String}
+
+def harness_verify_requests_external_contract():
+  {==}
+
+law harness_repeat_stops_after_success:
+  {harness_replay(harness_parse(8n, ["repeat", "3", "ok", "tool", "check"]), ["fail", "ok"]) == "{\"status\":\"done\",\"ok\":true,\"effects\":2}" : String}
+
+def harness_repeat_stops_after_success():
+  {==}
+
+law harness_rejects_excess_observations:
+  {harness_replay(harness_parse(8n, ["model", "solver"]), ["ok", "ok"]) == "{\"status\":\"error\",\"error\":\"unused_observations\"}" : String}
+
+def harness_rejects_excess_observations():
+  {==}
+
+
+# ---- bounded, evaluator-owned harness selection ----------------------------
+# Scores use basis points; costs use one caller-chosen consistent integer unit.
+# Selection consumes measured evidence; it does not authenticate that evidence.
+# Fixed policy is outside the editable harness grammar. This is a simplified
+# regularized selector inspired by RRSI, not a reproduction of its algorithm.
+# Cross products are <= 2,000,000,000 after CLI bounds, below U32 overflow.
+def selection_gain(improved: Bool, +base: U32, +candidate: U32, +cost: U32, +next_cost: U32, +growth: U32, +multiplier: U32) -> String:
+  match improved:
+    case False{}:
+      Bool.pick(String, U32.is_lt(next_cost, cost), "accept_cheaper", "no_gain_or_savings")
+    case True{}:
+      allowance = U32.min(growth, ((candidate - base : U32) * multiplier : U32))
+      Bool.pick(String, U32.is_le((next_cost * 10000 : U32), (cost * (10000 + allowance : U32) : U32)), "accept_gain", "cost_growth")
+
+def selection_floor_valid(best_ok: Bool, base_ok: Bool, +base: U32, +candidate: U32, +cost: U32, +next_cost: U32, +delta: U32, +growth: U32, +multiplier: U32) -> String:
+  match best_ok base_ok:
+    case False{} _:
+      "best_score_floor"
+    case _ False{}:
+      "base_score_floor"
+    case True{} True{}:
+      selection_gain(U32.is_gt(candidate, (base + delta : U32)), base, candidate, cost, next_cost, growth, multiplier)
+
+def selection_floor(+base: U32, +candidate: U32, +best: U32, +cost: U32, +next_cost: U32, +delta: U32, +growth: U32, +multiplier: U32) -> String:
+  selection_floor_valid(U32.is_ge((candidate + delta : U32), best), U32.is_ge((candidate + delta : U32), base), base, candidate, cost, next_cost, delta, growth, multiplier)
+
+def selection_gates(guard_ok: Bool, clean: Bool, small: Bool, +base: U32, +candidate: U32, +best: U32, +cost: U32, +next_cost: U32, +delta: U32, +growth: U32, +multiplier: U32) -> String:
+  match guard_ok clean small:
+    case False{} _ _:
+      "guard_failed"
+    case _ False{} _:
+      "leak_detected"
+    case _ _ False{}:
+      "edit_budget"
+    case True{} True{} True{}:
+      selection_floor(base, candidate, best, cost, next_cost, delta, growth, multiplier)
+
+def selection_reason(+base: U32, +candidate: U32, +best: U32, +cost: U32, +next_cost: U32, +delta: U32, +edits: U32, +budget: U32, +growth: U32, +multiplier: U32, +guard: U32, +leak: U32) -> String:
+  selection_gates(U32.is_eq(guard, 1), U32.is_eq(leak, 0), U32.is_le(edits, budget), base, candidate, best, cost, next_cost, delta, growth, multiplier)
+
+def selection_output(+reason: String) -> String:
+  "{\"accepted\":" ++ Bool.pick(String, String.eq(reason, "accept_gain") || String.eq(reason, "accept_cheaper"), "true", "false") ++ ",\"reason\":\"" ++ reason ++ "\"}"
+
+def selection_number_parsed(+s: String, n: Maybe<&2, U32>) -> Maybe<&2, U32>:
+  match n:
+    case None{}:
+      None{}
+    case Some{+value}:
+      Bool.pick(Maybe<&2, U32>, String.eq(s, U32.show(value)) && U32.is_le(value, 100000), Some{value}, None{})
+
+def selection_number_short(short: Bool, +s: String) -> Maybe<&2, U32>:
+  match short:
+    case False{}:
+      None{}
+    case True{}:
+      selection_number_parsed(s, U32.read(s))
+
+def selection_numbers_join(head: Maybe<&2, U32>, tail: Maybe<&2, +List<U32>>) -> Maybe<&2, +List<U32>>:
+  match head tail:
+    case Some{h} Some{t}:
+      Some{h <> t}
+    case _ _:
+      None{}
+
+def selection_numbers(fuel: Nat, args: List<String>) -> Maybe<&2, +List<U32>>:
+  match fuel args:
+    case _ Nil{}:
+      Some{[]}
+    case 0n _:
+      None{}
+    case 1n+f Con{+h, t}:
+      selection_numbers_join(selection_number_short(Nat.is_le(String.length(h), 6n), h), selection_numbers(f, t))
+
+def selection_emit(valid: Bool, +base: U32, +candidate: U32, +best: U32, +cost: U32, +next_cost: U32, +delta: U32, +edits: U32, +budget: U32, +growth: U32, +multiplier: U32, +guard: U32, +leak: U32) -> IO(Unit):
+  match valid:
+    case False{}:
+      IO.die(Unit, 1, "invalid_selection_metrics")
+    case True{}:
+      IO.print(selection_output(selection_reason(base, candidate, best, cost, next_cost, delta, edits, budget, growth, multiplier, guard, leak)))
+
+def selection_checked(+base: U32, +candidate: U32, +best: U32, +cost: U32, +next_cost: U32, +delta: U32, +edits: U32, +budget: U32, +growth: U32, +multiplier: U32, +guard: U32, +leak: U32) -> IO(Unit):
+  valid = U32.is_le(base, 10000) && U32.is_le(candidate, 10000) && U32.is_le(best, 10000) && U32.is_ge(best, base) && U32.is_gt(cost, 0) && U32.is_gt(next_cost, 0) && U32.is_le(delta, 10000) && U32.is_le(edits, 1000) && U32.is_le(budget, 1000) && U32.is_le(growth, 10000) && U32.is_le(multiplier, 100) && U32.is_le(guard, 1) && U32.is_le(leak, 1)
+  selection_emit(valid, base, candidate, best, cost, next_cost, delta, edits, budget, growth, multiplier, guard, leak)
+
+def selection_parsed(parsed: Maybe<&2, +List<U32>>) -> IO(Unit):
+  match parsed:
+    case Some{[base, candidate, best, cost, next_cost, delta, edits, budget, growth, multiplier, guard, leak]}:
+      selection_checked(base, candidate, best, cost, next_cost, delta, edits, budget, growth, multiplier, guard, leak)
+    case _:
+      IO.die(Unit, 1, "select requires 12 canonical bounded integers: baseScore candidateScore bestScore baseCost candidateCost delta edits editBudget maxGrowthBps gainMultiplier guard leak")
+
+def selection_cli(args: List<String>) -> IO(Unit):
+  selection_parsed(selection_numbers(12n, args))
+
+law selection_guard_blocks_gain:
+  {selection_reason(6000, 6200, 6000, 1000, 1000, 50, 1, 2, 2000, 10, 0, 0) == "guard_failed" : String}
+
+def selection_guard_blocks_gain():
+  {==}
+
+law selection_noise_requires_savings:
+  {selection_reason(6000, 6050, 6000, 1000, 1000, 50, 1, 2, 2000, 10, 1, 0) == "no_gain_or_savings" : String}
+
+def selection_noise_requires_savings():
+  {==}
+
+def harness_or_dispatch(check: Bool, select: Bool, dsl: Bool, system: Bool, +command: String, rest: List<String>, payload: String) -> IO(Unit):
+  match check select dsl system:
+    case True{} _ _ _:
+      harness_check_cli(rest)
+    case _ True{} _ _:
+      selection_cli(rest)
+    case _ _ True{} _:
+      harness_cli(rest)
+    case _ _ _ True{}:
+      system_fixtures()
+    case _ _ _ _:
+      lorenz_or_dispatch(String.eq(command, "lorenz"), String.eq(command, "record") || String.eq(command, "replay"), String.eq(command, "max"), command, rest, payload)
+
 def lorenz_or_adaptive(args: List<String>, payload: String) -> IO(Unit):
   match args:
     case Nil{}:
       store_dispatch([], payload)
     case Con{+command, rest}:
-      lorenz_or_dispatch(String.eq(command, "lorenz"), String.eq(command, "record") || String.eq(command, "replay"), String.eq(command, "max"), command, rest, payload)
+      harness_or_dispatch(String.eq(command, "dsl-check"), String.eq(command, "select"), String.eq(command, "dsl"), String.eq(command, "system"), command, rest, payload)
 
 def lorenz_fixture() -> +List<LorenzEvent>:
   [LorenzEvent{1n, 1n, 0n, 0n, 0n, "operator", "conversation:example", "question", "-", "-"}, LorenzEvent{2n, 2n, 1n, 0n, 0n, "agent", "conversation:example", "premise", "-", "-"}, LorenzEvent{2n, 3n, 1n, 2n, 0n, "agent", "conversation:example", "direct", "-", "-"}, LorenzEvent{2n, 4n, 1n, 3n, 0n, "agent", "conversation:example", "transitive", "-", "-"}]

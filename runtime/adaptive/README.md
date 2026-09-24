@@ -1,10 +1,12 @@
 # One-file adaptive Bend system
 
-`system.bend` is the single executable Bend core. It contains algorithms,
+[`runtime/system.bend`](../system.bend) is the single executable Bend core. It contains algorithms,
 problem representations, proofs, surprise/intervention experiments, revision
 evidence, compatible-block lookup, native file persistence, and reporting.
 Bend 2.0.21 and its Base library are runtime dependencies; Git is an external
-recording tool. There is no Python host.
+recording tool. These direct kernel commands need no Python host. The
+[harness DSL](../harness/README.md) uses a small Python CLI to execute external
+model/tool effects; its control flow and selection still run in this Bend file.
 
 For cross-harness worker coordination, use the packaged
 [one-file Lorenz worker](../worker/README.md) through [/meta agents](META.md).
@@ -20,13 +22,13 @@ and cannot own, see
 From the Telepathy repository:
 
 ```sh
-BEND_NO_TELEMETRY=1 ~/.bend/bin/bend runtime/adaptive/system.bend --check-only
-BEND_NO_TELEMETRY=1 ~/.bend/bin/bend runtime/adaptive/system.bend
+BEND_NO_TELEMETRY=1 ~/.bend/bin/bend runtime/system.bend --check-only
+BEND_NO_TELEMETRY=1 ~/.bend/bin/bend runtime/system.bend
 
 mkdir -p .local/adaptive
 chmod 700 .local/adaptive
-BEND_NO_TELEMETRY=1 ~/.bend/bin/bend runtime/adaptive/system.bend -- record .local/adaptive/blocks.evidence runtime/adaptive/system.bend
-BEND_NO_TELEMETRY=1 ~/.bend/bin/bend runtime/adaptive/system.bend -- replay .local/adaptive/blocks.evidence runtime/adaptive/system.bend
+BEND_NO_TELEMETRY=1 ~/.bend/bin/bend runtime/system.bend -- record .local/adaptive/blocks.evidence runtime/system.bend
+BEND_NO_TELEMETRY=1 ~/.bend/bin/bend runtime/system.bend -- replay .local/adaptive/blocks.evidence runtime/system.bend
 ```
 
 Record saves the exact source text, computed evidence, and selected block ID.

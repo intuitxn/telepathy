@@ -1,16 +1,18 @@
-# Mundus Bend kernel: native Lorenz worker protocol
+# Mundus Bend kernel: the one-file system
 
-`system.bend` packages the other development checkout's one-file Lorenz worker
-implementation without changing it. SHA-256:
-`6e224e26d47c56d3601b26b55ae77497ab4680cacda89846640380a1d9e69d74`.
-It includes the adaptive kernels, memory transitions, worker registration,
+`runtime/system.bend` is the single consolidated system file: the pure ops
+(status projection, fold, retrieval graph/rank/route) plus the native Lorenz
+worker protocol (adaptive kernels, memory transitions, worker registration,
 claims, packets, reported results, explicit learning and loopback OpenCode
-delivery. There are 78 named laws. Check them with the actual Bend compiler;
+delivery). SHA-256:
+`60dcbfaa46e09c34259c14f5884800c4c1a3c1aba80f16943f6512bf88577114`.
+There are 78 named worker laws. Check them with the actual Bend compiler;
 their scope does not include correctness of arbitrary worker answers.
 
 ```sh
-BEND_NO_TELEMETRY=1 ~/.bend/bin/bend runtime/worker/system.bend --check-only
-BEND_NO_TELEMETRY=1 ~/.bend/bin/bend runtime/worker/system.bend -- help
+BEND_NO_TELEMETRY=1 ~/.bend/bin/bend runtime/system.bend --check-only
+BEND_NO_TELEMETRY=1 ~/.bend/bin/bend runtime/system.bend -- help
+BEND_NO_TELEMETRY=1 ~/.bend/bin/bend runtime/system.bend system   # pure-op fixtures
 node --test runtime/worker/protocol.test.mjs
 ```
 

@@ -28,8 +28,8 @@ Buzz host; isolation from workers remains a deployment requirement to verify.
 Check the Bend source before work:
 
 ```sh
-BEND_NO_TELEMETRY=1 "$HOME/.bend/bin/bend" runtime/worker/system.bend --check-only
-BEND_NO_TELEMETRY=1 "$HOME/.bend/bin/bend" runtime/worker/system.bend -- help
+BEND_NO_TELEMETRY=1 "$HOME/.bend/bin/bend" runtime/system.bend --check-only
+BEND_NO_TELEMETRY=1 "$HOME/.bend/bin/bend" runtime/system.bend -- help
 "$HOME/.local/bin/buzz" mem --help
 "$HOME/.local/bin/buzz" workflows --help
 ```

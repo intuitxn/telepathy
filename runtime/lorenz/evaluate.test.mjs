@@ -15,7 +15,7 @@ async function run(binary,args,cwd) {
 test('separate Lorenz source checks and exercises persistence, corrections, queue and rejection controls',async()=>{
   const cwd=await fs.mkdtemp(path.join(os.tmpdir(),'lorenz-core-'));
   try {
-    await fs.copyFile(new URL('./system.bend',import.meta.url),path.join(cwd,'system.bend'));
+    await fs.copyFile(new URL('../system.bend',import.meta.url),path.join(cwd,'system.bend'));
     assert.match(await run(bend,['system.bend','--check-only'],cwd),/All terms check\./);
     validate(await evaluate({bend,cwd,run}));
     assert.deepEqual(await fs.readdir(cwd),['system.bend']);

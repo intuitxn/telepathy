@@ -2,17 +2,18 @@
 
 Draft. Canonical inventory of the Intuitxn/Telepathy agents, the session kinds
 that carry their work, and a numbered map of how information actually moves
-through the system. Every transition cites the exact command or function with
-`file:line`.
+through the system. Some worker line numbers below refer to the source before
+the consolidation into `runtime/system.bend`; use the named functions when
+checking current definitions.
 
 Authority and status:
 
 - Charters in `.opencode/agents/` are the single source of truth for agent
   names and behaviour.
-- `plugins/telepathy-meta-agents/registry.json` mirrors five of the eight
-  charters as a declarative catalog. `@telepathy`, `@bend-forge` and
-  `@relay-keeper` are charter-only and have no registry entry; nothing here is
-  invented to fill a gap.
+- `plugins/telepathy-meta-agents/registry.json` mirrors five of the ten
+  charters as a declarative catalog. `@telepathy`, `@bend-forge`,
+  `@relay-keeper`, `@meta` and `@harness-model` are charter-only and have no registry entry;
+  nothing here is invented to fill a gap.
 - `plugins/telepathy-meta-agents/bend-specialist.md` is an unmerged draft whose
   own text says registry wiring is an owner edit. It is **not** a canonical
   agent and is not listed below.
@@ -38,11 +39,13 @@ Related: [`AGENT_MAP.md`](AGENT_MAP.md) · [`AGENT_ROLES.md`](AGENT_ROLES.md) ·
 | A1.6 | `@relationships` | `.opencode/agents/relationships.md` | draft-external | subagent | desk |
 | A1.7 | `@bend-forge` | `.opencode/agents/bend-forge.md` | prove (Bend) | subagent | local Bend |
 | A1.8 | `@relay-keeper` | `.opencode/agents/relay-keeper.md` | infra health | subagent | local / host |
+| A1.9 | `@meta` | `.opencode/agents/meta.md` | orchestrate | primary | opencode |
+| A1.10 | `@harness-model` | `.opencode/agents/harness-model.md` | text-only effect | primary | opencode |
 
 Registry mirror status (from `plugins/telepathy-meta-agents/registry.json`):
 `prime` (:4), `build` (:29), `steward` (:54), `research` (:81),
 `relationships` (:104). All five are `status: planned` and point at the same
-charter paths. No registry entry exists for A1.1, A1.7, A1.8.
+charter paths. No registry entry exists for A1.1, A1.7, A1.8, A1.9, A1.10.
 
 Retired names (do not use): `@atlas`→`@prime`, `@forge`→`@build`,
 `@ledger`→`@steward`, `@scout`→`@research`, `@diplomat`→`@relationships`
@@ -151,7 +154,7 @@ detached worktree. Codex records `event.thread_id` as `job.sessionID`
 `docs/HARNESS_STATE.md:16`).
 
 **A2.4 Bend worker snapshots.** The one-file Lorenz worker
-(`runtime/worker/system.bend`) keeps a single-writer immutable snapshot lineage:
+(`runtime/system.bend`) keeps a single-writer immutable snapshot lineage:
 every command takes `IN OUT`, and each `OUT` must be new
 (`system.bend:1828-1829` help text; `runtime/worker/README.md:36-44`). Identity
 is the numeric event id within one history plus the sequence number
@@ -275,7 +278,7 @@ Coordinator: one writer per snapshot lineage (`runtime/adaptive/META.md:66-73`;
 
 | Hop | Source → Sink | Store | Transition (file:line) | Lifetime |
 |---|---|---|---|---|
-| T5.1 | no state → empty history | private snapshot | `init` → `lorenz_dispatch_pair` `runtime/worker/system.bend:1911-1920`; `lorenz_save` | durable snapshot |
+| T5.1 | no state → empty history | private snapshot | `init` → `lorenz_dispatch_pair` `runtime/system.bend:1911-1920`; `lorenz_save` | durable snapshot |
 | T5.2 | task request → retained conversation | snapshot | `capture` `system.bend:1374-1377` | durable |
 | T5.3 | conversation → queued work | snapshot (kind 4) | `work` `system.bend:1445-1448`, `lorenz_work_found:1433-1436` | durable |
 | T5.4 | — → registered worker | snapshot (kind 5) | `worker` `system.bend:1512-1515` | durable |
@@ -298,7 +301,7 @@ ambiguous timeout must not be blindly retried (`runtime/worker/README.md:41-44`)
 Command templates: `runtime/adaptive/META.md:58-65` (`init`, `capture`, `work`,
 `worker`, `claim`, `packet`), `:86` (`opencode`), `:99` (`return`), `:107`
 (`learn`). Resolution rule for the worker source is META.md:17-36; the packaged
-source `runtime/worker/system.bend` qualifies (its `-- help` lists `worker`,
+source `runtime/system.bend` qualifies (its `-- help` lists `worker`,
 `claim`, `packet`, `return`, `learn`).
 
 **Ordering / dedupe.** Ordering is a per-lineage Lamport-style sequence: the
@@ -371,7 +374,7 @@ Verification actually run while drafting this document (checkout
   (`jobs.test.js:35`), accept matching (`jobs.test.js:53`), and the native
   OpenCode CLI path (`opencode.test.js:10`).
 - Worker source resolution and check:
-  `BEND_NO_TELEMETRY=1 ~/.bend/bin/bend runtime/worker/system.bend --check-only`
+  `BEND_NO_TELEMETRY=1 ~/.bend/bin/bend runtime/system.bend --check-only`
   → `All terms check.`; `-- help` lists `worker`, `claim`, `packet`, `return`,
   `learn` (`bend 2.0.21`).
 - A full local `/meta` lineage (`init → capture → work → worker → claim →

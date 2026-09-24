@@ -74,7 +74,7 @@ async function main() {
     assert(['--seed', '--output', '--source'].includes(args[i]) && args[i + 1], 'Usage: transfer.mjs [--seed UINT32] [--output FILE] [--source FILE]');
     options[args[i].slice(2)] = args[i + 1];
   }
-  const source = await fs.readFile(options.source || path.join(here, '../adaptive/system.bend'));
+  const source = await fs.readFile(options.source || path.join(here, '../system.bend'));
   const scratch = await fs.mkdtemp(path.join(os.tmpdir(), 'bend-transfer-'));
   try {
     await fs.writeFile(path.join(scratch, 'system.bend'), source);

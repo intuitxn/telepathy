@@ -4,9 +4,11 @@ Telepathy is Intuitxn's shared human context layer.
 
 **Working setup:** use installed OpenCode directly (`opencode` or `opencode run "task"`), or connect Buzz to its native `opencode acp` command. Bend owns the local worker state; Buzz supplies coordination and memory. Follow the [Buzz/Bend guide](runtime/worker/BUZZ.md). No oc2 fork, custom plugin, SDK service, or npm setup is required for that path.
 
+**Programmable harness:** [Run the Bend harness DSL](runtime/harness/README.md) to compose model calls, tools, retrieval, bounded retries and verification; replay runs and compare candidate programs against a fixed evaluator. The interpreter, selector and worker protocol share `runtime/system.bend` in this repository.
+
 The existing Desk remains optional for its local jobs and writing records (`npm ci && npm run setup`, then `npm run doctor`). Its OpenCode jobs now use the installed CLI and normal provider configuration; `OPENCODE_BIN` selects an explicit executable if multiple versions are installed. Previous profiles and stored records are preserved. Read the [setup guide](./BUZZ_SETUP.md), [forum start page](./forum/START_HERE.md), and [company writing guide](./forum/WRITING.md).
 
-The [active build plan](runtime/adaptive/HARNESS.md#what-the-system-should-build-toward) defines how findings become reusable, corrected, independently evaluated improvements.
+The [active harness guide](runtime/adaptive/HARNESS.md) defines how findings become reusable, corrected, independently evaluated improvements.
 
 **Live internal-alpha preview:** <https://intuitxn.github.io/telepathy/>
 
@@ -43,7 +45,9 @@ These boundaries are tracked in the [Telepathy GitHub Project](https://github.co
 
 ```text
 site/                human communication product
-runtime/worker/      one-file Bend worker logic and independent checks
+runtime/system.bend shared Bend core: harness DSL, selection, workers and memory
+runtime/harness/     effect driver, examples and independent DSL checks
+runtime/worker/      native host guide and worker protocol checks
 runtime/desk/        optional local jobs and writing records
 .opencode/agents/    native OpenCode role charters
 plugins/             declarative catalog and historical integrations

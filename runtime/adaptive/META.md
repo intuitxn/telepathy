@@ -18,11 +18,11 @@ checkout, Bend executable, and local link; this does not install credentials.
 
 The **worker source** is a single Bend file implementing the Lorenz protocol.
 Use `INTUITXN_WORKER_SOURCE` when set to an explicit absolute source path;
-otherwise use `runtime/worker/system.bend` if packaged in this checkout, or
-`runtime/adaptive/system.bend` only when its `-- help` output actually contains
-`worker`, `claim`, `packet`, `return` and `learn`. If none qualifies, report the
-missing worker source instead of substituting `runtime/lorenz/system.bend`.
-The operator can point the environment variable at another verified checkout.
+otherwise use `runtime/system.bend` in this checkout when its `-- help` output
+actually contains `worker`, `claim`, `packet`, `return` and `learn`. If it does
+not qualify, report the missing worker source instead of substituting another
+Bend core. The operator can point the environment variable at another verified
+checkout.
 
 Locate Bend on PATH or at `$HOME/.bend/bin/bend`. Record `bend version` (the
 tested version is 2.0.21), then check the selected file. Require successful
