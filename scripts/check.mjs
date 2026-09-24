@@ -44,6 +44,7 @@ const pythonRunner = protocolReady ? [python] :
   ['uv', 'run', '--with', 'mcp==1.27.0', '--with', 'agent-client-protocol==0.9.0', 'python'];
 run('meta node and jj lifecycle', pythonRunner[0], [...pythonRunner.slice(1), '-m', 'unittest', 'discover', '-s', 'runtime', '-p', 'meta_shell*test.py']);
 run('agent language', pythonRunner[0], [...pythonRunner.slice(1), '-m', 'unittest', 'discover', '-s', 'runtime/agent_programs', '-p', 'test_*.py']);
+run('RRSI admission gate', python, ['-m', 'unittest', 'discover', '-s', 'runtime', '-p', 'rrsi_test.py']);
 const bend = process.env.BEND || path.join(process.env.HOME || '', '.bend/bin/bend');
 if (fs.existsSync(bend)) {
   run('Bend kernel checker', bend, ['runtime/worker/system.bend', '--check-only'], { BEND_NO_TELEMETRY: '1' });
