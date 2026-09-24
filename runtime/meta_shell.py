@@ -1001,6 +1001,16 @@ class MetaACPClient:
         self.record("notification", method=method, params=params)
 
 
+def agent_text(parts: list[str], *, is_codex: bool) -> str:
+    output = "".join(parts)
+    notice = "Warning: Skill descriptions were shortened to fit the skills context budget."
+    if is_codex and output.startswith(notice):
+        _, separator, remainder = output.partition("\n\n")
+        if separator:
+            return remainder
+    return output
+
+
 async def run_agent(project: str, prompt: str, session_id: str | None,
                     config_content: str, events_path: Path, timeout: int,
                     executable: str) -> dict:
@@ -1060,7 +1070,7 @@ async def run_agent(project: str, prompt: str, session_id: str | None,
                         session_id=session_id, prompt=[acp.text_block(prompt)],
                     )
                     client.record("completed", session_id=session_id, response=response)
-                    output = "".join(client.parts)
+                    output = agent_text(client.parts, is_codex=is_codex)
                     if is_codex:
                         for entry in output.splitlines():
                             try:

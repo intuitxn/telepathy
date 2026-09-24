@@ -22,6 +22,15 @@ from starlette.testclient import TestClient
 import meta_shell
 
 
+class AgentTextTests(unittest.TestCase):
+    def test_codex_skill_notice_is_not_the_agent_result(self):
+        notice = ("Warning: Skill descriptions were shortened to fit the skills context budget. "
+                  "Codex can still see every skill, but some descriptions are shorter.\n\n")
+        parts = [notice, "META_V1_UPGRADE_OK"]
+        self.assertEqual(meta_shell.agent_text(parts, is_codex=True), "META_V1_UPGRADE_OK")
+        self.assertEqual(meta_shell.agent_text(parts, is_codex=False), notice + "META_V1_UPGRADE_OK")
+
+
 class ControlledNode(meta_shell.Node):
     def __init__(self, state):
         super().__init__(state, Path(__file__).with_name("system.bend"), "unused-bend", "unused-opencode")
