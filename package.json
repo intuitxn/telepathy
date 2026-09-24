@@ -16,6 +16,6 @@
     "harness": "python3 runtime/harness/run.py",
     "test:harness": "python3 -m unittest discover -s runtime/harness -p 'test_*.py' -v",
     "test": "node --test runtime/desk/test/*.test.js",
-    "check": "npm test"
+    "check": "npm test && npm run test:harness"
   }
 }

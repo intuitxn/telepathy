@@ -1,7 +1,7 @@
 {
   "version": 1,
   "effects": {
-    "model:maximum": {"kind": "command", "argv": ["{python}", "{bindings}/maximum.py", "propose"]},
-    "verify:maximum": {"kind": "command", "argv": ["{python}", "{bindings}/maximum.py", "verify"]}
+    "model:maximum": {"kind": "command", "argv": ["{python}", "{bindings}/maximum.py", "propose"], "dependencies": ["maximum.py"]},
+    "verify:maximum": {"kind": "command", "argv": ["{python}", "{bindings}/maximum.py", "verify"], "dependencies": ["maximum.py"]}
   }
 }

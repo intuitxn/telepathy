@@ -1,0 +1,45 @@
+name: Verify Bend harness
+
+on:
+  push:
+    branches: [main, refactor/buzz-native-bend]
+    paths:
+      - "runtime/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/harness.yml"
+  pull_request:
+    paths:
+      - "runtime/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/harness.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.13"
+      - name: Install checked Bend 2.0.21
+        run: |
+          curl -fsSL --retry 3 \
+            https://github.com/bendlang/bend/releases/download/v2.0.21/bend-2.0.21-linux-x64.tar.gz \
+            -o "$RUNNER_TEMP/bend.tar.gz"
+          echo "7efce68d47239d5859653deedb2615fd2e048e531ba7025cdcf09e884aca577c  $RUNNER_TEMP/bend.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/bend.tar.gz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/bend/bin" >> "$GITHUB_PATH"
+      - run: npm ci
+      - run: npm run check

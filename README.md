@@ -6,6 +6,8 @@ Telepathy is Intuitxn's shared human context layer.
 
 **Programmable harness:** [Run the Bend harness DSL](runtime/harness/README.md) to compose model calls, tools, retrieval, bounded retries and verification; replay runs and compare candidate programs against a fixed evaluator. The interpreter, selector and worker protocol share `runtime/system.bend` in this repository.
 
+The [paper-method and latent-world note](runtime/harness/PAPERS.md) explains what the one-file kernel reproduces, how hashes bind experiments, and why benchmark results still need external models and evaluators.
+
 The existing Desk remains optional for its local jobs and writing records (`npm ci && npm run setup`, then `npm run doctor`). Its OpenCode jobs now use the installed CLI and normal provider configuration; `OPENCODE_BIN` selects an explicit executable if multiple versions are installed. Previous profiles and stored records are preserved. Read the [setup guide](./BUZZ_SETUP.md), [forum start page](./forum/START_HERE.md), and [company writing guide](./forum/WRITING.md).
 
 The [active harness guide](runtime/adaptive/HARNESS.md) defines how findings become reusable, corrected, independently evaluated improvements.

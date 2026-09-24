@@ -128,9 +128,14 @@ class DriverTests(unittest.TestCase):
         programs = [(self.examples / "retry.harness").read_text(),
                     "repeat\n4\nok\nverify\nmaximum\nmodel\nmaximum\n"]
         proposed = []
+        heldout = self.root / "holdout.json"
+        heldout.write_text(json.dumps([
+            {"input": {"numbers": [4, 10, 1]}, "expected": 10},
+            {"input": {"numbers": [10, 4, 1]}, "expected": 10}]))
 
         def offline_propose(kernel, args):
             self.assertEqual(len(args.feedback), len(proposed) + 1)
+            self.assertFalse((self.root / "evolution/holdout").exists())
             args.out.mkdir()
             target = args.out / "candidate.harness"
             target.write_text(programs[len(proposed)])
@@ -139,6 +144,7 @@ class DriverTests(unittest.TestCase):
 
         args = SimpleNamespace(program=self.examples / "baseline.harness",
                                bindings=self.examples / "bindings.json", suite=self.examples / "suite.json",
+                               holdout=heldout,
                                out=self.root / "evolution", rounds=2, edit_budget=16, delta=0,
                                max_growth=10000, gain_multiplier=2, model=None, timeout=120)
         with patch.object(harness, "propose", side_effect=offline_propose):
@@ -148,7 +154,40 @@ class DriverTests(unittest.TestCase):
         self.assertEqual([row["accepted"] for row in result["history"]], [True, False])
         self.assertEqual(result["history"][1]["reason"], "no_gain_or_savings")
         self.assertEqual((args.out / "result.harness").read_text(), programs[0])
+        self.assertEqual(result["holdout"]["baseline_score"], 5000)
+        self.assertEqual(result["holdout"]["selected_score"], 10000)
+        transfer = json.loads((args.out / "holdout.json").read_text())
+        self.assertEqual(transfer["suite_sha256"], harness.file_digest(heldout))
         self.assertEqual(len(proposed), 2)
+
+    def test_evolve_rejects_overlapping_holdout_before_effects(self):
+        equivalent = self.root / "equivalent.json"
+        equivalent.write_text(json.dumps([{"input": {"numbers": [3.0, 9, 2]}, "expected": 9}]))
+        args = SimpleNamespace(program=self.examples / "baseline.harness",
+                               bindings=self.examples / "bindings.json", suite=self.examples / "suite.json",
+                               holdout=equivalent, out=self.root / "evolution",
+                               rounds=1, edit_budget=16, delta=0, max_growth=10000,
+                               gain_multiplier=2, model=None, timeout=120)
+        with patch.object(harness, "effect", side_effect=AssertionError("effect dispatched")):
+            with self.assertRaisesRegex(ValueError, "share inputs"):
+                harness.evolve(self.kernel, args)
+        self.assertFalse(args.out.exists())
+
+    def test_binding_dependency_change_blocks_effect(self):
+        script = self.root / "effect.py"
+        script.write_text('print(\'{"ok": true, "value": 1}\')\n')
+        binding = self.root / "bindings.json"
+        binding.write_text(json.dumps({"version": 1, "effects": {"model:one": {
+            "kind": "command", "argv": ["{python}", "{bindings}/effect.py"],
+            "dependencies": ["effect.py"]}}}))
+        config, directory, binding_hash = harness.load_bindings(binding)
+        self.assertTrue(harness.run(self.kernel, "model\none", config, directory, binding_hash,
+                                    {}, self.root / "first")["ok"])
+        script.write_text('print(\'{"ok": true, "value": 2}\')\n')
+        with self.assertRaisesRegex(RuntimeError, "dependency changed"):
+            harness.run(self.kernel, "model\none", config, directory, binding_hash,
+                        {}, self.root / "blocked")
+        self.assertFalse((self.root / "blocked").exists())
 
 
     def test_invalid_candidate_preflight_has_no_external_effects(self):

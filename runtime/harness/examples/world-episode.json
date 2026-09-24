@@ -1,0 +1,9 @@
+{
+  "belief_bps": 5000,
+  "transitions": [
+    {"state_bit": 0, "action_bit": 0, "observed_bit": 1},
+    {"state_bit": 1, "action_bit": 1, "observed_bit": 1},
+    {"state_bit": 1, "action_bit": 0, "observed_bit": 0},
+    {"state_bit": 0, "action_bit": 1, "observed_bit": 0}
+  ]
+}

@@ -5,6 +5,6 @@
       "kind": "opencode",
       "prompt": "Answer the input task. Return exactly a JSON object with an answer key. No markdown fences."
     },
-    "verify:maximum-json": {"kind": "command", "argv": ["{python}", "{bindings}/maximum.py", "verify-json"]}
+    "verify:maximum-json": {"kind": "command", "argv": ["{python}", "{bindings}/maximum.py", "verify-json"], "dependencies": ["maximum.py"]}
   }
 }

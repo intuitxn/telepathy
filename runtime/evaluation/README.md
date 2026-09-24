@@ -44,6 +44,10 @@ It executes local Bend source and is not an execution sandbox.
 The public task generator is deliberately simple. These are held-out inputs
 generated after evidence freezing, not a secret benchmark or unseen problem
 family. The fixed training set, selector, candidates and generator are authored.
+The checked-in `transfer-report.json` hashes the earlier adaptive source and
+runner used for that measurement. The current default `runtime/system.bend`
+has different bytes; rerun this command for a current-source result rather than
+attributing the historical report to the consolidated kernel.
 
 ## Measured result
 

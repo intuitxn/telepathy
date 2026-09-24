@@ -110,6 +110,14 @@ decision = select(incumbent_metrics, candidate_metrics, policy)
 
 These are separate operations. A stored report does not modify model weights,
 and a passing Bend check establishes only the checked terms and named laws.
+The experimental world kernel adds a small predictive-state update:
+
+```text
+prior_prediction = P(observation | belief, state, action)
+posterior_belief = P(hidden_rule | belief, state, action, observation)
+```
+
+Its hidden rule is a two-state toy hypothesis, not a learned neural latent space.
 
 ## Bindings and useful model calls
 
@@ -124,6 +132,7 @@ commands. Available binding kinds:
 | `file` | Retrieve a UTF-8 file relative to the binding file |
 | `memory` | Retrieve active memories from an existing Bend snapshot |
 | `json` | Verify a JSON object contains specified required keys |
+| `world` | Invoke the Bend binary-world belief update as a `tool` effect |
 
 Command stdin contains `input`, previous `value`, `observations`, and the current
 `request`. Return `{"ok": true, "value": ...}`; `detail` and `tokens` are optional.
@@ -135,6 +144,11 @@ observations, so retrieved context and failure feedback remain available.
 Input/config files and individual effect outputs are capped at 1 MiB, complete
 receipts at 160 MiB, and OpenCode prompt context at 64 KiB. Exceeding a bound
 aborts with an error instead of silently truncating evidence.
+For file and memory bindings, the binding fingerprint includes the referenced
+file bytes. A command binding can declare `"dependencies": ["script.py"]` to
+include its scripts or data; the driver checks them before and after each effect.
+The supplied command examples declare `maximum.py`. Undeclared imports, a remote
+model's weights and external services are outside that fingerprint.
 
 For a live model, use the supplied OpenCode binding and a JSON task file:
 
@@ -150,6 +164,36 @@ The live example independently verifies the maximum through a command binding.
 The generic `json` binding checks shape only, not truth. Use a task-specific
 command verifier for correctness. The `harness-model` agent denies tools; agentic tool
 execution belongs in explicit tool bindings or the existing `/meta` workflow.
+
+To run the finite latent-world kernel through the DSL without a model call:
+
+```sh
+python3 runtime/harness/run.py run runtime/harness/examples/world.harness \
+  --bindings runtime/harness/examples/world-bindings.json \
+  --input runtime/harness/examples/world-task.json --out .local/harness/world
+
+python3 runtime/harness/run.py run runtime/harness/examples/world-episode.harness \
+  --bindings runtime/harness/examples/world-bindings.json \
+  --input runtime/harness/examples/world-episode.json --out .local/harness/world-episode
+```
+
+For this toy world, `world belief state action observation` assumes a hidden
+binary transition rule and 90% observation accuracy. It returns the next-bit
+probability, posterior rule belief and surprise in basis points. A separate
+Python simulator in `test_world.py` tests both hidden rules and a held-out next
+step. The `world` tool reads the task's observed bit, so a real deployment must
+obtain that bit from an independent environment rather than a model guess.
+Here `surprise_bps` means `10000 - P(observed bit)`; it is a bounded prediction
+error, not information-theoretic negative log likelihood. The prediction is
+computed from the prior before the observation updates the belief.
+The episode program uses `repeat 4 never tool world`; each tool call consumes
+the next environment-owned transition and passes its posterior into the next
+call. The example moves the rule-one belief from 5,000 to 9,998 basis points.
+Replay reconstructs the four effect requests without repeating the updates.
+Batch episode task files contain future observations, so preflight rejects any
+effect other than `tool:world` in those programs. A model-based episode needs a
+streaming environment binding that reveals the next observation only after its
+prediction; this batch fixture does not make that claim.
 
 ## Propose, compare, retain
 
@@ -181,13 +225,18 @@ python3 runtime/harness/run.py evolve \
   --program runtime/harness/examples/baseline.harness \
   --bindings runtime/harness/examples/bindings.json \
   --suite runtime/harness/examples/suite.json \
+  --holdout runtime/harness/examples/holdout.json \
   --rounds 2 --out .local/harness/evolution
 ```
 
 The result is `result.harness`; `frontier.json` links every round's proposal and
 comparison report. Rounds are capped at eight, and the result remains local until
 someone explicitly edits the repository. The fixed suite is development feedback,
-so acceptance on it is not evidence of transfer to unseen tasks.
+so acceptance on it is not evidence of transfer to unseen tasks. With `--holdout`,
+the driver rejects overlapping input cases, freezes the selected program, then
+measures baseline and selected programs once on the separate suite. The
+`holdout.json` report is never fed back into that evolution run. Repeatedly
+inspecting or selecting against that suite would turn it into development data.
 
 The evaluator compares the final value with each suite case's `expected` value,
 which is never passed to the effects. Scores are basis points (0..10,000).
@@ -204,8 +253,16 @@ strictly decrease. `compare` uses the baseline as the best score (or a higher
 noise allowance, and changed-line count as its edit budget. It does **not** run
 a leakage critic, calibrate noise, prune components, or perform stochastic
 annealing. Its suite score does not establish transfer to unseen tasks.
+See [PAPERS.md](PAPERS.md) for the exact RRSI and world-model comparison.
 
-Receipts bind source, program, bindings and suite digests. `run.json` records
+Receipts bind source, program, binding configuration and declared dependency bytes;
+comparison and holdout reports also bind suite bytes. A SHA-256 identifies an
+exact artifact for replay or cache reuse; it cannot establish the truth of an
+observation or correctness of the simulator. Bend's numeric event IDs are local
+labels, not hashes. The checked-in `runtime/evaluation/transfer-report.json`
+belongs to an older source snapshot and is historical evidence.
+
+`run.json` records
 intent before each external effect. Interrupted runs retain a pending request
 and cannot be replayed as completed runs or automatically retried: delivery may
 already have occurred. Replay verifies recorded control flow, not the truth of
@@ -218,9 +275,12 @@ source and recorded program, and performs no binding calls.
 
 ```sh
 BEND_NO_TELEMETRY=1 ~/.bend/bin/bend runtime/system.bend --check-only
-python3 -m unittest discover -s runtime/harness -p 'test_*.py' -v
+npm run check
 node --test runtime/worker/protocol.test.mjs runtime/lorenz/evaluate.test.mjs
 ```
+
+The `Verify Bend harness` GitHub workflow runs `npm run check` on harness and
+runtime changes with a SHA-256-checked Bend 2.0.21 archive.
 
 The older worker `claim → packet → return → learn` protocol remains in the same
 Bend file. See [META.md](../adaptive/META.md) for delegated task state and

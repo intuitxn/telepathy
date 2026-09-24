@@ -1,7 +1,8 @@
 # One repository, one Bend core
 
 The working harness is a program interpreted by `runtime/system.bend`. The same
-file contains candidate selection, worker claims and local correctable memory.
+file contains candidate selection, a finite latent-world experiment, worker claims
+and local correctable memory.
 Use the [harness guide](../harness/README.md) for runnable examples, the small DSL,
 its three equations, effect bindings and evaluation commands.
 
@@ -34,8 +35,10 @@ Bun. The build cache is local to this repository.
 decision; neither silently replaces the incumbent. `evolve` repeats these steps
 for at most eight rounds and keeps accepted edits in a local result file. The present
 selector is a conservative RRSI-inspired rule. Calibrated noise, leakage criticism,
-and held-out transfer gains remain unimplemented or unestablished.
-See the guide for exact score, cost and edit-count definitions.
+and transfer gains beyond a tiny example remain unestablished. An optional
+disjoint-input holdout is measured once after selection. See the
+[guide](../harness/README.md) for exact score, cost and edit-count definitions,
+and [paper-method comparison](../harness/PAPERS.md) for the world-model boundary.
 
 For delegated engineering work, use standard OpenCode `/meta agents` or the
 host's native task interface and the [worker protocol](META.md). A single

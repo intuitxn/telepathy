@@ -4,8 +4,9 @@
 (status projection, fold, retrieval graph/rank/route) plus the native Lorenz
 worker protocol (adaptive kernels, memory transitions, worker registration,
 claims, packets, reported results, explicit learning and loopback OpenCode
-delivery). SHA-256:
-`60dcbfaa46e09c34259c14f5884800c4c1a3c1aba80f16943f6512bf88577114`.
+delivery). Record the current source digest with
+`shasum -a 256 runtime/system.bend` when capturing new evidence; historical
+receipts retain the digest of the source they actually used.
 There are 78 named worker laws. Check them with the actual Bend compiler;
 their scope does not include correctness of arbitrary worker answers.
 

@@ -183,7 +183,40 @@ def load_bindings(path):
     config = json.loads(raw)
     if config.get("version") != 1 or not isinstance(config.get("effects"), dict):
         raise ValueError("bindings require version: 1 and an effects object")
-    return config, path.parent, digest(raw)
+    dependencies = set()
+    for key, binding in config["effects"].items():
+        if not isinstance(binding, dict):
+            raise ValueError(f"{key}: binding must be an object")
+        declared = binding.get("dependencies", [])
+        if not isinstance(declared, list) or not all(isinstance(name, str) for name in declared):
+            raise ValueError(f"{key}: dependencies must be a list of paths")
+        dependencies.update(declared)
+        if binding.get("kind") in ("file", "memory"):
+            name = binding.get("path")
+            if not isinstance(name, str):
+                raise ValueError(f"{key}: file binding requires a path")
+            dependencies.add(name)
+    files = {}
+    for name in sorted(dependencies):
+        file = (path.parent / name).resolve()
+        if not name or file == path or not file.is_file():
+            raise ValueError(f"binding dependency is not a file: {name}")
+        files[name] = file_digest(file)
+    identity = {"config_sha256": digest(raw), "dependencies": files}
+    binding_hash = digest(json.dumps(identity, sort_keys=True).encode())
+    config["_identity"] = {"path": str(path), "value": identity, "sha256": binding_hash}
+    return config, path.parent, binding_hash
+
+
+def check_bindings(config, directory, binding_hash):
+    identity = config.get("_identity")
+    if identity is None:
+        return  # Direct test bindings have no external config file.
+    if identity["sha256"] != binding_hash or digest(read(identity["path"])) != identity["value"]["config_sha256"]:
+        raise RuntimeError("bindings changed during execution")
+    for name, expected in identity["value"]["dependencies"].items():
+        if file_digest((directory / name).resolve()) != expected:
+            raise RuntimeError(f"binding dependency changed during execution: {name}")
 
 
 def expand(value, directory):
@@ -209,6 +242,27 @@ def effect(request, config, directory, task, observations, kernel, timeout):
         result = {"ok": True, "value": read(directory / binding["path"]).decode()}
     elif kind == "memory" and request["kind"] == "retrieve":
         result = {"ok": True, "value": kernel.call("memory", directory / binding["path"])}
+    elif kind == "world" and request["kind"] == "tool":
+        fields = ("belief_bps", "state_bit", "action_bit", "observed_bit")
+        if not isinstance(task, dict):
+            raise ValueError("world effect requires a task object")
+        previous = [item for item in observations if type(item.get("world_step")) is int]
+        if "transitions" in task:
+            transitions = task["transitions"]
+            if not isinstance(transitions, list) or not 1 <= len(transitions) <= 128:
+                raise ValueError("world episode requires 1..128 transitions")
+            if len(previous) >= len(transitions) or not isinstance(transitions[len(previous)], dict):
+                raise ValueError("world episode has no valid next transition")
+            if previous and transitions[len(previous)].get("state_bit") != transitions[len(previous) - 1].get("observed_bit"):
+                raise ValueError("world episode transitions are not a continuous observed chain")
+            current = {**transitions[len(previous)], "belief_bps":
+                       previous[-1]["value"]["posterior_rule_one_bps"] if previous else task.get("belief_bps")}
+        else:
+            current = task
+        if any(type(current.get(name)) is not int for name in fields):
+            raise ValueError("world effect requires integer belief_bps/state_bit/action_bit/observed_bit")
+        result = {"ok": True, "value": json.loads(kernel.call("world", *(current[name] for name in fields))),
+                  "world_step": len(previous)}
     elif kind == "json" and request["kind"] == "verify":
         required = binding.get("required", [])
         if not isinstance(required, list) or not all(isinstance(k, str) for k in required):
@@ -257,13 +311,19 @@ def effect(request, config, directory, task, observations, kernel, timeout):
 
 
 def run(kernel, program, config, directory, binding_hash, task, output, timeout=120):
-    kernel.validate(program, config)
+    validation = kernel.validate(program, config)
+    if isinstance(task, dict) and "transitions" in task:
+        if config["effects"].get("tool:world", {}).get("kind") != "world" or any(
+                item != {"kind": "tool", "ref": "world"} for item in validation["effects"]):
+            raise ValueError("batch world episodes require the Bend world binding only; future observations would leak")
+    check_bindings(config, directory, binding_hash)
     output = Path(output)
     output.mkdir(parents=True, exist_ok=False, mode=0o700)
     manifest = {"version": 1, "source_sha256": kernel.source_hash,
                 "bend": kernel.version, "backend": "bend-js", "engine": kernel.engine_version,
                 "check": kernel.check,
                 "program_sha256": digest(program.encode()), "bindings_sha256": binding_hash,
+                "binding_dependencies": config.get("_identity", {}).get("value", {}).get("dependencies", {}),
                 "program": program, "input": task, "observations": [], "effects": [], "status": "running"}
     save(output / "run.json", manifest)
     try:
@@ -278,7 +338,9 @@ def run(kernel, program, config, directory, binding_hash, task, output, timeout=
             # Persist intent before dispatch. Interrupted runs are inspectable, never auto-retried.
             manifest["pending"] = request
             save(output / "run.json", manifest)
+            check_bindings(config, directory, binding_hash)
             result = effect(request, config, directory, task, manifest["observations"], kernel, timeout)
+            check_bindings(config, directory, binding_hash)
             manifest["effects"].append(request)
             manifest["observations"].append(result)
             manifest.pop("pending")
@@ -459,6 +521,11 @@ def evolve(kernel, args):
         raise ValueError("rounds must be in 1..8")
     config, directory, binding_hash = load_bindings(args.bindings)
     suite, suite_hash = load_suite(args.suite)
+    holdout_path = getattr(args, "holdout", None)
+    holdout, holdout_hash = load_suite(holdout_path) if holdout_path else (None, None)
+    if holdout is not None:
+        if any(json_equal(dev["input"], held["input"]) for dev in suite for held in holdout):
+            raise ValueError("development and holdout suites share inputs")
     program = read(args.program).decode()
     kernel.validate(program, config)
     output = Path(args.out)
@@ -467,6 +534,7 @@ def evolve(kernel, args):
     current_file.write_text(program)
     frontier = {"version": 1, "status": "running", "source_sha256": kernel.source_hash,
                 "bindings_sha256": binding_hash, "suite_sha256": suite_hash,
+                "holdout_suite_sha256": holdout_hash,
                 "start_sha256": digest(program.encode()), "rounds_requested": args.rounds,
                 "history": []}
     save(output / "frontier.json", frontier)
@@ -514,8 +582,28 @@ def evolve(kernel, args):
             save(output / "frontier.json", frontier)
         result_path = output / "result.harness"
         result_path.write_bytes(read(current_file))
-        frontier["status"] = "done"
+        frontier["status"] = "selected"
         frontier["result"] = str(result_path)
+        save(output / "frontier.json", frontier)
+        if holdout is not None:
+            if load_bindings(args.bindings)[2] != binding_hash or load_suite(holdout_path)[1] != holdout_hash:
+                raise RuntimeError("bindings or holdout evaluator changed before transfer measurement")
+            (output / "holdout").mkdir()
+            transfer = {"baseline": evaluate_program(kernel, program, config, directory,
+                        binding_hash, holdout, output / "holdout/baseline", args.timeout),
+                        "selected": evaluate_program(kernel, read(result_path).decode(), config,
+                        directory, binding_hash, holdout, output / "holdout/selected", args.timeout)}
+            holdout_report = {"version": 1, "suite_sha256": holdout_hash,
+                              "bindings_sha256": binding_hash, "source_sha256": kernel.source_hash,
+                              "programs": {"baseline": digest(program.encode()),
+                                           "selected": digest(read(result_path))},
+                              "metrics": transfer, "cost_unit": "effects (rounded-up mean)",
+                              "scope": "one held-out measurement after development selection; not a new selection gate"}
+            save(output / "holdout.json", holdout_report)
+            frontier["holdout"] = {"report": str(output / "holdout.json"),
+                                   "baseline_score": transfer["baseline"]["score"],
+                                   "selected_score": transfer["selected"]["score"]}
+        frontier["status"] = "done"
         save(output / "frontier.json", frontier)
         return frontier
     except Exception as error:
@@ -560,6 +648,7 @@ def main():
     p = subs.add_parser("evolve", help="run bounded local proposal and selection rounds")
     for name in ("program", "bindings", "suite", "out"):
         p.add_argument("--" + name, required=True)
+    p.add_argument("--holdout", help="disjoint suite measured once after selection")
     p.add_argument("--rounds", type=int, default=1)
     p.add_argument("--edit-budget", type=int, default=16)
     p.add_argument("--delta", type=int, default=0)

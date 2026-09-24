@@ -5,7 +5,7 @@ Read it before proposing changes; recheck claims against the current source.
 
 ## Harness DSL run, 2026-09-24
 
-Canonical Bend source SHA256:
+Canonical Bend source SHA256 at the time of that run:
 `60dcbfaa46e09c34259c14f5884800c4c1a3c1aba80f16943f6512bf88577114`.
 The source passed Bend 2.0.21 `--check-only` with `All terms check.` The
 `runtime/harness/README.md` describes its language and exact local commands.
@@ -38,6 +38,37 @@ The cost measure is effect count, not policy tokens. No calibrated noise band,
 leakage critic, held-out transfer evaluation, component pruning or model
 weight update is established by these runs. Do not infer neural learning gains
 from the test double or from a single live answer.
+
+## Held-out and symbolic-world follow-up, 2026-09-24
+
+The consolidated source is now SHA256
+`8d53718f07c29b37cf8d09a74539ab70e1bc60f4e73f99b4bdb9020717c00d7d`.
+`npm run check` passed 12 Desk tests and 40 harness tests; the four worker/Lorenz
+regression tests passed against the checked, Bend-generated backend.
+The effect driver fingerprints declared binding dependencies and checks them
+around each effect. `evolve --holdout` rejects overlapping input cases and
+evaluates the frozen selected program only after the development rounds.
+These checks prevent a changed local script or overlapping examples from being
+mistaken for a fixed experiment; they do not authenticate external observations.
+In `.local/harness/evolution-holdout-20260924`, one live proposer round selected
+the two-attempt retry on the development suite (2/4 to 4/4) and measured the
+same 2/4 to 4/4 on four disjoint-input maximum fixtures, with mean effects 2
+to 3. This holdout uses the same task family and deterministic test double; it
+is not a broad out-of-distribution result.
+
+The same Bend file now contains a two-hypothesis binary-world filter. An
+independent simulator tests both hidden rules and a withheld fifth transition:
+after four observations, the posterior puts more than 99.9% on the simulator's
+rule and one-step Brier error is below 0.011, versus 0.25 from a 50/50 prior.
+The direct `tool world` example returned 50% prior prediction and 90% posterior
+after one observation in `.local/harness/world-20260924`.
+The four-transition DSL episode in `.local/harness/world-episode-20260924`
+carried the posterior through Bend's bounded `repeat`, ending at 9,998 basis
+points for rule one. This is within-episode belief updating, not persistent
+model-weight training.
+This is a symbolic latent-state update with a known observation model, not a
+trained neural dynamics model or evidence of general world understanding.
+See [PAPERS.md](../harness/PAPERS.md) for the method comparison and exact limits.
 
 ## Current direction: Buzz native, Bend executable logic
 

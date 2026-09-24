@@ -3624,6 +3624,77 @@ law selection_noise_requires_savings:
 def selection_noise_requires_savings():
   {==}
 
+# ---- finite latent-world experiment --------------------------------------
+# This is a symbolic two-hypothesis filter, not a trained neural world model.
+# The hidden rule r is 0 or 1. State, action and observation are bits; the
+# noiseless transition is (state + action + r) mod 2. Observations are assumed
+# correct with probability 9/10. Belief is P(r=1) in basis points.
+# CLI validation bounds every product below 900,000,000, within U32.
+def world_next(+state: U32, +action: U32, +rule: U32) -> U32:
+  U32.mod((state + action + rule : U32), 2)
+
+def world_likelihood(+prediction: U32, +observation: U32) -> U32:
+  Bool.pick(U32, U32.is_eq(prediction, observation), 9, 1)
+
+def world_probability_one(+belief: U32, +state: U32, +action: U32) -> U32:
+  rule_one_predicts_one = U32.is_eq(world_next(state, action, 1), 1)
+  +one_likelihood = Bool.pick(U32, rule_one_predicts_one, 9, 1)
+  zero_likelihood = (10 - one_likelihood : U32)
+  U32.div(((belief * one_likelihood : U32) + ((10000 - belief : U32) * zero_likelihood : U32) : U32), 10)
+
+def world_posterior(+belief: U32, +state: U32, +action: U32, +observation: U32) -> U32:
+  one_likelihood = world_likelihood(world_next(state, action, 1), observation)
+  zero_likelihood = world_likelihood(world_next(state, action, 0), observation)
+  +weighted_one = (belief * one_likelihood : U32)
+  weighted_zero = ((10000 - belief : U32) * zero_likelihood : U32)
+  U32.div((weighted_one * 10000 : U32), (weighted_one + weighted_zero : U32))
+
+def world_surprise(+probability_one: U32, +observation: U32) -> U32:
+  Bool.pick(U32, U32.is_eq(observation, 1), (10000 - probability_one : U32), probability_one)
+
+def world_output(+belief: U32, +state: U32, +action: U32, +observation: U32) -> String:
+  +probability_one = world_probability_one(belief, state, action)
+  posterior = world_posterior(belief, state, action, observation)
+  "{\"predicted_one_bps\":" ++ U32.show(probability_one) ++ ",\"posterior_rule_one_bps\":" ++ U32.show(posterior) ++ ",\"surprise_bps\":" ++ U32.show(world_surprise(probability_one, observation)) ++ "}"
+
+def world_emit(valid: Bool, +belief: U32, +state: U32, +action: U32, +observation: U32) -> IO(Unit):
+  match valid:
+    case True{}:
+      IO.print(world_output(belief, state, action, observation))
+    case False{}:
+      IO.die(Unit, 1, "invalid_world_step")
+
+def world_checked(+belief: U32, +state: U32, +action: U32, +observation: U32) -> IO(Unit):
+  world_emit(U32.is_le(belief, 10000) && U32.is_le(state, 1) && U32.is_le(action, 1) && U32.is_le(observation, 1), belief, state, action, observation)
+
+def world_parsed(parsed: Maybe<&2, +List<U32>>) -> IO(Unit):
+  match parsed:
+    case Some{[belief, state, action, observation]}:
+      world_checked(belief, state, action, observation)
+    case _:
+      IO.die(Unit, 1, "world requires four canonical integers: beliefBps stateBit actionBit observedBit")
+
+def world_cli(args: List<String>) -> IO(Unit):
+  world_parsed(selection_numbers(4n, args))
+
+law world_uninformed_prediction:
+  {world_probability_one(5000, 0, 0) == 5000 : U32}
+
+def world_uninformed_prediction():
+  {==}
+
+law world_evidence_updates_rule:
+  {world_posterior(5000, 0, 0, 1) == 9000 : U32}
+
+def world_evidence_updates_rule():
+  {==}
+
+law world_contradiction_restores_uncertainty:
+  {world_posterior(9000, 0, 0, 0) == 5000 : U32}
+
+def world_contradiction_restores_uncertainty():
+  {==}
+
 def harness_or_dispatch(check: Bool, select: Bool, dsl: Bool, system: Bool, +command: String, rest: List<String>, payload: String) -> IO(Unit):
   match check select dsl system:
     case True{} _ _ _:
@@ -3637,12 +3708,19 @@ def harness_or_dispatch(check: Bool, select: Bool, dsl: Bool, system: Bool, +com
     case _ _ _ _:
       lorenz_or_dispatch(String.eq(command, "lorenz"), String.eq(command, "record") || String.eq(command, "replay"), String.eq(command, "max"), command, rest, payload)
 
+def world_or_dispatch(world: Bool, check: Bool, select: Bool, dsl: Bool, system: Bool, +command: String, rest: List<String>, payload: String) -> IO(Unit):
+  match world:
+    case True{}:
+      world_cli(rest)
+    case False{}:
+      harness_or_dispatch(check, select, dsl, system, command, rest, payload)
+
 def lorenz_or_adaptive(args: List<String>, payload: String) -> IO(Unit):
   match args:
     case Nil{}:
       store_dispatch([], payload)
     case Con{+command, rest}:
-      harness_or_dispatch(String.eq(command, "dsl-check"), String.eq(command, "select"), String.eq(command, "dsl"), String.eq(command, "system"), command, rest, payload)
+      world_or_dispatch(String.eq(command, "world"), String.eq(command, "dsl-check"), String.eq(command, "select"), String.eq(command, "dsl"), String.eq(command, "system"), command, rest, payload)
 
 def lorenz_fixture() -> +List<LorenzEvent>:
   [LorenzEvent{1n, 1n, 0n, 0n, 0n, "operator", "conversation:example", "question", "-", "-"}, LorenzEvent{2n, 2n, 1n, 0n, 0n, "agent", "conversation:example", "premise", "-", "-"}, LorenzEvent{2n, 3n, 1n, 2n, 0n, "agent", "conversation:example", "direct", "-", "-"}, LorenzEvent{2n, 4n, 1n, 3n, 0n, "agent", "conversation:example", "transitive", "-", "-"}]
