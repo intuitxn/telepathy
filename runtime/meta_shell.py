@@ -679,6 +679,40 @@ def client(state: Path, port: int, method: str, params=None):
         raise RuntimeError(exc.read().decode()) from exc
 
 
+RELAY_METHODS = {"status", "submit", "task", "workspace", "diff"}
+
+
+def relay_request(state: Path, port: int, payload: dict):
+    """Forward one SSH-authenticated stdio request to the local loopback node."""
+    if not isinstance(payload, dict) or payload.get("method") not in RELAY_METHODS:
+        raise ValueError("Relay method is not allowed")
+    params = payload.get("params", {})
+    if not isinstance(params, dict):
+        raise ValueError("Relay params must be an object")
+    if payload["method"] == "submit" and not params.get("request_id"):
+        raise ValueError("Relay submissions require a stable request_id for safe retry")
+    return client(state, port, payload["method"], params)
+
+
+def remote_request(host: str, method: str, params: dict):
+    """Use host-key-checked SSH; task content travels on stdin, never argv."""
+    if not re.fullmatch(r"[A-Za-z0-9_.@-]+", host) or host.startswith("-"):
+        raise ValueError("Remote host must be a safe SSH alias or user@host")
+    if method not in RELAY_METHODS or not isinstance(params, dict):
+        raise ValueError("Remote method or params are invalid")
+    if method == "submit" and not params.get("request_id"):
+        raise ValueError("Remote submissions require a stable request_id for safe retry")
+    payload = json.dumps({"method": method, "params": params})
+    if len(payload) > 100_000:
+        raise ValueError("Remote request is too large")
+    result = subprocess.run(["ssh", "-T", "-o", "BatchMode=yes", "-o", "ConnectTimeout=10",
+                             host, "~/.local/bin/meta", "relay-stdio"],
+                            input=payload, text=True, capture_output=True, timeout=180)
+    if result.returncode:
+        raise RuntimeError("SSH relay failed: " + result.stderr[-1500:])
+    return json.loads(result.stdout)
+
+
 def launch_args(args):
     command = [sys.executable, str(Path(__file__).resolve()), "--state", str(args.state),
                "--port", str(args.port), "--source", str(args.source), "--bend", args.bend,
@@ -814,6 +848,11 @@ def main():
     subs = parser.add_subparsers(dest="command")
     for name in ["serve", "start", "stop", "status", "list", "install"]:
         subs.add_parser(name)
+    subs.add_parser("relay-stdio")
+    remote = subs.add_parser("remote")
+    remote.add_argument("host")
+    remote.add_argument("method", choices=sorted(RELAY_METHODS))
+    remote.add_argument("--input", type=Path, help="JSON params file; otherwise read stdin")
     shell = subs.add_parser("shell")
     shell.add_argument("--project", default=os.getcwd())
     shell.add_argument("--conversation", default="local:default")
@@ -852,6 +891,22 @@ def main():
             server.run()
         finally:
             terminate_child_groups()
+        return
+    if args.command == "relay-stdio":
+        raw = sys.stdin.buffer.read(100_001)
+        if len(raw) > 100_000:
+            raise ValueError("Relay request is too large")
+        print(json.dumps(relay_request(args.state, args.port, json.loads(raw))))
+        return
+    if args.command == "remote":
+        if args.method == "status":
+            params = {}
+        else:
+            raw = args.input.read_text() if args.input else sys.stdin.read(100_001)
+            if len(raw) > 100_000:
+                raise ValueError("Remote request is too large")
+            params = json.loads(raw)
+        print(json.dumps(remote_request(args.host, args.method, params), indent=2))
         return
     if args.command == "install":
         install(args)

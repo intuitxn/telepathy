@@ -132,6 +132,31 @@ The node supplies this connection to its own ACP worker automatically. Its
 listener binds loopback and rejects missing authentication and browser Origin
 headers. This does not isolate the executing agent from the user's filesystem.
 
+## On-demand SSH relay
+
+Each device keeps its MCP/API listener on loopback. When the other device has an
+SSH account and the `meta` launcher installed, use an existing SSH host alias
+(for example one backed by a private mesh network):
+
+```sh
+meta remote peer-mac status
+meta remote peer-mac submit --input ./private-task-params.json
+meta remote peer-mac task --input ./task-id.json
+```
+
+The submit input is a JSON object with `task`, remote `project`, `acceptance`,
+`conversation`, and a stable `request_id`; the task-id file is `{"id":"..."}`.
+Keep these files private. Task content travels on SSH stdin, not in process
+arguments. SSH verifies the peer's host key and account; `BatchMode=yes` avoids
+interactive password fallback. The fixed remote command invokes that device's
+installed `meta relay-stdio`, which forwards one request to its local node using
+its private token. Only `status`, `submit`, `task`, `workspace`, and `diff` can
+cross this relay. Integration, retirement, shutdown and direct kernel mutation
+remain local operations. A remote submission is queued; poll the returned ID
+to learn its result. There is no cross-device scheduler, discovery service, or
+consensus claim. A changing network address can be handled by the SSH alias;
+the node itself does not bind a public interface.
+
 ## Private state and macOS service
 
 Default state is `~/.local/state/intuitxn-meta/`:

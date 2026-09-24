@@ -31,6 +31,27 @@ class AgentTextTests(unittest.TestCase):
         self.assertEqual(meta_shell.agent_text(parts, is_codex=False), notice + "META_V1_UPGRADE_OK")
 
 
+class RelayTests(unittest.TestCase):
+    def test_remote_task_content_uses_ssh_stdin_and_stable_request_id(self):
+        with patch("meta_shell.subprocess.run", return_value=SimpleNamespace(
+                returncode=0, stdout='{"id":"job"}', stderr="")) as invoked:
+            result = meta_shell.remote_request("peer-mac", "submit", {
+                "task": "private task", "project": "/tmp/project", "request_id": "once"})
+        self.assertEqual(result, {"id": "job"})
+        args, kwargs = invoked.call_args
+        self.assertNotIn("private task", " ".join(args[0]))
+        self.assertIn("private task", kwargs["input"])
+        self.assertIn("BatchMode=yes", args[0])
+
+    def test_relay_does_not_expose_mutating_workspace_actions(self):
+        with self.assertRaisesRegex(ValueError, "not allowed"):
+            meta_shell.relay_request(Path("/tmp"), 1, {"method": "integrate", "params": {}})
+        with self.assertRaisesRegex(ValueError, "request_id"):
+            meta_shell.remote_request("peer-mac", "submit", {"task": "retry risk"})
+        with self.assertRaisesRegex(ValueError, "host"):
+            meta_shell.remote_request("-oBad", "status", {})
+
+
 class ControlledNode(meta_shell.Node):
     def __init__(self, state):
         super().__init__(state, Path(__file__).with_name("system.bend"), "unused-bend", "unused-opencode")

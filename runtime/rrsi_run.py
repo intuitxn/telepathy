@@ -95,9 +95,13 @@ def checkout(repo: Path, revision: str, target: Path):
     name = "rrsi-" + uuid.uuid4().hex[:12]
     command("jj", "--no-pager", "workspace", "add", "--name", name,
             "-r", revision, str(target), cwd=repo)
-    actual = command("jj", "--no-pager", "log", "-r", "@", "--no-graph", "-T", "commit_id", cwd=target).strip()
-    if actual != revision:
-        raise RuntimeError("jj workspace revision differs from requested commit")
+    # jj creates a new empty working change above the requested immutable base.
+    actual = command("jj", "--no-pager", "log", "-r", "@-", "--no-graph", "-T", "commit_id", cwd=target).strip()
+    empty = command("jj", "--no-pager", "log", "-r", "@", "--no-graph", "-T", "empty", cwd=target).strip()
+    if actual != revision or empty != "true":
+        subprocess.run(["jj", "--no-pager", "--ignore-working-copy", "workspace", "forget", name],
+                       cwd=repo, capture_output=True)
+        raise RuntimeError("jj workspace is not an empty child of the requested commit")
     return name
 
 
@@ -225,7 +229,7 @@ def run(args):
                     args.incumbent, "--to", args.candidate, "--git", cwd=repo)
     patch_hash = hashlib.sha256(patch.encode()).hexdigest()
     critic = json.loads(args.critic.read_text())
-    if (critic.get("revision") != args.candidate or critic.get("diff_sha256") != patch_hash
+    if (not isinstance(critic, dict) or critic.get("revision") != args.candidate or critic.get("diff_sha256") != patch_hash
             or critic.get("passed") is not True or not critic.get("evidence")):
         raise ValueError("pre-score critic must approve the exact candidate diff")
     edits = json.loads(args.edits.read_text())

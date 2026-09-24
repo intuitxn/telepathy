@@ -1,11 +1,12 @@
 import json
 from pathlib import Path
+import subprocess
 import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from rrsi_run import digest_tree, load_suite, run, token_usage
+from rrsi_run import checkout, digest_tree, load_suite, run, token_usage
 
 
 class RRSIRunnerTests(unittest.TestCase):
@@ -72,6 +73,24 @@ class RRSIRunnerTests(unittest.TestCase):
             events.write_text(json.dumps({"kind": "completed", "response": {
                 "usage": {"totalTokens": 42}}}) + "\n")
             self.assertEqual(token_usage(SimpleNamespace(state=root), {"id": "job"}), 42)
+
+    def test_checkout_uses_empty_child_of_pinned_commit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo = root / "repo"
+            repo.mkdir()
+            subprocess.run(["jj", "git", "init"], cwd=repo, check=True, capture_output=True)
+            (repo / "source.txt").write_text("fixed\n")
+            subprocess.run(["jj", "describe", "-m", "base"], cwd=repo, check=True, capture_output=True)
+            revision = subprocess.run(["jj", "log", "-r", "@", "--no-graph", "-T", "commit_id"],
+                                      cwd=repo, check=True, capture_output=True, text=True).stdout.strip()
+            target = root / "candidate"
+            name = checkout(repo, revision, target)
+            try:
+                self.assertEqual((target / "source.txt").read_text(), "fixed\n")
+            finally:
+                subprocess.run(["jj", "--ignore-working-copy", "workspace", "forget", name],
+                               cwd=repo, check=True, capture_output=True)
 
 
 if __name__ == "__main__":

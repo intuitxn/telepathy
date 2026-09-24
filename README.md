@@ -12,7 +12,7 @@ terminal / local MCP
   agent program  -- typed plan (one node task)
 ```
 
-The live node is local only. It does not provide cross-device scheduling, global consensus, neural-weight training, or proof that an agent's answer is correct. Its MCP endpoint is authenticated and bound to loopback. Model judgments are advisory; actual effects remain subject to the host and operator authority. See [the meta shell](runtime/META_SHELL.md) for setup and recovery, [the agent language](docs/designs/agent-program-language.md) for syntax and its limits, and [the Bend kernel](runtime/worker/README.md) for the checked contract.
+The node's MCP endpoint is authenticated and bound to loopback; an optional SSH relay can forward explicit requests to another installed node. There is no cross-device scheduler, global consensus, neural-weight training, or proof that an agent's answer is correct. Model judgments are advisory; actual effects remain subject to the host and operator authority. See [the meta shell](runtime/META_SHELL.md) for setup and recovery, [the agent language](docs/designs/agent-program-language.md) for syntax and its limits, and [the Bend kernel](runtime/worker/README.md) for the checked contract.
 
 [RRSI candidate review](docs/designs/rrsi.md) runs a measured incumbent/candidate round in temporary node instances and applies an evidence-based admission gate. Recursive proposal, independent criticism and promotion are not running in the resident node.
 
