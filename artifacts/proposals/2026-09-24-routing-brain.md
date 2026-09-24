@@ -15,7 +15,7 @@ One record per node. Gossiped as a CRDT (LWW-map, see Merge below). Owner writes
 |---|---|---|---|
 | `node` | string | yes (key) | fleet name, e.g. `a3fckx-mini` (MagicDNS == identity) |
 | `offers` | string[] | yes | capability tokens, e.g. `agent`, `ml.embed`, `ml.train`, `gpu.a40`, `storage` |
-| `access` | object | yes | how to reach it: `{mesh: "http://a3fckx-mini:4096"}` and/or `{ssh: "mi300x"}` |
+| `access` | object | yes | how to reach it: `{mesh: "http://a3fckx-mini:4096"}` and/or `{ssh: "<ssh-host>"}` |
 | `price` | map kind→float | yes | static base cost per job kind (market-lite ask); absent = default |
 | `lamport` | int | yes | Lamport stamp of this record version |
 | `src` | string | yes | `node` id of writer (== key under owner-writes-own) |
@@ -24,13 +24,13 @@ One record per node. Gossiped as a CRDT (LWW-map, see Merge below). Owner writes
 ```json
 {"node":"a3fckx-mini","offers":["agent"],"access":{"mesh":"http://a3fckx-mini:4096"},
  "price":{"default":10},"lamport":41,"src":"a3fckx-mini"}
-{"node":"mi300x","offers":["ml.embed","ml.train","gpu.mi300x"],"access":{"ssh":"mi300x"},
- "price":{"ml.embed":2,"ml.train":5,"default":50},"lamport":18,"src":"mi300x"}
+{"node":"gpu-box","offers":["ml.embed","ml.train","gpu"],"access":{"ssh":"<ssh-host>"},
+ "price":{"ml.embed":2,"ml.train":5,"default":50},"lamport":18,"src":"gpu-box"}
 {"node":"a3fckx-air","offers":["agent","route"],"access":{"mesh":"http://a3fckx-air:4096"},
  "price":{"default":10},"lamport":63,"src":"a3fckx-air"}
 ```
 
-*Note: `access` advertises intent; reachability is verified live (`401`), never assumed. The air URL above is post-Phase-0 — today air answers `000` via tailnet.*
+*Note: `access` advertises intent; reachability is verified live (`200-open` post-Phase-0 — today's `401` is mini's password, cleared in Phase 0), never assumed. The air URL above is post-Phase-0 — today air answers `000` via tailnet. The gpu-box entry is aspirational (no GPU hardware live) — it shows the `access:{ssh}` shape. Live fleet: air + mini; routing decides per job among whoever is up.*
 
 **Merge (LWW-map):** per key, winner = `max` by `(lamport, node)` lexicographic. Identical on all replicas. Tombstone (`offers:["gone"]`) retires; a later live stamp resurrects. Owner-writes-own keeps conflicts rare; the rule settles the rest.
 

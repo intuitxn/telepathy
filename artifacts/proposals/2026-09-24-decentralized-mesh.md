@@ -9,9 +9,9 @@
 
 ## 0. Problem
 
-The resident service is live but loopback-only; telepathy is single-host; the fleet (tailnet: air + mini online; pro, iphone, mem offline; SSH tier: runpod, mi300x, lightning, dashboard) has no shared execution plane. Prior design centered a relay (Buzz/Nostr) for rendezvous, identity, and memory — but the mesh already has transport (Tailscale/WireGuard), discovery (`tailscale status` + MagicDNS + `:4096`→401), execution (`opencode serve` + `run --attach`/`prompt_async`), mobility (`export`/`import`, `share`), and files (Taildrop, git). No relay is required for agents to stay live and work together. The missing pieces are: per-node serving config, a gossip-carried directory + job board + membership, agent-decided routing, and the standing policy agents run on.
+The resident service is live but loopback-only; telepathy is single-host; the fleet (tailnet: air + mini online; pro, iphone, mem offline; SSH tier: runpod, mi300x, lightning, dashboard — config-known, presently offline) has no shared execution plane. Prior design centered a relay (Buzz/Nostr) for rendezvous, identity, and memory — but the mesh already has transport (Tailscale/WireGuard), discovery (`tailscale status` + MagicDNS + `:4096`→200-open post-Phase-0), execution (`opencode serve` + `run --attach`/`prompt_async`), mobility (`export`/`import`, `share`), and files (Taildrop, git). No relay is required for agents to stay live and work together. The missing pieces are: per-node serving config, a gossip-carried directory + job board + membership, agent-decided routing, and the standing policy agents run on.
 
-**Measured baseline (2026-09-24):** air answers `200` + open HTML on loopback `:4096` (no password set) and `000` via tailnet (loopback bind) — reachable-but-open locally, unreachable remotely. Mini answers `401` over tailnet (password set). Phase 0's first act is password-before-bind on air: no `0.0.0.0` until a password is set and verified.
+**Measured baseline (2026-09-24):** air answers `200` + open HTML on loopback `:4096` (no password set) and `000` via tailnet (loopback bind) — reachable-but-open locally, unreachable remotely. Mini answers `401` over tailnet (password set — cleared in Phase 0). Phase 0's first act is binding air's Tailscale IP with no password: tailnet-only serve, never LAN-exposed.
 
 ## 1. Outcome and owning scope
 
@@ -32,14 +32,14 @@ The resident service is live but loopback-only; telepathy is single-host; the fl
 1. **Gossip + CRDT + SWIM-lite** (the load-bearer): directory (LWW-map), job board (claim-once LWW), membership (SWIM incarnations) ride one 1s tick over the tailnet. Equations: `s_{t+1} = s_t·e^{−f(1−s_t)}`, `T(n) = log_{f+1}(n) + (1/f)·ln(n)` → n=5 converges in ~2–3 rounds. Lamport `(C, node)` stamps order everything; monotonic clock paces everything. Merge laws (idempotent/commutative/associative) are the convergence proof.
 2. **Agent-decided routing** (spec companion): classify (declared > inferred > learned) → route by π(job,cands;θ) → observe and feed back. No scheduler; learned policy routes the work.
 3. **Mobile sessions**: `export --sanitize` → Taildrop/`cp` → `import` → continue (mesh-internal); `share` → link (human/cross-trust). Agents relocate to hardware; bounded steps delegate instead.
-4. **Self-managing nodes**: KeepAlive + on-start self-sync (git pull config, version check) + bounded execution + checkpoints. Five-property node contract (§4).
+4. **Self-managing nodes**: KeepAlive + on-start self-sync (git pull config, version check) + bounded execution + checkpoints. Five-property node contract (Phase 0, §3).
 5. **Mesh + SSH one table**: capability records carry `access:{mesh|ssh}`; `run --attach`/`prompt_async` for mesh, `ssh <host> '<cmd>'` for bounded SSH compute, tunnel for SSH sessions. Promotion ladder: ssh-only → tunnel → `tailscale up` + serve.
 
 **Held, not built:** Nostr-anywhere (needs cross-trust users + signer custody), split inference/Petals-style (needs link proof), scheduler/queues (needs proven contention).
 
 ## 3. Phased plan (ordered, with rationale)
 
-Order is dependency-forced: serve before discovery can see you (§0); directory before routing has addresses (§1); claims before work is safe (§2); routing brain before autonomy is safe (§3); mobility + learning last, on top of a working plane (§4).
+Order is dependency-forced: serve before discovery can see you (Phase 0); directory before routing has addresses (Phase 1); claims before work is safe (Phase 2); routing brain before autonomy is safe (Phase 3); mobility + learning last, on top of a working plane (Phase 4).
 
 ### Phase 0 — Node contract + serve (gates on Q3; Q4 resolved passwordless)
 
@@ -79,7 +79,7 @@ Order is dependency-forced: serve before discovery can see you (§0); directory 
 
 **Smallest change.** Claim-once job records on the board; mesh adapter (`run --attach`/`prompt_async`) and SSH adapter (`ssh <host>`) behind one `dispatch(target, job)`; result acceptance re-checks the stamped winner. Placement here uses static `price` from capability records only — learned router weights θ arrive in Phase 3.
 
-**Acceptance.** Replay a job twice → one row, one executor; unsigned/unknown caller rejected (password + tailnet membership); an SSH-only and a mesh target compete — winner by π (sample/argmax; cold-start prior = price), mechanism follows `access`; thread root + origin stamp travel with the job. Rollback: dispatch flag off; local-only.
+**Acceptance.** Replay a job twice → one row, one executor; unsigned/unknown caller rejected (tailnet membership — callers not on the tailnet); an SSH-only and a mesh target compete — winner by π (sample/argmax; cold-start prior = price), mechanism follows `access`; thread root + origin stamp travel with the job. Rollback: dispatch flag off; local-only.
 
 ### Phase 3 — Routing brain live (classify → route → observe)
 
@@ -101,7 +101,8 @@ Order is dependency-forced: serve before discovery can see you (§0); directory 
 - **State stays local; events travel.** Sessions, mailboxes, worktrees live where owned. What moves: job requests, results, session JSON, config/lessons, files. No shared mutable state, no distributed lock.
 - **Secrets never move.** Sanitize-by-default on export/share; never-share list enforced in policy; agents carry no keys across nodes.
 - **One owner per mutable record.** Directory record: owning node. Job row: claiming node. Lesson: accepting scope. Cost tables: merge by rule, dispute by evidence.
-- **mDNS is LAN convenience, not mesh reachability.** Tailnet reachability = bind + password. `mdns:true` advertises `_http._tcp` on the local subnet only; MagicDNS names resolve regardless. Never gate mesh acceptance on mDNS.
+- **Pieces compile realtime; routing is per job.** Code ships as digest-pinned bundles and compiles at use on the target — nodes are stateless w.r.t. code, so no prebuilt per-device images and no static placement. Each job carries its needs; routing resolves `needs ⊆ offers` fresh per job among live nodes. A returning node needs nothing but the digest to serve.
+- **mDNS is LAN convenience, not mesh reachability.** Tailnet reachability = bind (Tailscale IP only) + tailnet membership, no password by decision. `mdns:true` advertises `_http._tcp` on the local subnet only; MagicDNS names resolve regardless. Never gate mesh acceptance on mDNS.
 
 ## 5. Open questions and labeled guesses
 

@@ -4,7 +4,7 @@
 **Date:** 2026-09-24 · **Owner:** Shubham
 **Companion to:** `2026-09-24-routing-brain.md` (kinds / needs / router vocabulary)
 
-**Fleet (as given):** tailnet (`a3fckx-air`, `a3fckx-mini` online) + SSH tier (`runpod`, `mi300x`, `lightning`, `dashboard` in `~/.ssh/config`). `opencode serve :4096` per mesh node, passwordless (perimeter = tailnet membership; username mapping deferred). Moves via `export --sanitize` / `import` / `share: manual`. Files via Taildrop + git. Routing via gossip directory + capability records with `access:{mesh|ssh}`.
+**Fleet (as given):** tailnet (`a3fckx-air`, `a3fckx-mini` online) + SSH tier (`runpod`, `mi300x`, `lightning`, `dashboard` in `~/.ssh/config` — config-known, presently offline). `opencode serve :4096` per mesh node, passwordless (perimeter = tailnet membership; username mapping deferred). Moves via `export --sanitize` / `import` / `share: manual`. Files via Taildrop + git. Routing via gossip directory + capability records with `access:{mesh|ssh}`.
 
 ---
 
