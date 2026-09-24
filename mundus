@@ -31,6 +31,7 @@ Separate experimental planner/retrieval state (not worker execution):
 Host utilities:
   op list|run ...             checked operation driver
   guard check|snapshot|verify ...
+  memory sync|ls|get|ensure ...  Buzz memory mirror (scripts/memory-sync.sh)
   help
 
 Snapshots stay under ROOT/snapshots; ROOT/head selects the immutable current
@@ -43,7 +44,12 @@ case "$verb" in
     help|-h|--help) usage; exit 0 ;;
     op) shift; exec "$SELF_DIR/runtime/ops/run.sh" "$@" ;;
     guard) shift; exec "$SELF_DIR/scripts/durability-guard.sh" "$@" ;;
-    init|capture|work|worker|claim|packet|return|learn|remember|correct|history|memory|status|explain|opencode)
+    memory)
+        case "${2:-}" in
+            sync|ls|get|ensure|help) shift; exec "$SELF_DIR/scripts/memory-sync.sh" "$@" ;;
+            *) exec "$SELF_DIR/runtime/worker/run.sh" "$@" ;;
+        esac ;;
+    init|capture|work|worker|claim|packet|return|learn|remember|correct|history|status|explain|opencode)
         exec "$SELF_DIR/runtime/worker/run.sh" "$@" ;;
     plan|retrieve|path)
         [ "$#" -ge 2 ] || { usage >&2; exit 64; }

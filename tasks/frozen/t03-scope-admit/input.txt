@@ -1,0 +1,9 @@
+read:memory
+compute:kernel
+write:memory
+read:admin
+compute:root
+read:
+exec:kernel
+compute:mundus-1
+read:UPPER

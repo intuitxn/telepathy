@@ -32,6 +32,7 @@ Use the native Lorenz worker through one host entry point:
 | `path <root> <verb>` | print the experimental kernel slot path |
 | `op <args...>` | delegate to `runtime/ops/run.sh` |
 | `guard <args...>` | delegate to `scripts/durability-guard.sh` |
+| `memory sync\|ls\|get\|ensure <root> [slug]` | mirror Buzz memory to `<root>/memory.in` + `<root>/memory/` via `scripts/memory-sync.sh` |
 | `help` | print supported host commands and arguments |
 
 The shell creates private directories, acquires a local writer lock, freezes and

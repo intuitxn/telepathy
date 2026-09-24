@@ -1,0 +1,4 @@
+engram.alpha=42
+kernel.mundus=ok
+scope.default=read
+policy.version=3
