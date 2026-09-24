@@ -62,6 +62,12 @@ meta kernel TASK_ID memory
 meta stop
 ```
 
+`meta improve` runs the bounded [RRSI program](../docs/designs/rrsi.md)
+through this resident node. It requires pinned incumbent and private evolve and
+held-out suites; it records feedback and may advance a private loop incumbent,
+but does not integrate or deploy a candidate. Run `meta improve --help` for its
+arguments.
+
 Replace `TASK_ID` with the returned ID. Reusing a request ID with identical
 input returns the existing task; conflicting input is rejected. `reported`
 means an agent result was recorded, not independent acceptance or learned

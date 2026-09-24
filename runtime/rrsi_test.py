@@ -66,6 +66,16 @@ class RRSISelectionTests(unittest.TestCase):
         row["history"] = [{"component": "memory", "accepted": True}]
         self.assertFalse(assess(row)["admissible"])
 
+    def test_small_cost_saving_inside_repeat_band_is_not_admitted(self):
+        row = evidence()
+        row["candidate_trials"] = copy.deepcopy(row["incumbent_trials"])
+        for trial in row["candidate_trials"]:
+            trial["tokens"] = 95
+        row["cost_noise"] = 0.06
+        self.assertFalse(assess(row)["admissible"])
+        row["cost_noise"] = 0.04
+        self.assertTrue(assess(row)["admissible"])
+
     def test_best_score_floor_prevents_cumulative_slippage(self):
         row = evidence()
         row["best_score"] = 1.0

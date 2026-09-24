@@ -872,9 +872,23 @@ def main():
         if name == "kernel":
             sub.add_argument("operation", nargs="?", default="history", choices=["history", "memory", "packet"])
     subs.add_parser("mcp-config")
+    improve = subs.add_parser("improve", help="run bounded typed RRSI rounds through this resident node")
+    from rrsi_loop import add_arguments as add_improvement_arguments
+    add_improvement_arguments(improve, inherited_node_options=True)
     args = parser.parse_args()
     args.state, args.source = args.state.expanduser().resolve(), args.source.expanduser().resolve()
     args.command = args.command or "shell"
+    if args.command == "improve":
+        from rrsi_loop import run_loop
+        if not args.model:
+            parser.error("improve requires the resident node's explicit --model")
+        try:
+            outcome = run_loop(args)
+        except (OSError, ValueError, RuntimeError, TimeoutError, subprocess.TimeoutExpired) as exc:
+            parser.error(str(exc))
+        print(json.dumps({"selected_incumbent": outcome["selected_incumbent"],
+                          "rounds": outcome["rounds"], "evidence": str(args.out / "summary.json")}, indent=2))
+        return
     if args.command == "serve":
         import uvicorn
         node = Node(args.state, args.source, args.bend, args.acp_agent, args.model)

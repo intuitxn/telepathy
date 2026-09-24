@@ -68,6 +68,7 @@ def assess(record):
     if incumbent["tokens"] <= 0:
         raise ValueError("incumbent token cost must be positive")
     noise = number(record.get("noise"), "noise", minimum=0, maximum=1)
+    cost_noise = number(record.get("cost_noise", 0), "cost_noise", minimum=0)
     best = number(record.get("best_score"), "best_score", minimum=0, maximum=1)
     if best + 1e-12 < incumbent["score"]:
         raise ValueError("best_score cannot be below the current incumbent")
@@ -94,7 +95,7 @@ def assess(record):
     delta_cost = (candidate["tokens"] - incumbent["tokens"]) / incumbent["tokens"]
     result = {"revision": revision, "incumbent_revision": incumbent_revision,
               "incumbent": incumbent, "candidate": candidate,
-              "noise": noise, "best_score": best, "score_change": delta_score,
+              "noise": noise, "cost_noise": cost_noise, "best_score": best, "score_change": delta_score,
               "relative_token_change": delta_cost, "edit_budget": limit,
               "edit_count": len(edits), "structural_novelty": novelty,
               "admissible": False, "reason": ""}
@@ -122,7 +123,10 @@ def assess(record):
         ws = number(weights.get("score", 0), "within_band.score", minimum=0)
         wc = number(weights.get("cost", 1), "within_band.cost", minimum=0)
         wn = number(weights.get("novelty", 0), "within_band.novelty", minimum=0)
-        shaped = ws * delta_score - wc * delta_cost + wn * novelty
+        # A small token saving can arise from ordinary run-to-run variation.
+        # Credit only the portion beyond the unchanged-incumbent cost band.
+        cost_credit = max(0, -delta_cost - cost_noise) if delta_cost < 0 else -delta_cost
+        shaped = ws * delta_score + wc * cost_credit + wn * novelty
         result["within_band_value"] = shaped
         if shaped > 0:
             result.update(admissible=True, reason="within-noise cost/novelty rule passes")

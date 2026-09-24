@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import hashlib
 import json
+import math
 import re
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,8 @@ SCHEMA = "agent.program/v0"
 FIELD_TYPES = frozenset({"string", "string[]", "int", "bool", "number", "json"})
 EFFECT_KINDS = frozenset({"read", "write", "command", "network", "submit", "publish"})
 DECISION_TYPES = frozenset({"Choice", "Noul", "Score"})
+RRSI_GUARDS = frozenset({"scoped_diff", "critic_exact_diff", "measured_trials",
+                          "rrsi_admission", "heldout_nonregression"})
 
 _NAME_RE = re.compile(r"[A-Za-z][A-Za-z0-9_]{0,63}")
 _SEMVER_RE = re.compile(r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)")
@@ -49,7 +52,7 @@ def compile_source(source: str | bytes, *, source_name: str = "<memory>") -> Pro
     text = _normalize(source)
     raw = _parse_program(text)
 
-    _reject_unknown(raw, {"schema", "program_version", "name", "description", "inputs", "effects", "steps", "decisions"}, "top")
+    _reject_unknown(raw, {"schema", "program_version", "name", "description", "inputs", "effects", "steps", "decisions", "policy"}, "top")
     _require(raw, "schema", str)
     _require(raw, "program_version", str)
     _require(raw, "name", str)
@@ -67,6 +70,7 @@ def compile_source(source: str | bytes, *, source_name: str = "<memory>") -> Pro
     decisions = _parse_decisions(raw.get("decisions", {}))
     steps = _parse_steps(raw.get("steps"), effects, decisions)
     _check_references(inputs, steps, decisions)
+    policy = _parse_policy(raw.get("policy"), steps)
 
     canonical_source = _canonical_source(text)
     plan: dict[str, Any] = {
@@ -81,13 +85,14 @@ def compile_source(source: str | bytes, *, source_name: str = "<memory>") -> Pro
         "effects": effects,
         "steps": steps,
         "decisions": decisions,
+        "policy": policy,
         "advisory_boundary": (
             "Decision outputs are advisory data. They do not prove safety or correctness "
             "and do not grant effects beyond each step's explicit allowed_effects."
         ),
         "runtime": {
-            "bridge": "runtime/meta_shell.py",
-            "mode": "single existing meta-shell submission",
+            "bridge": "runtime/rrsi_loop.py" if policy else "runtime/meta_shell.py",
+            "mode": "bounded RRSI protocol through resident meta" if policy else "single existing meta-shell submission",
             "persistent_runtime": "none added",
         },
     }
@@ -186,6 +191,14 @@ def _parse_program(source: str) -> dict[str, Any]:
                 _set_once(current, "max", _number_literal(match[2], number), number)
             elif current_kind == "decision" and key == "rubric":
                 _set_once(current, "rubric", _quoted(value, number), number)
+            elif current_kind == "policy" and key == "allow_path":
+                current.setdefault("allow_paths", []).append(_quoted(value, number))
+            elif current_kind == "policy" and key == "require":
+                _set_once(current, "guards", _names(value), number)
+            elif current_kind == "policy" and key == "promotion":
+                _set_once(current, "promotion", value, number)
+            elif current_kind == "policy" and key in {"max_edits", "gain_cost_ratio", "within_band_cost_weight"}:
+                _set_once(current, key, _number_literal(value, number), number)
             else:
                 raise ProgramError("unknown_statement", f"line {number}: unexpected {key!r}")
             continue
@@ -201,6 +214,11 @@ def _parse_program(source: str) -> dict[str, Any]:
             continue
         if line.startswith("about "):
             _set_once(raw, "description", _quoted(line[6:], number), number)
+            continue
+        if line == "policy rrsi:":
+            current = {"kind": "rrsi"}
+            _set_once(raw, "policy", current, number)
+            current_kind = "policy"
             continue
         match = re.fullmatch(r"input\s+([^:\s]+)\s*:\s*(\S+)", line)
         if match:
@@ -330,6 +348,44 @@ def _parse_outputs(value: Any, step_name: str) -> dict[str, str]:
             raise ProgramError("invalid_type", f"step {step_name!r} output {name!r} has unsupported type {typ!r}")
         outputs[name] = typ
     return outputs
+
+
+def _parse_policy(value: Any, steps: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise ProgramError("invalid_policy", "policy must be a block")
+    _reject_unknown(value, {"kind", "allow_paths", "guards", "promotion",
+                            "max_edits", "gain_cost_ratio", "within_band_cost_weight"}, "policy")
+    if value.get("kind") != "rrsi":
+        raise ProgramError("invalid_policy", "only policy rrsi is supported")
+    paths = value.get("allow_paths")
+    if not isinstance(paths, list) or not paths or len(set(paths)) != len(paths):
+        raise ProgramError("invalid_policy", "rrsi policy needs unique allowed paths")
+    for path in paths:
+        parts = Path(path).parts
+        if not path or Path(path).is_absolute() or ".." in parts or path != Path(path).as_posix():
+            raise ProgramError("invalid_policy", f"invalid rrsi allowed path {path!r}")
+    guards = value.get("guards")
+    if not isinstance(guards, list) or set(guards) != RRSI_GUARDS or len(guards) != len(RRSI_GUARDS):
+        raise ProgramError("invalid_policy", "rrsi policy must require all five known guards exactly once")
+    if value.get("promotion") != "reviewed_release":
+        raise ProgramError("invalid_policy", "rrsi promotion must be reviewed_release")
+    maximum = value.get("max_edits")
+    if isinstance(maximum, bool) or not isinstance(maximum, int) or not 1 <= maximum <= 3:
+        raise ProgramError("invalid_policy", "rrsi max_edits must be an integer in 1..3")
+    gain_ratio = value.get("gain_cost_ratio")
+    cost_weight = value.get("within_band_cost_weight")
+    if (isinstance(gain_ratio, bool) or not isinstance(gain_ratio, (int, float)) or
+            not math.isfinite(gain_ratio) or not 0 <= gain_ratio <= 10 or
+            isinstance(cost_weight, bool) or not isinstance(cost_weight, (int, float)) or
+            not math.isfinite(cost_weight) or not 0 < cost_weight <= 10):
+        raise ProgramError("invalid_policy", "rrsi cost weights must be bounded nonnegative numbers")
+    if [step["name"] for step in steps] != ["optimize", "critique", "forward", "backward", "select"]:
+        raise ProgramError("invalid_policy", "rrsi steps must be optimize, critique, forward, backward, select")
+    return {"kind": "rrsi", "allow_paths": paths, "guards": guards,
+            "promotion": value["promotion"], "max_edits": maximum,
+            "gain_cost_ratio": gain_ratio, "within_band_cost_weight": cost_weight}
 
 
 def _parse_decisions(value: Any) -> dict[str, dict[str, Any]]:

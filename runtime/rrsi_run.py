@@ -206,6 +206,17 @@ def one_trial(node, case, suite_root: Path, side: str, repeat: int, out: Path):
     return {key: record[key] for key in ("task", "reward", "tokens")}
 
 
+def transfer_report(trials, suite_digest):
+    report = {"suite_sha256": suite_digest}
+    for side in ("incumbent", "candidate"):
+        rows = trials[side]
+        if not rows:
+            raise ValueError("held-out transfer requires measured trials on both sides")
+        report[side + "_score"] = sum(row["reward"] for row in rows) / len(rows)
+        report[side + "_tokens"] = sum(row["tokens"] for row in rows) / len(rows)
+    return report
+
+
 def run(args):
     repo = args.repo.resolve()
     out = args.out.resolve()
@@ -273,11 +284,16 @@ def run(args):
         for name in workspaces:
             subprocess.run(["jj", "--no-pager", "--ignore-working-copy", "workspace", "forget", name],
                            cwd=repo, capture_output=True)
-    scores = []
+    scores, costs = [], []
     for repeat in range(args.repeats):
-        scores.append(sum(json.loads((out / "trials" / "incumbent" / case["id"] / f"{repeat}.json").read_text())["reward"]
-                          for case in suite["cases"]) / len(suite["cases"]))
+        rows = [json.loads((out / "trials" / "incumbent" / case["id"] / f"{repeat}.json").read_text())
+                for case in suite["cases"]]
+        scores.append(sum(row["reward"] for row in rows) / len(rows))
+        costs.append(sum(row["tokens"] for row in rows) / len(rows))
     noise = max(scores) - min(scores)
+    if sum(costs) <= 0:
+        raise ValueError("incumbent needs positive measured token cost")
+    cost_noise = (max(costs) - min(costs)) / (sum(costs) / len(costs))
     baseline = sum(row["reward"] for row in trials["incumbent"]) / len(trials["incumbent"])
     best = max([baseline] + [float(row["selected_score"]) for row in history if row.get("accepted")])
     candidate_statuses = [json.loads(path.read_text())["status"]
@@ -285,15 +301,18 @@ def run(args):
     record = {"suite": [case["id"] for case in suite["cases"]], "repeats": args.repeats,
               "revision": args.candidate, "incumbent_revision": args.incumbent,
               "incumbent_trials": trials["incumbent"], "candidate_trials": trials["candidate"],
-              "noise": noise, "best_score": best, "round": args.round, "rounds": args.rounds,
+              "noise": noise, "cost_noise": cost_noise, "best_score": best,
+              "round": args.round, "rounds": args.rounds,
               "min_edits": args.min_edits, "max_edits": args.max_edits, "edits": edits,
               "critic": critic, "guards_passed": all(x == "reported" for x in candidate_statuses),
               "beta0": args.beta0, "beta1": args.beta1,
-              "within_band": {"score": 0, "cost": 1, "novelty": 0}, "history": history}
+              "within_band": {"score": 0, "cost": getattr(args, "within_band_cost_weight", 1),
+                              "novelty": 0}, "history": history}
     (out / "evidence.json").write_text(json.dumps(record, indent=2))
     decision = assess(record)
     decision.update(suite_sha256=suite_digest, diff_sha256=patch_hash,
-                    model=args.model, noise_method="range of unchanged-incumbent repeat scores")
+                    model=args.model,
+                    noise_method="range of unchanged-incumbent repeat scores and relative token costs")
     (out / "decision.json").write_text(json.dumps(decision, indent=2))
     history_next = history + [{"round": args.round, "revision": args.candidate,
         "component": edit["component"], "hypothesis": edit["hypothesis"],
@@ -331,10 +350,7 @@ def run(args):
                         transfer[side].append(one_trial(node, case, heldout_root, side, repeat, transfer_out))
                         if digest_tree(heldout_root) != heldout_digest:
                             raise RuntimeError("held-out suite changed during evaluation")
-        report = {"suite_sha256": heldout_digest, "incumbent_score":
-                  sum(row["reward"] for row in transfer["incumbent"]) / len(transfer["incumbent"]),
-                  "candidate_score":
-                  sum(row["reward"] for row in transfer["candidate"]) / len(transfer["candidate"])}
+        report = transfer_report(transfer, heldout_digest)
         (transfer_out / "report.json").write_text(json.dumps(report, indent=2))
     return decision
 
@@ -363,6 +379,7 @@ def main():
     parser.add_argument("--max-edits", type=int, default=3)
     parser.add_argument("--beta0", type=float, default=0)
     parser.add_argument("--beta1", type=float, default=1)
+    parser.add_argument("--within-band-cost-weight", type=float, default=1)
     args = parser.parse_args()
     try:
         decision = run(args)

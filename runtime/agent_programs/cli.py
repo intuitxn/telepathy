@@ -44,6 +44,10 @@ def _reject_constant(value: str):
 
 
 def _run_meta(args, plan: dict, *, wait: bool) -> int:
+    if plan.get("policy"):
+        print(json.dumps({"status": "failed", "code": "policy_runtime_required",
+                          "message": "RRSI policy programs must run through runtime/rrsi_loop.py"}))
+        return 1
     try:
         inputs = json.loads(args.input_file.read_text(encoding="utf-8"),
                             parse_constant=_reject_constant)

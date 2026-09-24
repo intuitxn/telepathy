@@ -1,6 +1,6 @@
 # Agent programs: a small pseudocode language
 
-The source is meant to read like a procedure. The compiler in `runtime/agent_programs/language.py` checks names, types, step order, references, declared effects, and Choice/Noul/Score decision shapes, then emits a deterministic JSON plan. The resident `meta_shell.py` runs that plan as **one task** through an ACP worker and the Bend kernel. There is no second daemon or scheduler.
+The source is meant to read like a procedure. The compiler in `runtime/agent_programs/language.py` checks names, types, step order, references, declared effects, and Choice/Noul/Score decision shapes, then emits a deterministic JSON plan. Ordinary programs are submitted to the resident `meta_shell.py` as **one task** through an ACP worker and the Bend kernel. There is no second daemon or scheduler. The constrained [RRSI policy program](../../runtime/agent_programs/rrsi.meta) is the first exception: its steps are interpreted by `runtime/rrsi_loop.py`, and the generic one-task bridge refuses it so its guards cannot be reduced to prompt text.
 
 ```text
 program review_and_plan version 0.1.0

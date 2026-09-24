@@ -6,10 +6,20 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from rrsi_run import NodeProcess, checkout, digest_tree, load_suite, run, token_usage
+from rrsi_run import NodeProcess, checkout, digest_tree, load_suite, run, token_usage, transfer_report
 
 
 class RRSIRunnerTests(unittest.TestCase):
+    def test_transfer_report_retains_verified_score_and_cost(self):
+        report = transfer_report({
+            "incumbent": [{"reward": 1, "tokens": 100}, {"reward": 0, "tokens": 80}],
+            "candidate": [{"reward": 1, "tokens": 110}, {"reward": 1, "tokens": 90}],
+        }, "suite-digest")
+        self.assertEqual(report["incumbent_score"], 0.5)
+        self.assertEqual(report["candidate_score"], 1)
+        self.assertEqual(report["incumbent_tokens"], 90)
+        self.assertEqual(report["candidate_tokens"], 100)
+
     def suite(self, root):
         fixture = root / "fixture"
         fixture.mkdir()

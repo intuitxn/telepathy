@@ -16,7 +16,8 @@ const required = [
   'runtime/meta_shell_jj_test.py', 'runtime/worker/system.bend',
   'runtime/worker/protocol.test.mjs', 'runtime/agent_programs/language.py',
   'runtime/agent_programs/test_language.py', 'runtime/rrsi.py',
-  'runtime/rrsi_run.py', '.opencode/agents/meta.md',
+  'runtime/rrsi_run.py', 'runtime/rrsi_loop.py', 'runtime/agent_programs/rrsi.meta',
+  '.opencode/agents/meta.md',
 ];
 const retired = ['site', 'runtime/workspace', 'runtime/programs', 'runtime/adaptive',
   'runtime/lorenz', 'runtime/evaluation', 'runtime/ops', 'ops/loops'];
