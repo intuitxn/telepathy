@@ -41,6 +41,45 @@ STARTUP_TIMEOUT = KERNEL_TIMEOUT + 60
 CHILD_GROUPS: set[int] = set()
 
 
+def parse_work(source: str) -> dict[str, str]:
+    """Parse one human-readable, idempotent work envelope at the node boundary."""
+    if len(source.encode("utf-8")) > 100_000 or "\x00" in source or "\r" in source:
+        raise ValueError("work meta/1 envelope is too large or contains control bytes")
+    lines = source.splitlines()
+    if not lines or lines[0] != "work meta/1":
+        raise ValueError("Expected 'work meta/1' header")
+    fields: dict[str, str] = {}
+    body: list[str] = []
+    in_task = False
+    for number, line_text in enumerate(lines[1:], 2):
+        if in_task:
+            if not line_text.startswith("  "):
+                raise ValueError(f"line {number}: task lines require two spaces")
+            body.append(line_text[2:])
+            continue
+        if line_text == "task:":
+            in_task = True
+            continue
+        key, separator, value = line_text.partition(": ")
+        if not separator or key not in {"id", "project", "conversation", "acceptance"}:
+            raise ValueError(f"line {number}: unknown work field")
+        if key in fields or not value.strip() or value != value.strip():
+            raise ValueError(f"line {number}: duplicate or empty work field")
+        fields[key] = value
+    if not in_task or set(fields) != {"id", "project", "conversation", "acceptance"}:
+        raise ValueError("work meta/1 requires id, project, conversation, acceptance and task")
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", fields["id"]):
+        raise ValueError("work id must be a stable 1–128 character token")
+    if not Path(fields["project"]).is_absolute():
+        raise ValueError("work project must be an absolute path")
+    task = "\n".join(body)
+    if not task.strip():
+        raise ValueError("work task must be nonempty")
+    return {"request_id": fields["id"], "project": fields["project"],
+            "conversation": fields["conversation"], "acceptance": fields["acceptance"],
+            "task": task}
+
+
 def terminate_child_groups():
     """Signal-safe bounded cleanup before a supervisor can forcibly stop this node."""
     for pid in tuple(CHILD_GROUPS):
@@ -863,6 +902,9 @@ def main():
     submit.add_argument("--conversation", default="local:default")
     submit.add_argument("--request-id", default=None)
     submit.add_argument("--wait", action="store_true")
+    submit_file = subs.add_parser("submit-file", help="submit one readable work meta/1 envelope")
+    submit_file.add_argument("file", type=Path)
+    submit_file.add_argument("--wait", action="store_true")
     for name in ["task", "wait", "kernel", "workspace", "diff", "retire", "integrate"]:
         sub = subs.add_parser(name)
         sub.add_argument("id")
@@ -933,7 +975,8 @@ def main():
         print(json.dumps({"meta_kernel": {"type": "remote", "url": f"http://127.0.0.1:{args.port}/mcp",
                          "oauth": False, "headers": {"Authorization": "Bearer {file:" + str(args.state / "token") + "}"}}}, indent=2))
         return
-    if args.command in {"start", "shell", "submit"}:
+    work_params = parse_work(args.file.read_text(encoding="utf-8")) if args.command == "submit-file" else None
+    if args.command in {"start", "shell", "submit", "submit-file"}:
         ensure_started(args)
 
     def wait_for(job_id):
@@ -979,8 +1022,10 @@ def main():
             except (OSError, RuntimeError, ValueError) as exc:
                 print(f"meta: {exc}", file=sys.stderr)
         return
-    if args.command == "submit":
-        job = client(args.state, args.port, "submit", {k: getattr(args, k) for k in ("task", "project", "acceptance", "conversation", "request_id")})
+    if args.command in {"submit", "submit-file"}:
+        params = ({k: getattr(args, k) for k in ("task", "project", "acceptance", "conversation", "request_id")}
+                  if args.command == "submit" else work_params)
+        job = client(args.state, args.port, "submit", params)
         print(json.dumps(job, indent=2))
         if args.wait:
             if wait_for(job["id"])["status"] != "reported":

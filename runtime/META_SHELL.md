@@ -42,7 +42,7 @@ meta status
 meta shell --project "$PWD" --conversation local:default
 ```
 
-`meta` without a subcommand opens the shell. `start`, `shell`, and `submit`
+`meta` without a subcommand opens the shell. `start`, `shell`, `submit`, and `submit-file`
 start the node if needed. The shell accepts natural-language tasks and
 `/status`, `/tasks`, `/task ID`, `/new`, and `/exit`. Ctrl-C detaches from a
 waiting task; closing the terminal does not stop the resident node.
@@ -61,6 +61,25 @@ meta kernel TASK_ID packet
 meta kernel TASK_ID memory
 meta stop
 ```
+
+A readable work envelope can carry a multiline task without shell quoting or
+handwritten JSON. Save this as `work.meta`, replace the absolute project path,
+then run `meta submit-file work.meta --wait`:
+
+```text
+work meta/1
+id: inspection-001
+project: /absolute/path/to/project
+conversation: inspection
+acceptance: Name the command and the file establishing it
+task:
+  Inspect this project and report its test command.
+  Make no changes.
+```
+
+The `id` is the request ID, so resubmitting the same file returns the same
+task. The syntax and its place in the wider agent web are specified in
+[agent-web.md](../docs/designs/agent-web.md).
 
 `meta improve` runs the bounded [RRSI program](../docs/designs/rrsi.md)
 through this resident node. It requires pinned incumbent and private evolve and
