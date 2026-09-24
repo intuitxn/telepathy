@@ -52,7 +52,7 @@ class ControlledNode(meta_shell.Node):
             await self.gate.wait()
         text = self.agent_text if self.agent_text is not None else "observed: " + job["task"]
         return {"text": text, "session_id": "test-session",
-                "stop_reason": self.stop_reason}
+                "stop_reason": self.stop_reason, "usage_tokens": 42}
 
     async def _return(self, job, result, evidence):
         self.returned.append(job["id"])
@@ -94,6 +94,7 @@ class NodeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.node.executed, [result["id"]])
         self.assertEqual(self.node.returned, [result["id"]])
         self.assertEqual(result["result"], "observed: Inspect the fixture")
+        self.assertEqual(result["usage_tokens"], 42)
         with self.assertRaisesRegex(ValueError, "different task"):
             await self.node.dispatch("submit", self.params(task="A different request"))
 

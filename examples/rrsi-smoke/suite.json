@@ -1,0 +1,12 @@
+{
+  "name": "meta-runner-smoke-v0",
+  "cases": [
+    {
+      "id": "parse-port",
+      "fixture": "parse-port",
+      "task": "Fix parse_port in ports.py. It should accept surrounding whitespace on a decimal port and reject nondecimal values and ports outside 1..65535. Keep the function interface unchanged.",
+      "acceptance": "The independent port verifier passes; report the file changed and the checks run.",
+      "verify": ["python3", "verify.py", "{project}"]
+    }
+  ]
+}

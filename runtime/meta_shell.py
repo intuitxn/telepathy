@@ -140,6 +140,8 @@ class Node:
             for column in ("repo_root", "workspace_path", "workspace_name", "base_commit", "result_commit", "result_bookmark", "workspace_status"):
                 if column not in columns:
                     self.db.execute("ALTER TABLE jobs ADD COLUMN " + column + " TEXT")
+            if "usage_tokens" not in columns:
+                self.db.execute("ALTER TABLE jobs ADD COLUMN usage_tokens INTEGER")
             self.db.execute("UPDATE jobs SET status='interrupted', error=?, updated=? "
                             "WHERE status='running'",
                             ("Node stopped during execution; inspect evidence before resubmitting. "
@@ -547,7 +549,8 @@ class Node:
                 packet = await self._prepare(self._job(job_id))
                 outcome = await self._run_agent(self._job(job_id), packet)
                 result = outcome.get("text", "")
-                self._update(job_id, result=result, session_id=outcome.get("session_id"))
+                self._update(job_id, result=result, session_id=outcome.get("session_id"),
+                             usage_tokens=outcome.get("usage_tokens"))
                 if outcome.get("session_id") and not self._job(job_id).get("workspace_path"):
                     session_key = self._session_key(self._job(job_id)["conversation"])
                     self.db.execute("INSERT OR REPLACE INTO sessions VALUES (?,?)",
@@ -1082,6 +1085,7 @@ async def run_agent(project: str, prompt: str, session_id: str | None,
                                                    str(failure.get("error", failure))[:500])
                     return {"session_id": session_id, "text": output,
                             "stop_reason": response.stop_reason,
+                            "usage_tokens": response.usage.total_tokens if response.usage else None,
                             "permission_requests": client.permission_requests}
         except BaseException as exc:
             client.record("failed", session_id=session_id, error=type(exc).__name__, detail=str(exc))

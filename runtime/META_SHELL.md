@@ -67,6 +67,8 @@ input returns the existing task; conflicting input is rejected. `reported`
 means an agent result was recorded, not independent acceptance or learned
 memory. `submit --wait` and `wait` exit unsuccessfully for a terminal task
 status other than `reported`.
+When ACP supplies usage data, each task also records measured
+`usage_tokens`; absent usage remains `null` rather than an estimate.
 
 Global options precede the subcommand: `--state`, `--source`, `--port`,
 `--bend`, `--acp-agent`, and optional `--model`.
