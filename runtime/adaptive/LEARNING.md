@@ -49,6 +49,11 @@ service availability nor credential isolation was repaired or verified here.
   records when changing this path, not just short strings.
 - Native text equality binds decoded UTF-8, not bytes. Bind published evidence
   to an external source SHA256 as well as checker and toolchain identity.
+- The online policy trial initially overflowed Bend's stack while taking a
+  44 KB source prefix from a snapshot. Its revised event-first layout scans
+  only the bounded observation log, then compares the remaining source text.
+  Fresh-process replay, source mismatch, wrong oracle, and 64/65-event limits
+  were checked for the `feat/adaptive-online-policy` candidate.
 - Separate record directories avoid multiple writers sharing an unlocked file.
   Source changes need a new record; never repair stale evidence by overwriting it.
 - Codex can discover the Bend workflow as a skill. Discovery does not enforce

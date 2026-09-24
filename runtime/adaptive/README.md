@@ -41,6 +41,31 @@ single-writer local files: there are no locks, atomic replacement, or fsync
 guarantees. Use the private directory above. Missing, changed, malformed, and
 oversized records fail closed. Changing source requires a new record path.
 
+## Update policy from new observations
+
+The same `system.bend` accepts a bounded stream of **externally supplied**
+three-value maximum tasks. Each `observe` call checks the supplied answer against
+the maximum contract, replays both authored policies over the event history,
+and writes a new immutable snapshot. `latent` performs the counterfactual replay
+without changing state. State holds at most 64 observations and the exact source
+text; a changed source, malformed log, wrong answer, or reused output path with
+different content is rejected. Use one writer and a private directory.
+
+```sh
+mkdir -p .local/adaptive/online
+BEND_NO_TELEMETRY=1 ~/.bend/bin/bend runtime/adaptive/system.bend -- observe new .local/adaptive/online/1 runtime/adaptive/system.bend 5 5 3 1
+BEND_NO_TELEMETRY=1 ~/.bend/bin/bend runtime/adaptive/system.bend -- latent .local/adaptive/online/1 runtime/adaptive/system.bend
+BEND_NO_TELEMETRY=1 ~/.bend/bin/bend runtime/adaptive/system.bend -- observe .local/adaptive/online/1 .local/adaptive/online/2 runtime/adaptive/system.bend 5 1 5 3
+```
+
+The first observation keeps the cheaper first-item policy. The second is a
+counterexample and switches to the proved exact policy. Element visits are a
+logical cost measure, not execution time. The resident host can enqueue these
+commands after it receives a fresh, independently evaluated task; `latent` is
+safe to run as a read-only background job. Replaying the same authored cases
+does not create new knowledge. There is no timer, automatic source rewrite,
+model-weight update, or general-purpose world model in this example.
+
 ## Use from Codex
 
 The repository skill at `.agents/skills/bend-kernels/SKILL.md` supplies the

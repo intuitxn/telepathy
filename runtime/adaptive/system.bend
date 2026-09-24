@@ -1027,7 +1027,227 @@ def algebra_report() -> String:
 def full_report() -> String:
   "{\"schema\":\"intuitxn-adaptive-blocks/v1\",\"adaptation\":" ++ report() ++ ",\"algebra\":" ++ algebra_report() ++ ",\"evidence\":" ++ evidence_report() ++ ",\"scope\":\"finite authored kernels and fixtures; local reuse, no network synchronization or neural training\"}"
 
+# Online observations are external tasks, not the fixed experiment above. The
+# small event log is replayed on every read; derived scores are never trusted.
+# Each task has exactly three values and a checked maximum answer. Its two
+# counterfactual runs are deterministic, so this is policy learning, not a
+# claim that simulated tasks reveal new facts about the world.
+def online_nat_parsed(+text: String, parsed: Maybe<&2, Nat>) -> Maybe<&2, Nat>:
+  match parsed:
+    case None{}:
+      None{}
+    case Some{+n}:
+      Bool.pick(Maybe<&2, Nat>, Nat.is_le(String.length(text), 5n) && Nat.is_le(n, 65535n) && String.eq(text, Nat.show(n)), Some{n}, None{})
+
+def online_nat_short(+text: String, short: Bool) -> Maybe<&2, Nat>:
+  match short:
+    case True{}:
+      online_nat_parsed(text, Nat.read(text))
+    case False{}:
+      None{}
+
+def online_nat(+text: String) -> Maybe<&2, Nat>:
+  online_nat_short(text, Nat.is_le(String.length(text), 5n))
+
+def online_task(expected: Maybe<&2, Nat>, head: Maybe<&2, Nat>, second: Maybe<&2, Nat>, third: Maybe<&2, Nat>) -> Maybe<&2, Task>:
+  match expected head second third:
+    case Some{+e} Some{+h} Some{+s} Some{+t}:
+      Bool.pick(Maybe<&2, Task>, Nat.is_eq(maximum([h, s, t]), e), Some{Task{h, [s, t], e}}, None{})
+    case _ _ _ _:
+      None{}
+
+def online_parse_add(head: Maybe<&2, Task>, tail: Maybe<&2, +List<Task>>) -> Maybe<&2, +List<Task>>:
+  match head tail:
+    case Some{h} Some{t}:
+      Some{h <> t}
+    case _ _:
+      None{}
+
+def online_parse(fuel: Nat, lines: +List<String>) -> Maybe<&2, +List<Task>>:
+  match fuel lines:
+    case _ Con{end, Nil{}}:
+      Bool.pick(Maybe<&2, +List<Task>>, String.eq(end, "END"), Some{[]}, None{})
+    case 0n _:
+      None{}
+    case 1n+f Con{e, Con{h, Con{s, Con{t, rest}}}}:
+      online_parse_add(online_task(online_nat(e), online_nat(h), online_nat(s), online_nat(t)), online_parse(f, rest))
+    case _ _:
+      None{}
+
+def online_emit_task(item: Task) -> String:
+  match item:
+    case Task{h, Con{s, Con{t, Nil{}}}, e}:
+      Nat.show(e) ++ "\n" ++ Nat.show(h) ++ "\n" ++ Nat.show(s) ++ "\n" ++ Nat.show(t) ++ "\n"
+    case _:
+      ""
+
+def online_emit(items: +List<Task>) -> String:
+  match items:
+    case Nil{}:
+      "END"
+    case Con{h, t}:
+      online_emit_task(h) ++ online_emit(t)
+
+def online_append(items: +List<Task>, item: Task) -> +List<Task>:
+  match items:
+    case Nil{}:
+      [item]
+    case Con{h, t}:
+      h <> online_append(t, item)
+
+def online_header() -> String:
+  "intuitxn-online/v1\n"
+
+def online_split_done_match(events: String, same: Bool) -> Maybe<&2, +List<Task>>:
+  match same:
+    case True{}:
+      online_parse(64n, String.lines(events))
+    case False{}:
+      None{}
+
+def online_split_done(events: String, stored_source: String, source: String) -> Maybe<&2, +List<Task>>:
+  online_split_done_match(events, store_text_equal(stored_source, source))
+
+# Scan at most the bounded event prefix; never take/drop through the source.
+def online_split(fuel: Nat, found: Bool, cursor: String, original: String, source: String, offset: Nat) -> Maybe<&2, +List<Task>>:
+  match fuel found cursor:
+    case _ True{} _:
+      online_split_done(String.take(original, (offset + 3n : Nat)), String.drop(cursor, 4n), source)
+    case 0n False{} _:
+      None{}
+    case 1n+f False{} SNil{}:
+      None{}
+    case 1n+f False{} SCon{h, +t}:
+      online_split(f, String.starts_with(t, "END\n"), t, original, source, (offset + 1n : Nat))
+
+def online_decode_header(valid: Bool, stored: String, source: String) -> Maybe<&2, +List<Task>>:
+  match valid:
+    case False{}:
+      None{}
+    case True{}:
+      +events_and_source = String.drop(stored, String.length(online_header()))
+      online_split(1600n, String.starts_with(events_and_source, "END\n"), events_and_source, events_and_source, source, 0n)
+
+def online_decode(+stored: String, source: String) -> Maybe<&2, +List<Task>>:
+  online_decode_header(String.starts_with(stored, online_header()), stored, source)
+
+def online_count(items: +List<Task>) -> Nat:
+  match items:
+    case Nil{}:
+      0n
+    case Con{h, t}:
+      1n+online_count(t)
+
+def online_choose(+items: +List<Task>) -> Nat:
+  Bool.pick(Nat, Nat.is_lt(successes(items, 0n), online_count(items)), 1n, 0n)
+
+def online_report(+items: +List<Task>) -> String:
+  +selected = online_choose(items)
+  "{\"schema\":\"intuitxn-online/v1\",\"observations\":" ++ Nat.show(online_count(items)) ++ ",\"selected_policy\":" ++ Nat.show(selected) ++ ",\"shortcut_correct\":" ++ Nat.show(successes(items, 0n)) ++ ",\"exact_correct\":" ++ Nat.show(successes(items, 1n)) ++ ",\"shortcut_element_visits\":" ++ Nat.show(total_cost(items, 0n)) ++ ",\"exact_element_visits\":" ++ Nat.show(total_cost(items, 1n)) ++ ",\"counterfactuals_are_replay\":true}"
+
+law online_empty_uses_shortcut:
+  {online_choose([]) == 0n : Nat}
+
+def online_empty_uses_shortcut():
+  {==}
+
+law online_counterexample_switches:
+  {online_choose([Task{1n, [2n, 0n], 2n}]) == 1n : Nat}
+
+def online_counterexample_switches():
+  {==}
+
+def online_valid_task(item: Maybe<&2, Task>) -> IO(Task):
+  match item:
+    case None{}:
+      IO.die(Task, 1, "invalid_observation: require canonical 0..65535 integers and the true maximum")
+    case Some{task}:
+      IO.pure(Task, task)
+
+def online_decoded(decoded: Maybe<&2, +List<Task>>) -> IO(+List<Task>):
+  match decoded:
+    case None{}:
+      IO.die(+List<Task>, 1, "state_invalid_or_source_changed")
+    case Some{items}:
+      IO.pure(+List<Task>, items)
+
+def online_existing(previous: Maybe<&2, String>, source: String) -> IO(+List<Task>):
+  match previous:
+    case None{}:
+      IO.die(+List<Task>, 1, "state_missing")
+    case Some{stored}:
+      online_decoded(online_decode(stored, source))
+
+def online_previous_choose(path: String, source: String, fresh: Bool) -> IO(+List<Task>):
+  match fresh:
+    case True{}:
+      IO.pure(+List<Task>, [])
+    case False{}:
+      do IO<+List<Task>>:
+        stored : Maybe<&2, String> <- store_read(path)
+        online_existing(stored, source)
+
+def online_previous(+path: String, source: String) -> IO(+List<Task>):
+  online_previous_choose(path, source, String.eq(path, "new"))
+
+def online_source(path: String) -> IO(String):
+  do IO<String>:
+    found : Maybe<&2, String> <- store_read(path)
+    store_source_present(found)
+
+def online_write_guard(room: Bool, items: +List<Task>, output: String, source: String, item: Task) -> IO(Unit):
+  match room:
+    case False{}:
+      IO.die(Unit, 1, "state_full: at most 64 observations per lineage")
+    case True{}:
+      do IO<Unit>:
+        +next : +List<Task> <- IO.pure(+List<Task>, online_append(items, item))
+        store_record(output, online_header() ++ online_emit(next) ++ "\n" ++ source)
+        IO.print(online_report(next))
+
+def online_write(previous: String, output: String, +source: String, item: Task) -> IO(Unit):
+  do IO<Unit>:
+    +items : +List<Task> <- online_previous(previous, source)
+    online_write_guard(Nat.is_lt(online_count(items), 64n), items, output, source, item)
+
+def online_observe(previous: String, output: String, source_path: String, e: String, h: String, s: String, t: String) -> IO(Unit):
+  do IO<Unit>:
+    item : Task <- online_valid_task(online_task(online_nat(e), online_nat(h), online_nat(s), online_nat(t)))
+    source : String <- online_source(source_path)
+    online_write(previous, output, source, item)
+
+def online_latent(path: String, source_path: String) -> IO(Unit):
+  do IO<Unit>:
+    source : String <- online_source(source_path)
+    items : +List<Task> <- online_previous(path, source)
+    IO.print(online_report(items))
+
+def online_dispatch_latent(is_latent: Bool, command: String, path: String, source: String, payload: String) -> IO(Unit):
+  match is_latent:
+    case True{}:
+      online_latent(path, source)
+    case False{}:
+      store_dispatch([command, path, source], payload)
+
+def online_dispatch_observe(is_observe: Bool, previous: String, output: String, source: String, e: String, h: String, s: String, t: String) -> IO(Unit):
+  match is_observe:
+    case True{}:
+      online_observe(previous, output, source, e, h, s, t)
+    case False{}:
+      IO.die(Unit, 1, "usage: observe PREVIOUS|new OUTPUT SOURCE EXPECTED HEAD SECOND THIRD")
+
+def online_dispatch(args: List<String>, payload: String) -> IO(Unit):
+  match args:
+    case Nil{}:
+      IO.print(payload)
+    case Con{+command, Con{path, Con{source, Nil{}}}}:
+      online_dispatch_latent(String.eq(command, "latent"), command, path, source, payload)
+    case Con{command, Con{previous, Con{output, Con{source, Con{e, Con{h, Con{s, Con{t, Nil{}}}}}}}}}:
+      online_dispatch_observe(String.eq(command, "observe"), previous, output, source, e, h, s, t)
+    case _:
+      IO.die(Unit, 1, "usage: record|replay LEDGER SOURCE | latent STATE SOURCE | observe PREVIOUS|new OUTPUT SOURCE EXPECTED HEAD SECOND THIRD")
+
 def main() -> IO(Unit):
   do IO<Unit>:
     args : List<String> <- IO.args()
-    store_dispatch(args, full_report())
+    online_dispatch(args, full_report())
