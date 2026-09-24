@@ -107,7 +107,7 @@ def checkout(repo: Path, revision: str, target: Path):
 
 class NodeProcess:
     def __init__(self, root: Path, state: Path, args):
-        self.root, self.state, self.args = root, state, args
+        self.root, self.state, self.args = root.resolve(), state.resolve(), args
         self.port = free_port()
         self.process = None
 

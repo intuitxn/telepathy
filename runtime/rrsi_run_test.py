@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from rrsi_run import checkout, digest_tree, load_suite, run, token_usage
+from rrsi_run import NodeProcess, checkout, digest_tree, load_suite, run, token_usage
 
 
 class RRSIRunnerTests(unittest.TestCase):
@@ -91,6 +91,13 @@ class RRSIRunnerTests(unittest.TestCase):
             finally:
                 subprocess.run(["jj", "--ignore-working-copy", "workspace", "forget", name],
                                cwd=repo, check=True, capture_output=True)
+
+    def test_node_state_is_canonicalized_for_status_comparison(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "alias").symlink_to(root, target_is_directory=True)
+            node = NodeProcess(root, root / "alias/state", SimpleNamespace())
+            self.assertEqual(node.state, root.resolve() / "state")
 
 
 if __name__ == "__main__":
