@@ -1,7 +1,7 @@
 # Resident meta shell
 
 `runtime/meta_shell.py` provides one local resident service for terminal input,
-queued tasks, native OpenCode ACP execution, and the kernel MCP interface. Its
+queued tasks, native ACP execution, and the kernel MCP interface. Its
 Python dependencies are declared in the file and resolved by `uv`; ordinary
 `python3` without those dependencies is insufficient.
 
@@ -11,15 +11,18 @@ terminal / local MCP client
       resident meta shell
       task queue + session routing
           /             \
- OpenCode ACP          Bend snapshots
- installed meta agent  one lineage per task
+ OpenCode or Codex ACP  Bend snapshots
+ agent in one workspace one lineage per task
 ```
 
-The service loads the existing OpenCode configuration, selects the installed
-`meta` agent using ACP session mode, and adds its local MCP connection. It does
-not replace the global meta charter, `/meta` command, skills, or Telepathy
-plugin. It does not start another OpenCode HTTP server. No relay is connected
-by this service yet; `status` reports that limitation.
+The default OpenCode backend loads its existing configuration and selects the
+installed `meta` agent using ACP session mode. The optional `codex-acp` backend
+uses the local Codex login, an explicitly selected Codex model, and `agent`
+session mode. Both connect to the node's authenticated MCP endpoint. The harness
+includes its installed `meta` charter in Codex's task prompt, along with the
+node's Bend packet and operator request. The service does not start an
+OpenCode HTTP server. No relay is connected by this service yet; `status`
+reports that limitation.
 
 ## Terminal use
 
@@ -66,11 +69,14 @@ memory. `submit --wait` and `wait` exit unsuccessfully for a terminal task
 status other than `reported`.
 
 Global options precede the subcommand: `--state`, `--source`, `--port`,
-`--bend`, `--opencode`, and optional `--model`. Defaults use the current
-checkout's `runtime/worker/system.bend`, port `47831`, and the configured
-OpenCode model. Select absolute executable paths when managing multiple
-OpenCode or Bend installations. An existing service must be invoked with its
-configured settings; these flags do not reconfigure it in place.
+`--bend`, `--acp-agent` (legacy alias `--opencode`), and optional `--model`.
+Defaults use the current checkout's `runtime/worker/system.bend`, port `47831`,
+and the configured OpenCode model. Select absolute executable paths when
+managing multiple agent installations. For Codex, point `--acp-agent` at an
+installed `codex-acp` executable and set `--model` to a model your local login
+can actually use; a listed model is not proof of access. An existing service
+must be invoked with its configured settings; these flags do not reconfigure
+it in place.
 
 ## Ownership, context, and recovery
 

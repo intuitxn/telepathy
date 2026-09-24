@@ -497,6 +497,12 @@ class Node:
                   "and limitations; a return is not acceptance or learned memory.\n\n"
                   f"Task ID: {job['id']}\nBend packet:\n{packet}\n\n"
                   f"Full operator request:\n{job['task']}\n\nAcceptance:\n{job['acceptance']}")
+        if self.agent_name == "codex":
+            charter = Path(__file__).resolve().parent.parent / ".opencode/agents/meta.md"
+            if charter.is_file():
+                prompt = ("Installed meta-agent charter for this harness (apply it within the "
+                          "operator's authority and this task's constraints):\n"
+                          + charter.read_text(encoding="utf-8") + "\n\n" + prompt)
         if job.get("workspace_path"):
             preceding = self.db.execute(
                 "SELECT id,task,result,result_commit,workspace_status FROM jobs "
@@ -1005,15 +1011,22 @@ async def run_agent(project: str, prompt: str, session_id: str | None,
     env = {key: value for key, value in os.environ.items()
            if not key.startswith("BUZZ_") and key != "INTUITXN_PRIVATE_KEY"}
     is_codex = Path(executable).name == "codex-acp"
+    config = json.loads(config_content)
     if is_codex:
         env["INITIAL_AGENT_MODE"] = "agent"
-        selected_model = json.loads(config_content).get("model")
+        selected_model = config.get("model")
         if selected_model:
             env["CODEX_CONFIG"] = json.dumps({"model": selected_model})
-        # Codex reads its existing local login. MCP is supplied to the ACP
-        # session below, rather than through OpenCode configuration.
+        # Keep the node's bearer token in the ACP session, not Codex's config.
+        kernel = config.get("mcp", {}).get("meta_kernel", {})
+        servers = [acp.schema.HttpMcpServer.model_validate({
+            "type": "http", "name": "meta_kernel", "url": kernel["url"],
+            "headers": [{"name": name, "value": value}
+                        for name, value in kernel.get("headers", {}).items()],
+        })] if kernel else []
     else:
         env["OPENCODE_CONFIG_CONTENT"] = config_content
+        servers = []
     stderr_path = events_path.with_suffix(".stderr.log")
     stderr_fd = os.open(stderr_path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
     with os.fdopen(stderr_fd, "ab", buffering=0) as stderr:
@@ -1029,9 +1042,9 @@ async def run_agent(project: str, prompt: str, session_id: str | None,
                     if session_id:
                         if not initialized.agent_capabilities.load_session:
                             raise RuntimeError("Agent does not support loading the saved session")
-                        await asyncio.wait_for(conn.load_session(cwd=project, session_id=session_id, mcp_servers=[]), 120)
+                        await asyncio.wait_for(conn.load_session(cwd=project, session_id=session_id, mcp_servers=servers), 120)
                     else:
-                        session = await asyncio.wait_for(conn.new_session(cwd=project, mcp_servers=[]), 120)
+                        session = await asyncio.wait_for(conn.new_session(cwd=project, mcp_servers=servers), 120)
                         session_id = session.session_id
                     await asyncio.wait_for(conn.set_session_mode(
                         session_id=session_id, mode_id="agent" if is_codex else "meta"), 30)
