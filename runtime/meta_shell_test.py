@@ -140,6 +140,12 @@ class NodeTests(unittest.IsolatedAsyncioTestCase):
         b = await self.node.dispatch("submit", self.params("b", conversation="same", project=str(second)))
         self.assertNotEqual(a["conversation"], b["conversation"])
 
+    async def test_codex_sessions_do_not_load_old_opencode_sessions(self):
+        codex = meta_shell.Node(self.root / "other", self.root / "kernel.bend",
+                                "bend", "/tools/codex-acp")
+        self.assertEqual(self.node._session_key("same"), "same")
+        self.assertEqual(codex._session_key("same"), "codex:same")
+
     async def test_empty_agent_text_fails_without_bend_return(self):
         for index, text in enumerate(["", " \n\t"]):
             with self.subTest(text=repr(text)):
@@ -261,7 +267,7 @@ class ServiceLifecycleTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory).resolve()
             args = SimpleNamespace(state=home / "state", port=47831,
-                source=home / "system.bend", bend="bend", opencode="opencode", model=None)
+                source=home / "system.bend", bend="bend", acp_agent="opencode", model=None)
             status = {"state": str(args.state)}
             # Initial probe plus more than the former 180 half-second readiness polls.
             responses = [OSError() for _ in range(182)] + [status]
@@ -277,7 +283,7 @@ class ServiceLifecycleTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory).resolve()
             args = SimpleNamespace(state=home / "state", port=47831,
-                source=home / "system.bend", bend="bend", opencode="opencode", model=None)
+                source=home / "system.bend", bend="bend", acp_agent="opencode", model=None)
             service = home / "Library/LaunchAgents" / (meta_shell.SERVICE + ".plist")
             service.parent.mkdir(parents=True)
             service.write_bytes(plistlib.dumps({"ProgramArguments": meta_shell.launch_args(args)}))

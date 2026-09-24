@@ -90,11 +90,11 @@ def line(text: str) -> str:
 
 
 class Node:
-    def __init__(self, state: Path, source: Path, bend: str, opencode: str,
+    def __init__(self, state: Path, source: Path, bend: str, acp_agent: str,
                  model: str | None = None):
         self.state, self.source = Path(state).resolve(), Path(source).resolve()
-        self.bend, self.opencode, self.model = bend, opencode, model
-        self.agent_name = "codex" if Path(opencode).name == "codex-acp" else "opencode"
+        self.bend, self.acp_agent, self.model = bend, acp_agent, model
+        self.agent_name = "codex" if Path(acp_agent).name == "codex-acp" else "opencode"
         self.port = DEFAULT_PORT
         self.timeout = 1800
         self.db = None
@@ -104,6 +104,10 @@ class Node:
         self.kernel_lock = asyncio.Lock()
         self.workspace_lock = asyncio.Lock()
         self.ready = False
+
+    def _session_key(self, conversation: str) -> str:
+        # Existing OpenCode sessions keep their key during a Codex cutover.
+        return ("codex:" if self.agent_name == "codex" else "") + conversation
 
     async def start(self):
         private_dir(self.state)
@@ -481,8 +485,9 @@ class Node:
                                str(job["worker_id"]), self.agent_name, line(result), line(evidence))
 
     async def _run_agent(self, job: dict, packet: str) -> dict:
+        session_key = self._session_key(job["conversation"])
         previous = None if job.get("workspace_path") else self.db.execute(
-            "SELECT session_id FROM sessions WHERE conversation=?", (job["conversation"],)).fetchone()
+            "SELECT session_id FROM sessions WHERE conversation=?", (session_key,)).fetchone()
         configuration = {"mcp": {"meta_kernel": {"type": "remote",
             "url": f"http://127.0.0.1:{self.port}/mcp", "oauth": False,
             "headers": {"Authorization": "Bearer " + self.token}}}}
@@ -526,7 +531,7 @@ class Node:
                        f"Baseline revision: {job['base_commit']}\n")
         return await run_agent(self._execution_project(job), prompt, previous[0] if previous else None,
                                json.dumps(configuration), self.state / "tasks" / job["id"] / "events.jsonl",
-                               self.timeout, self.opencode)
+                               self.timeout, self.acp_agent)
 
     async def _work_loop(self):
         while True:
@@ -544,8 +549,9 @@ class Node:
                 result = outcome.get("text", "")
                 self._update(job_id, result=result, session_id=outcome.get("session_id"))
                 if outcome.get("session_id") and not self._job(job_id).get("workspace_path"):
+                    session_key = self._session_key(self._job(job_id)["conversation"])
                     self.db.execute("INSERT OR REPLACE INTO sessions VALUES (?,?)",
-                                    (self._job(job_id)["conversation"], outcome["session_id"]))
+                                    (session_key, outcome["session_id"]))
                     self.db.commit()
                 if outcome.get("stop_reason") != "end_turn":
                     raise RuntimeError("Agent stopped without completing a turn: " + str(outcome.get("stop_reason")))
@@ -673,7 +679,7 @@ def client(state: Path, port: int, method: str, params=None):
 def launch_args(args):
     command = [sys.executable, str(Path(__file__).resolve()), "--state", str(args.state),
                "--port", str(args.port), "--source", str(args.source), "--bend", args.bend,
-               "--opencode", args.opencode]
+               "--acp-agent", args.acp_agent]
     if args.model:
         command += ["--model", args.model]
     return command + ["serve"]
@@ -799,7 +805,7 @@ def main():
     parser.add_argument("--source", type=Path, default=DEFAULT_SOURCE)
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--bend", default=shutil.which("bend") or str(Path.home() / ".bend/bin/bend"))
-    parser.add_argument("--acp-agent", "--opencode", dest="opencode",
+    parser.add_argument("--acp-agent",
                         default=shutil.which("opencode") or str(Path.home() / ".opencode/bin/opencode"))
     parser.add_argument("--model", default=None)
     subs = parser.add_subparsers(dest="command")
@@ -829,7 +835,7 @@ def main():
     args.command = args.command or "shell"
     if args.command == "serve":
         import uvicorn
-        node = Node(args.state, args.source, args.bend, args.opencode, args.model)
+        node = Node(args.state, args.source, args.bend, args.acp_agent, args.model)
         node.port = args.port
         class OwnedServer(uvicorn.Server):
             def handle_exit(self, sig, frame):

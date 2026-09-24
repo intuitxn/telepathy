@@ -69,7 +69,7 @@ memory. `submit --wait` and `wait` exit unsuccessfully for a terminal task
 status other than `reported`.
 
 Global options precede the subcommand: `--state`, `--source`, `--port`,
-`--bend`, `--acp-agent` (legacy alias `--opencode`), and optional `--model`.
+`--bend`, `--acp-agent`, and optional `--model`.
 Defaults use the current checkout's `runtime/worker/system.bend`, port `47831`,
 and the configured OpenCode model. Select absolute executable paths when
 managing multiple agent installations. For Codex, point `--acp-agent` at an
@@ -81,7 +81,7 @@ it in place.
 ## Ownership, context, and recovery
 
 The node executes one task at a time. Native agent delegation remains available
-inside OpenCode, but a running task must not wait for another task queued on
+inside the selected ACP worker, but a running task must not wait for another task queued on
 this node. The node owns all mutations to its private Bend snapshots.
 
 At startup, the node pins the Bend source by SHA-256 and requires its checker
@@ -96,14 +96,15 @@ and project load the saved ACP session. Managed jj tasks use a fresh ACP
 session in their isolated workspace, with selected preceding task context
 provided explicitly. Identical conversation labels in different projects
 remain separate. `/new` chooses a fresh conversation; it does not erase old
-state.
+state. Codex and OpenCode session keys are separate, so switching backends
+does not try to load an incompatible session or delete the earlier context.
 
 Queued work survives restart. Work that was running when the node stopped is
 marked `interrupted` and is not automatically replayed. Inspect its task and
 evidence before explicitly submitting a replacement: external actions may
 already have happened. Unresolved ACP permission requests are denied and
-recorded, and the task fails without widening permissions. Existing OpenCode
-tool permissions continue to apply.
+recorded, and the task fails without widening permissions. The selected ACP
+worker's sandbox and tool permissions continue to apply.
 
 ## Local MCP interface
 

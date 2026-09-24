@@ -37,8 +37,13 @@ function run(name, command, args, env = {}) {
   console.log(`PASS ${name}`);
 }
 const python = process.env.PYTHON || 'python3';
-run('meta node and jj lifecycle', python, ['-m', 'unittest', 'discover', '-s', 'runtime', '-p', 'meta_shell*test.py']);
-run('agent language', python, ['-m', 'unittest', 'discover', '-s', 'runtime/agent_programs', '-p', 'test_*.py']);
+const protocolReady = spawnSync(python, ['-c', 'import acp, mcp, starlette'], { cwd: root }).status === 0;
+const uvReady = spawnSync('uv', ['--version'], { cwd: root }).status === 0;
+if (!protocolReady && !uvReady) throw new Error('Install pinned MCP/ACP Python dependencies or uv');
+const pythonRunner = protocolReady ? [python] :
+  ['uv', 'run', '--with', 'mcp==1.27.0', '--with', 'agent-client-protocol==0.9.0', 'python'];
+run('meta node and jj lifecycle', pythonRunner[0], [...pythonRunner.slice(1), '-m', 'unittest', 'discover', '-s', 'runtime', '-p', 'meta_shell*test.py']);
+run('agent language', pythonRunner[0], [...pythonRunner.slice(1), '-m', 'unittest', 'discover', '-s', 'runtime/agent_programs', '-p', 'test_*.py']);
 const bend = process.env.BEND || path.join(process.env.HOME || '', '.bend/bin/bend');
 if (fs.existsSync(bend)) {
   run('Bend kernel checker', bend, ['runtime/worker/system.bend', '--check-only'], { BEND_NO_TELEMETRY: '1' });
