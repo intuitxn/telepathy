@@ -1,29 +1,10 @@
-# dependencies
 node_modules/
-
-# build output
 dist/
-
-# archive of reduced layers (keep local, don't track)
 .archive/
-
-# secrets
 .env
 .env.*
 !.env.example
-
-# macOS
 .DS_Store
-
-# private runtime state and drafts
-.local
-
-# Python runtime caches
+.local/
 __pycache__/
 *.pyc
-
-# generated per-program runners (absolute paths; regenerate via gen-runner)
-runtime/programs/runners/
-
-# private autonomous loop transcripts (retain selected evidence separately)
-ops/runs/
