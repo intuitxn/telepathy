@@ -94,6 +94,7 @@ class Node:
                  model: str | None = None):
         self.state, self.source = Path(state).resolve(), Path(source).resolve()
         self.bend, self.opencode, self.model = bend, opencode, model
+        self.agent_name = "codex" if Path(opencode).name == "codex-acp" else "opencode"
         self.port = DEFAULT_PORT
         self.timeout = 1800
         self.db = None
@@ -469,14 +470,15 @@ class Node:
         await self._transition(job_id, "init")
         conversation, _ = await self._transition(job_id, "capture", "retain", "operator", "terminal-or-local-mcp", line(job["task"]))
         work, _ = await self._transition(job_id, "work", str(conversation), "meta", "operator", line(job["acceptance"]))
-        worker, _ = await self._transition(job_id, "worker", "meta", "opencode", "opencode-acp")
+        worker, _ = await self._transition(job_id, "worker", "meta", self.agent_name,
+                                            self.agent_name + "-acp")
         self._update(job_id, work_id=work, worker_id=worker)
         await self._transition(job_id, "claim", str(work), str(worker), "meta")
         return (await self.dispatch("kernel", {"id": job_id, "operation": "packet"}))["text"]
 
     async def _return(self, job: dict, result: str, evidence: str):
         await self._transition(job["id"], "return", str(job["work_id"]),
-                               str(job["worker_id"]), "opencode", line(result), line(evidence))
+                               str(job["worker_id"]), self.agent_name, line(result), line(evidence))
 
     async def _run_agent(self, job: dict, packet: str) -> dict:
         previous = None if job.get("workspace_path") else self.db.execute(
@@ -791,7 +793,8 @@ def main():
     parser.add_argument("--source", type=Path, default=DEFAULT_SOURCE)
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--bend", default=shutil.which("bend") or str(Path.home() / ".bend/bin/bend"))
-    parser.add_argument("--opencode", default=shutil.which("opencode") or str(Path.home() / ".opencode/bin/opencode"))
+    parser.add_argument("--acp-agent", "--opencode", dest="opencode",
+                        default=shutil.which("opencode") or str(Path.home() / ".opencode/bin/opencode"))
     parser.add_argument("--model", default=None)
     subs = parser.add_subparsers(dest="command")
     for name in ["serve", "start", "stop", "status", "list", "install"]:
@@ -916,8 +919,9 @@ from acp.schema import ClientCapabilities, Implementation
 @contextlib.asynccontextmanager
 async def owned_acp(client, executable, project, env, stderr):
     """SDK protocol connection with an owned process group for tool cleanup."""
+    command = [executable] if Path(executable).name == "codex-acp" else [executable, "acp", "--cwd", project]
     process = await asyncio.create_subprocess_exec(
-        executable, "acp", "--cwd", project, cwd=project, env=env,
+        *command, cwd=project, env=env,
         stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=stderr,
         limit=4 * 1024 * 1024, start_new_session=True)
     CHILD_GROUPS.add(process.pid)
@@ -1000,7 +1004,16 @@ async def run_agent(project: str, prompt: str, session_id: str | None,
     client = MetaACPClient(events_path)
     env = {key: value for key, value in os.environ.items()
            if not key.startswith("BUZZ_") and key != "INTUITXN_PRIVATE_KEY"}
-    env["OPENCODE_CONFIG_CONTENT"] = config_content
+    is_codex = Path(executable).name == "codex-acp"
+    if is_codex:
+        env["INITIAL_AGENT_MODE"] = "agent"
+        selected_model = json.loads(config_content).get("model")
+        if selected_model:
+            env["CODEX_CONFIG"] = json.dumps({"model": selected_model})
+        # Codex reads its existing local login. MCP is supplied to the ACP
+        # session below, rather than through OpenCode configuration.
+    else:
+        env["OPENCODE_CONFIG_CONTENT"] = config_content
     stderr_path = events_path.with_suffix(".stderr.log")
     stderr_fd = os.open(stderr_path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
     with os.fdopen(stderr_fd, "ab", buffering=0) as stderr:
@@ -1020,14 +1033,25 @@ async def run_agent(project: str, prompt: str, session_id: str | None,
                     else:
                         session = await asyncio.wait_for(conn.new_session(cwd=project, mcp_servers=[]), 120)
                         session_id = session.session_id
-                    await asyncio.wait_for(conn.set_session_mode(session_id=session_id, mode_id="meta"), 30)
+                    await asyncio.wait_for(conn.set_session_mode(
+                        session_id=session_id, mode_id="agent" if is_codex else "meta"), 30)
                     client.record("session", session_id=session_id)
                     client.collecting = True
                     response = await conn.prompt(
                         session_id=session_id, prompt=[acp.text_block(prompt)],
                     )
                     client.record("completed", session_id=session_id, response=response)
-                    return {"session_id": session_id, "text": "".join(client.parts),
+                    output = "".join(client.parts)
+                    if is_codex:
+                        for entry in output.splitlines():
+                            try:
+                                failure = json.loads(entry)
+                            except json.JSONDecodeError:
+                                continue
+                            if isinstance(failure, dict) and failure.get("type") == "error":
+                                raise RuntimeError("Codex ACP provider error: " +
+                                                   str(failure.get("error", failure))[:500])
+                    return {"session_id": session_id, "text": output,
                             "stop_reason": response.stop_reason,
                             "permission_requests": client.permission_requests}
         except BaseException as exc:
