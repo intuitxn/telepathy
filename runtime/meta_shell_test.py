@@ -22,6 +22,27 @@ from starlette.testclient import TestClient
 import meta_shell
 
 
+class WorkEnvelopeTests(unittest.TestCase):
+    def test_readable_work_envelope_preserves_task_lines(self):
+        parsed = meta_shell.parse_work(
+            "work meta/1\nid: request-7\nproject: /tmp/project\n"
+            "conversation: research\nacceptance: Report evidence\n"
+            "task:\n  Inspect the node\n  and its kernel\n")
+        self.assertEqual(parsed["request_id"], "request-7")
+        self.assertEqual(parsed["task"], "Inspect the node\nand its kernel")
+
+    def test_rejects_ambiguous_or_injected_envelope(self):
+        base = ("work meta/1\nid: request-7\nproject: /tmp/project\n"
+                "conversation: research\nacceptance: Report evidence\n"
+                "task:\n  Inspect the node\n")
+        for source in (base.replace("id: request-7", "id: request-7\nid: request-8"),
+                       base.replace("  Inspect", "project: /other\n  Inspect"),
+                       base.replace("/tmp/project", "project"),
+                       base.replace("request-7", "../unsafe")):
+            with self.subTest(source=source), self.assertRaises(ValueError):
+                meta_shell.parse_work(source)
+
+
 class AgentTextTests(unittest.TestCase):
     def test_codex_skill_notice_is_not_the_agent_result(self):
         notice = ("Warning: Skill descriptions were shortened to fit the skills context budget. "
@@ -118,6 +139,16 @@ class NodeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["usage_tokens"], 42)
         with self.assertRaisesRegex(ValueError, "different task"):
             await self.node.dispatch("submit", self.params(task="A different request"))
+
+    async def test_work_envelope_retry_uses_existing_job(self):
+        source = (f"work meta/1\nid: event-42\nproject: {self.root}\n"
+                  "conversation: research\nacceptance: Report evidence\n"
+                  "task:\n  Inspect the fixture\n")
+        first = await self.node.dispatch("submit", meta_shell.parse_work(source))
+        second = await self.node.dispatch("submit", meta_shell.parse_work(source))
+        self.assertEqual(first["id"], second["id"])
+        await self.finished(first["id"])
+        self.assertEqual(self.node.executed, [first["id"]])
 
     async def test_concurrent_distinct_tasks_all_return_once(self):
         jobs = await asyncio.gather(*[

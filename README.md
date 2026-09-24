@@ -12,7 +12,7 @@ terminal / local MCP
   agent program  -- typed plan (one node task)
 ```
 
-The node's MCP endpoint is authenticated and bound to loopback; an optional SSH relay can forward explicit requests to another installed node. There is no cross-device scheduler, global consensus, neural-weight training, or proof that an agent's answer is correct. Model judgments are advisory; actual effects remain subject to the host and operator authority. See [the meta shell](runtime/META_SHELL.md) for setup and recovery, [the agent language](docs/designs/agent-program-language.md) for syntax and its limits, and [the Bend kernel](runtime/worker/README.md) for the checked contract.
+The node's MCP endpoint is authenticated and bound to loopback; an optional SSH relay can forward explicit requests to another installed node. There is no cross-device scheduler, global consensus, neural-weight training, or proof that an agent's answer is correct. Model judgments are advisory; actual effects remain subject to the host and operator authority. See [the meta shell](runtime/META_SHELL.md) for setup and recovery, [the agent language](docs/designs/agent-program-language.md) for current syntax, [the agent web](docs/designs/agent-web.md) for the network and routine contract, and [the Bend kernel](runtime/worker/README.md) for the checked contract.
 
 [RRSI candidate review](docs/designs/rrsi.md) runs measured incumbent/candidate rounds in temporary node instances. The [agent-language protocol](docs/designs/intuitxn-language.md) now drives a bounded recursive proposal, critique, forward, feedback, and selection loop through the resident node. Selection advances only a private pinned incumbent; no candidate is automatically deployed.
 
