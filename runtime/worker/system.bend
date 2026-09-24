@@ -1825,8 +1825,69 @@ def lorenz_opencode(input: String, work: String, +port: String, session: String,
     history : +List<LorenzEvent> <- lorenz_load(input)
     lorenz_opencode_parsed(history, lorenz_nat(work), lorenz_port_short(Nat.is_le(String.length(port), 5n), port), session, receipt)
 
+# Pure Geist planner: assemble the OpenCode agent body from a persona name and
+# its retrieved Buzz engram. No subprocess, no network. The host adapter does
+# the retrieval (buzz) and the exec (opencode); this kernel owns the decision:
+# which names are valid and the exact shape of the generated agent.
+def lorenz_geist_known(+name: String) -> Bool:
+  String.eq(name, "pollen") || String.eq(name, "fizz") || String.eq(name, "honey")
+
+def lorenz_geist_header(name: String) -> String:
+  "---\ndescription: Geist " ++ name ++ " - live persona; Buzz memory injected at launch; spawns meta agents.\nmode: primary\n---\n\n"
+
+def lorenz_geist_spawn_rule() -> String:
+  "You are live. Spawn the meta agents (prime, build, steward, research, relationships, bend-forge, relay-keeper) via the task tool when useful; route through @telepathy. Draft only; the owner sends. Never self-accept.\n"
+
+def lorenz_geist_body(name: String, engram: String) -> String:
+  lorenz_geist_header(name) ++ engram ++ "\n\n" ++ lorenz_geist_spawn_rule()
+
+def lorenz_geist_loaded(+name: String, +out: String, +found: Maybe<&2, String>) -> IO(Unit):
+  match found:
+    case None{}:
+      IO.die(Unit, 1, "geist_engram_unreadable")
+    case Some{engram}:
+      do IO<Unit>:
+        store_write(out, lorenz_geist_body(name, engram))
+        IO.print("geist_agent_written: " ++ name ++ " -> " ++ out)
+
+def lorenz_geist_valid(known: Bool, +name: String, source: String, out: String) -> IO(Unit):
+  match known:
+    case False{}:
+      IO.die(Unit, 1, "geist_unknown_name")
+    case True{}:
+      do IO<Unit>:
+        found : Maybe<&2, String> <- store_read(source)
+        lorenz_geist_loaded(name, out, found)
+
+def lorenz_geist(+name: String, source: String, out: String) -> IO(Unit):
+  lorenz_geist_valid(lorenz_geist_known(name), name, source, out)
+
+def lorenz_geist_names_ok() -> Bool:
+  lorenz_geist_known("pollen") && lorenz_geist_known("fizz") && lorenz_geist_known("honey")
+
+law lorenz_geist_accepts_known_names:
+  {lorenz_geist_names_ok() == True{} : Bool}
+
+def lorenz_geist_accepts_known_names():
+  {==}
+
+def lorenz_geist_names_reject() -> Bool:
+  Bool.not(lorenz_geist_known("atlas")) && Bool.not(lorenz_geist_known(""))
+
+law lorenz_geist_rejects_unknown_name:
+  {lorenz_geist_names_reject() == True{} : Bool}
+
+def lorenz_geist_rejects_unknown_name():
+  {==}
+
+law lorenz_geist_body_scales_with_engram:
+  {String.length(lorenz_geist_body("fizz", "ABCDEFGH")) == (String.length(lorenz_geist_body("fizz", "A")) + 7n : Nat) : Nat}
+
+def lorenz_geist_body_scales_with_engram():
+  {==}
+
 def lorenz_help() -> String:
-  "Lorenz: calculate, remember, inspect.\n\nCalculate:\n  max NUMBER...                 maximum of 1..128 integers, each 0..65535\n  compute cpu|gpu DEPTH          parallel diagnostic, depth 0..20\n\nRemember explicitly:\n  init OUT\n  capture IN OUT retain ACTOR ORIGIN TEXT\n  remember IN OUT CONVERSATION DEPENDENCY ACTOR TEXT\n  correct IN OUT MEMORY DEPENDENCY ACTOR REASON TEXT\n  work IN OUT CONVERSATION ACTOR OWNER ACCEPTANCE\n\nDelegate explicitly:\n  worker IN OUT ACTOR LABEL RUNTIME\n  claim IN OUT WORK WORKER ACTOR\n  packet IN WORK\n  return IN OUT WORK WORKER ACTOR RESULT EVIDENCE\n  learn IN OUT RESULT DEPENDENCY ACTOR TEXT\n  opencode IN WORK PORT SESSION RECEIPT\n\nInspect:\n  history IN                    all records, including old revisions\n  memory IN                     current memories only\n  explain IN ID                 record and its links\n\nEvidence:\n  record FILE SOURCE\n  replay FILE SOURCE\n\nIN/OUT are immutable local snapshots; OUT must be new. IDs belong to that history; dependency 0 means none. One dependency per memory; single-line fields up to 4096 characters. Use a private directory and one writer (writes are not atomic). Work records intent. Explicit opencode submits a claimed packet to the general agent at 127.0.0.1; receipt204 acknowledges delivery, not completion. Results remain reported until explicit learn. No automatic retry; timeout may mean delivery occurred. Labels are not authenticated identities. Native --threads N and --gpu on control the compute diagnostic. No arguments runs the adaptive example. Older commands prefixed with lorenz still work."
+  "Lorenz: calculate, remember, inspect.\n\nCalculate:\n  max NUMBER...                 maximum of 1..128 integers, each 0..65535\n  compute cpu|gpu DEPTH          parallel diagnostic, depth 0..20\n\nRemember explicitly:\n  init OUT\n  capture IN OUT retain ACTOR ORIGIN TEXT\n  remember IN OUT CONVERSATION DEPENDENCY ACTOR TEXT\n  correct IN OUT MEMORY DEPENDENCY ACTOR REASON TEXT\n  work IN OUT CONVERSATION ACTOR OWNER ACCEPTANCE\n\nDelegate explicitly:\n  worker IN OUT ACTOR LABEL RUNTIME\n  claim IN OUT WORK WORKER ACTOR\n  packet IN WORK\n  return IN OUT WORK WORKER ACTOR RESULT EVIDENCE\n  learn IN OUT RESULT DEPENDENCY ACTOR TEXT\n  opencode IN WORK PORT SESSION RECEIPT\n\nInspect:\n  history IN                    all records, including old revisions\n  memory IN                     current memories only\n  explain IN ID                 record and its links\n  geist NAME ENGRAM_FILE OUT_FILE   write the generated Geist agent file (pollen|fizz|honey)\n\nEvidence:\n  record FILE SOURCE\n  replay FILE SOURCE\n\nIN/OUT are immutable local snapshots; OUT must be new. IDs belong to that history; dependency 0 means none. One dependency per memory; single-line fields up to 4096 characters. Use a private directory and one writer (writes are not atomic). Work records intent. Explicit opencode submits a claimed packet to the general agent at 127.0.0.1; receipt204 acknowledges delivery, not completion. Results remain reported until explicit learn. No automatic retry; timeout may mean delivery occurred. Labels are not authenticated identities. Native --threads N and --gpu on control the compute diagnostic. No arguments runs the adaptive example. Older commands prefixed with lorenz still work."
 
 # Expose the already proved maximum kernel on caller-supplied numbers. Parsing
 # uses bounded U32 parsing before conversion to Nat; the empty-list identity
@@ -1940,6 +2001,8 @@ def lorenz_dispatch(args: List<String>) -> IO(Unit):
       lorenz_dispatch_pair(String.eq(command, "init"), String.eq(command, "history"), String.eq(command, "memory"), path)
     case Con{+command, Con{+path, Con{+id, Nil{}}}}:
       lorenz_io_choose(String.eq(command, "explain"), lorenz_explain(path, id), lorenz_io_choose(String.eq(command, "compute"), lorenz_compute_parsed(path, lorenz_nat(id)), lorenz_io_choose(String.eq(command, "packet"), lorenz_packet(path, id), IO.die(Unit, 1, lorenz_help()))))
+    case Con{+command, Con{+name, Con{+source, Con{+out, Nil{}}}}}:
+      lorenz_io_choose(String.eq(command, "geist"), lorenz_geist(name, source, out), IO.die(Unit, 1, lorenz_help()))
     case Con{+command, Con{+input, Con{+output, Con{+p1, Con{+p2, Con{+p3, Nil{}}}}}}}:
       lorenz_io_choose(String.eq(command, "worker"), lorenz_worker(input, output, p1, p2, p3), lorenz_io_choose(String.eq(command, "claim"), lorenz_claim(input, output, p1, p2, p3), lorenz_io_choose(String.eq(command, "opencode"), lorenz_opencode(input, output, p1, p2, p3), IO.die(Unit, 1, lorenz_help()))))
     case Con{+command, Con{input, Con{output, Con{p1, Con{p2, Con{p3, Con{p4, Nil{}}}}}}}}:
@@ -1949,15 +2012,60 @@ def lorenz_dispatch(args: List<String>) -> IO(Unit):
     case _:
       IO.die(Unit, 1, lorenz_help())
 
-def lorenz_or_dispatch(legacy: Bool, evidence: Bool, maximum: Bool, command: String, rest: List<String>, payload: String) -> IO(Unit):
-  match legacy evidence maximum:
-    case True{} _ _:
+# RRSI's host supplies measured flags from the pinned diff, independent critic,
+# frozen trials, deterministic admission rule and held-out comparison. The Bend
+# gate decides whether the private loop may advance; flags do not certify that
+# the host measurements are authentic or authorize a live deployment.
+def rrsi_select(scoped: Bool, critic: Bool, measured: Bool, admitted: Bool, heldout: Bool) -> Bool:
+  scoped && critic && measured && admitted && heldout
+
+law rrsi_unscoped_never_selected:
+  for +critic: Bool
+  for +measured: Bool
+  for +admitted: Bool
+  for +heldout: Bool
+  {rrsi_select(False{}, critic, measured, admitted, heldout) == False{} : Bool}
+
+def rrsi_unscoped_never_selected(critic, measured, admitted, heldout):
+  {==}
+
+law rrsi_unreviewed_never_selected:
+  for +scoped: Bool
+  for +measured: Bool
+  for +admitted: Bool
+  for +heldout: Bool
+  {rrsi_select(scoped, False{}, measured, admitted, heldout) == False{} : Bool}
+
+def rrsi_unreviewed_never_selected(scoped, measured, admitted, heldout):
+  match scoped:
+    case False{}:
+      {==}
+    case True{}:
+      {==}
+
+def rrsi_binary(+value: String) -> Bool:
+  String.eq(value, "0") || String.eq(value, "1")
+
+def rrsi_select_cli(args: List<String>) -> IO(Unit):
+  match args:
+    case Con{+s, Con{+c, Con{+m, Con{+a, Con{+h, Nil{}}}}}}:
+      valid = rrsi_binary(s) && rrsi_binary(c) && rrsi_binary(m) && rrsi_binary(a) && rrsi_binary(h)
+      selected = rrsi_select(String.eq(s, "1"), String.eq(c, "1"), String.eq(m, "1"), String.eq(a, "1"), String.eq(h, "1"))
+      lorenz_io_choose(valid, IO.print("{\"selected\":" ++ bool_json(selected) ++ "}"), IO.die(Unit, 1, "rrsi-select requires five 0/1 flags"))
+    case _:
+      IO.die(Unit, 1, "rrsi-select requires five 0/1 flags")
+
+def lorenz_or_dispatch(legacy: Bool, evidence: Bool, maximum: Bool, rrsi: Bool, command: String, rest: List<String>, payload: String) -> IO(Unit):
+  match legacy evidence maximum rrsi:
+    case True{} _ _ _:
       lorenz_dispatch(rest)
-    case _ True{} _:
+    case _ True{} _ _:
       store_dispatch(command <> rest, payload)
-    case _ _ True{}:
+    case _ _ True{} _:
       lorenz_max_print(lorenz_max_answer(lorenz_numbers(128n, rest)))
-    case _ _ _:
+    case _ _ _ True{}:
+      rrsi_select_cli(rest)
+    case _ _ _ _:
       lorenz_dispatch(command <> rest)
 
 def lorenz_or_adaptive(args: List<String>, payload: String) -> IO(Unit):
@@ -1965,7 +2073,7 @@ def lorenz_or_adaptive(args: List<String>, payload: String) -> IO(Unit):
     case Nil{}:
       store_dispatch([], payload)
     case Con{+command, rest}:
-      lorenz_or_dispatch(String.eq(command, "lorenz"), String.eq(command, "record") || String.eq(command, "replay"), String.eq(command, "max"), command, rest, payload)
+      lorenz_or_dispatch(String.eq(command, "lorenz"), String.eq(command, "record") || String.eq(command, "replay"), String.eq(command, "max"), String.eq(command, "rrsi-select"), command, rest, payload)
 
 def lorenz_fixture() -> +List<LorenzEvent>:
   [LorenzEvent{1n, 1n, 0n, 0n, 0n, "operator", "conversation:example", "question", "-", "-"}, LorenzEvent{2n, 2n, 1n, 0n, 0n, "agent", "conversation:example", "premise", "-", "-"}, LorenzEvent{2n, 3n, 1n, 2n, 0n, "agent", "conversation:example", "direct", "-", "-"}, LorenzEvent{2n, 4n, 1n, 3n, 0n, "agent", "conversation:example", "transitive", "-", "-"}]

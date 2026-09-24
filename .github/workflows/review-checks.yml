@@ -1,0 +1,38 @@
+name: Review checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: review-checks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Repository checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install pinned jj 0.45.1
+        run: sh scripts/install-jj-ci.sh
+      - name: Install meta shell protocol dependencies
+        run: python3 -m pip install 'mcp==1.27.0' 'agent-client-protocol==0.9.0'
+      - name: Install pinned Bend 2.0.21
+        run: sh scripts/install-bend-ci.sh
+      - name: Check active kernel and language
+        run: node scripts/check.mjs --require-bend

@@ -14,6 +14,18 @@ const run = async args => (await exec(bend, [source, ...args], {
   env: { ...process.env, BEND_NO_TELEMETRY: '1' }, timeout: 120000, maxBuffer: 4 * 1024 * 1024,
 })).stdout;
 
+test('RRSI Bend selection requires every measured guard', async () => {
+  const select = async flags => JSON.parse((await run(['--', 'rrsi-select', ...flags])).trim()).selected;
+  assert.equal(await select(['1', '1', '1', '1', '1']), true);
+  for (let missing = 0; missing < 5; missing++) {
+    const flags = ['1', '1', '1', '1', '1'];
+    flags[missing] = '0';
+    assert.equal(await select(flags), false);
+  }
+  await assert.rejects(run(['--', 'rrsi-select', '1', '1', 'maybe', '1', '1']),
+    error => /requires five 0\/1 flags/.test(error.stdout + error.stderr));
+});
+
 test('native worker laws, ownership, explicit learning and correction survive fresh processes', async () => {
   assert.match(await run(['--check-only']), /All terms check\./);
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'bend-worker-'));

@@ -1,0 +1,50 @@
+program improve_harness version 0.1.0
+about "Propose, critique, measure, and select bounded changes to the meta harness."
+
+input goal: string
+
+effect read_candidate: read "Inspect the pinned candidate diff and harness context."
+effect write_candidate: write "Edit only the allowed jj candidate files."
+effect write_evidence: write "Write attributed proposal and critic evidence outside the repository."
+effect run_verifier: command "Run frozen external verifiers in temporary node instances."
+
+policy rrsi:
+  allow_path ".opencode/agents/meta.md"
+  require scoped_diff, critic_exact_diff, measured_trials, rrsi_admission, heldout_nonregression
+  max_edits 1
+  gain_cost_ratio 1
+  within_band_cost_weight 1
+  promotion reviewed_release
+
+step optimize:
+  agent meta
+  use input.goal
+  allow read_candidate, write_candidate
+  ask "Implement one small general harness improvement in the isolated jj workspace. Improve verified outcomes or reduce measured cost on unseen tasks. Do not read private RRSI state or benchmark cases. Do not add task answers, fixture identifiers, network calls, dependencies, or inert text. Check the changed files and run relevant local checks. State a concrete behavior hypothesis."
+  output hypothesis: string
+
+step critique after optimize:
+  agent meta
+  use step.optimize.hypothesis
+  allow read_candidate, write_evidence
+  ask "Independently review the exact pinned diff before any benchmark score exists. Reject out-of-scope files, task-specific answers, benchmark leakage, inert changes, or a hypothesis unsupported by the edit. If uncertain, reject. Write concrete evidence for the verdict and do not modify the candidate."
+  output evidence: string
+
+step forward after critique:
+  agent meta
+  use step.critique.evidence
+  allow run_verifier
+  ask "Run the same frozen model, suite, trial count, environment, and external verifier on incumbent and candidate. Retain raw evidence privately. Never infer correctness from an agent's report alone."
+  output trials: json
+
+step backward after forward:
+  agent meta
+  use step.forward.trials
+  ask "Compare verified outcomes and measured token cost, then attribute the difference to the one declared candidate edit. Retain failed hypotheses and uncertainty; do not infer model-weight gradients or causal neural explanations from this comparison."
+  output feedback: json
+
+step select after backward:
+  agent meta
+  use step.backward.feedback
+  ask "Apply the deterministic RRSI admission gate, then reject a candidate whose verified score or mean token cost regresses on the separate held-out suite. Advance only the private loop incumbent. A selected revision is not a reviewed live release."
+  output decision: json

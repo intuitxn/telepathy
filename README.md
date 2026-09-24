@@ -1,62 +1,26 @@
 # Telepathy
 
-Telepathy is Intuitxn's shared human context layer.
-
-**Working setup:** use installed OpenCode directly (`opencode` or `opencode run "task"`), or connect Buzz to its native `opencode acp` command. Bend owns the local worker state; Buzz supplies coordination and memory. Follow the [Buzz/Bend guide](runtime/worker/BUZZ.md). No oc2 fork, custom plugin, SDK service, or npm setup is required for that path.
-
-The existing Desk remains optional for its local jobs and writing records (`npm ci && npm run setup`, then `npm run doctor`). Its OpenCode jobs now use the installed CLI and normal provider configuration; `OPENCODE_BIN` selects an explicit executable if multiple versions are installed. Previous profiles and stored records are preserved. Read the [setup guide](./BUZZ_SETUP.md), [forum start page](./forum/START_HERE.md), and [company writing guide](./forum/WRITING.md).
-
-The [active build plan](runtime/adaptive/HARNESS.md#what-the-system-should-build-toward) defines how findings become reusable, corrected, independently evaluated improvements.
-
-**Live internal-alpha preview:** <https://intuitxn.github.io/telepathy/>
-
-It gives Shubham, Om, and Kush one place to publish decisions, updates, questions, asks, and accepted outcomes. People remain the visible authors and owners. Agent Manager, worker agents, routing, summarization, and artifact processing operate beneath that surface.
-
-## Product rule
-
-> Telepathy exists to improve human communication. It must not turn internal agent traffic into a product for people to monitor.
-
-The first product has four visible objects:
-
-- **Posts** for updates, decisions, questions, and announcements.
-- **Replies** for focused human discussion.
-- **Acknowledgements** that show important context landed.
-- **Resolutions** that close a question or ask with an accountable outcome.
-
-## Current release boundary
-
-The first website is an internal alpha. It demonstrates the complete interaction model and persists activity in one browser. It is not yet a secure multi-user production workspace.
-
-The preview also includes an **Interfaces** catalog for Prime, Build, Steward, Research, and Relationships. These are planned focused tools over shared Job and artifact machinery—not people, feed authors, or live agent endpoints.
-
-Not yet shipped:
-
-- authenticated member identities;
-- shared server-side persistence and cross-device sync;
-- production notification delivery;
-- privacy and retention controls;
-- an externally reachable harness.
-
-These boundaries are tracked in the [Telepathy GitHub Project](https://github.com/orgs/intuitxn/projects/1) and the [Internal alpha milestone](https://github.com/intuitxn/telepathy/milestone/1).
-
-## Repository
+Telepathy is Intuitxn Labs' experimental local agent kernel. One resident `meta` process accepts terminal and MCP tasks, runs an ACP agent in a jj workspace, and records task and memory transitions in one checked Bend source. The agent language compiles readable programs into inspectable plans for that node.
 
 ```text
-site/                human communication product
-runtime/worker/      one-file Bend worker logic and independent checks
-runtime/desk/        optional local jobs and writing records
-.opencode/agents/    native OpenCode role charters
-plugins/             declarative catalog and historical integrations
+terminal / local MCP
+        |
+  meta_shell.py  -- ACP agent (OpenCode or Codex)
+        |         -- jj task workspace
+  worker/system.bend -- explicit snapshot lineage
+        |
+  agent program  -- typed plan (one node task)
 ```
 
-Read [PRODUCT.md](./PRODUCT.md) for the product contract, [SOP.md](./SOP.md) for the team operating model, and [CHANGELOG.md](./CHANGELOG.md) for release history.
+The node's MCP endpoint is authenticated and bound to loopback; an optional SSH relay can forward explicit requests to another installed node. There is no cross-device scheduler, global consensus, neural-weight training, or proof that an agent's answer is correct. Model judgments are advisory; actual effects remain subject to the host and operator authority. See [the meta shell](runtime/META_SHELL.md) for setup and recovery, [the agent language](docs/designs/agent-program-language.md) for syntax and its limits, and [the Bend kernel](runtime/worker/README.md) for the checked contract.
 
-## Development
+[RRSI candidate review](docs/designs/rrsi.md) runs measured incumbent/candidate rounds in temporary node instances. The [agent-language protocol](docs/designs/intuitxn-language.md) now drives a bounded recursive proposal, critique, forward, feedback, and selection loop through the resident node. Selection advances only a private pinned incumbent; no candidate is automatically deployed.
 
-```bash
-cd site
-npm install
-npm run dev
+```sh
+uv run --script runtime/meta_shell.py start
+uv run --script runtime/meta_shell.py status
+uv run --script runtime/meta_shell.py shell --project "$PWD"
+make check
 ```
 
-Build and verification commands are defined inside each package. Deployment is tied to reviewed commits on `main`.
+`jj` is the local revision and workspace tool; Git is remote transport. [Workspace lifecycle](docs/WORKTREE_LIFECYCLE.md) and [concurrency rules](docs/CONCURRENCY.md) describe the single-writer boundary. Historical website, Nudge/oc2 host, duplicate kernels, evaluation fixtures, and old service code remain recoverable from Git history, but are not part of this active tree.
