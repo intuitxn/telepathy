@@ -1,96 +1,30 @@
-# Mundus: Buzz-native harness
+# Telepathy algorithm harness
 
-Use standard OpenCode directly and its native ACP interface with Buzz's existing
-agent harness, memory and workflow DSL. Our executable logic stays in Bend; no
-oc2 fork, beta build, custom learning service, or port 4110 service is required.
-Start with [Buzz and Bend](../worker/BUZZ.md), or use the same direct
-[worker protocol](META.md) from another process-capable harness.
+The new source harness is the [pinned DeepSeek Harness integration](../dsh/README.md), with `deepseek-official/deepseek-flash` as its intended model route. Its keyless session and algorithm tools are tested; operational cutover remains pending a live credentialed run and the migration gates. [The algorithm machine contract](../../docs/designs/dsh-algorithm-machine.md) defines the wider target. One Bend source file is the executable candidate; the DSH plugin owns bounded execution and receipts; the independent benchmark owns expected results and selection evidence. The former Mundus, Meta shell, OpenCode `/meta`, and mailbox host paths are historical source, not the active build plan.
 
-The [A2A plan](../../docs/designs/a2a-protocol.md) preserves the historical oc2
-M1–M8 roadmap; those milestones are not prerequisites for the active baseline.
-Federation and Lamport wiring are deferred until an actual multi-node need.
-Local Lorenz memory and published NIP-AE engrams are distinct. Outbound work is
-drafted, reviewed by Shubham, then sent by the owner-controlled signer.
-Credential isolation remains a target requiring deployment verification.
+## Closed loop
 
-The installed Buzz 0.5.23 CLI exposes native memory commands and its ACP harness
-injects core memory by default. Other findings require explicit retrieval. Buzz
-owns agent identity, conversation routing and stored engrams. Bend owns the
-selected algorithms, laws and explicit local worker/memory transitions.
+1. State a goal, acceptance cases, budget, current source digest, and a prediction before the next action.
+2. Fork one candidate source or an agent/plugin policy in an owned `jj` workspace. Keep the incumbent digest available.
+3. Check and build the exact Bend bytes once per source/toolchain key. Run bounded exploratory simulations without model calls inside the hot loop.
+4. Compare predicted outputs, exits, and costs with observed receipts. Preserve failures and prediction error.
+5. Independently score archived source against the host-pinned evaluator and case set. Compare candidate and incumbent under the same toolchain and repeat count; retain negative results.
+6. Select only a strict gain with no lost passing cases. A new session reads the selected source digest; an existing session keeps its prior pin.
 
-Before executing or reusing changed Bend code, check its actual source, run the
-relevant independent examples and inspect the results. A stored memory or signed
-Buzz event is provenance, not a successful compiler check or correctness proof.
-Keep source revision, checker output, concrete inputs/results and counterexamples
-with the work. Select concise findings for Buzz memory after evaluation.
+`runtime/core/telepathy.bend` implements deterministic algorithm, event-clock, frontier, retrieval, and prediction examples. `benchmarks/core/` tests its executable behavior with a separate oracle. The score is an empirical result over those cases, not a proof of general correctness. Named Bend laws prove only the stated laws. A new evaluator or case set starts a new comparison generation and requires rescoring both sides.
 
-## Retired JavaScript experiment
+The frontier is a finite, budget-admissible set of candidate actions or versions. Record `birth`, `refine`, `fork`, `falsify`, `suspend`, and `select` events by causal parent and session sequence. Simulation fuel is event-relative duration; wall time, check/build/runtime time, model calls, and money are separate costs. A candidate's prediction error can reveal uncertainty but cannot substitute for task quality. Retrieval must be compared with a no-retrieval baseline and must abstain on incompatible evidence.
 
-The custom registry, Git synchronization, lifecycle, maintenance and OpenCode
-delegation stack was removed from the active tree. Its exact implementation,
-tests and operational instructions remain at Git commit
-`d7a6c7b0930f6d91b691e58df84b775479380c0d` for historical reproduction.
-Its bespoke bundle-admission, publisher-trust, revocation and rollback checks
-have not been ported to Buzz or Bend. Do not claim that Buzz engrams reproduce
-those guarantees.
+For self-improvement, evaluate an agent or plugin descendant against an unchanged clone on fresh tasks before selection. Pin the grader, cases, runtime, and budget for that comparison. Store only source-bound, supported findings for later retrieval; a session transcript or claimed insight is not admitted knowledge by itself. The current keyless DSH headless test exercises proposal, check/build, independent score, selection, and old/new session pins. Live DeepSeek API behavior and general self-improvement remain unverified until measured.
 
-Existing local registry entries, signing keys, private runs and the remote
-`learning/shared-v1` evidence branch are retained. They have not been imported
-into Buzz. Historical results in [LEARNING.md](LEARNING.md) and
-[evaluation](../evaluation/README.md) describe the implementation used at the
-time; they do not establish current automatic synchronization.
+## Local checks and authority
 
-Offline Node drivers still check Bend transitions and score saved experimental
-answers. They are optional development tools and never run as a learning service.
-Desk remains optional and now uses the installed OpenCode CLI. The old custom
-plugin source is historical and excluded from the active install and checks.
+```sh
+npm run check
+make check
+node benchmarks/core/run.mjs --source runtime/core/telepathy.bend --cases benchmarks/core/kernel-cases.json
+```
 
-## What the system should build toward
+`make check` requires Bend; CI installs pinned Bend and runs the same source and benchmark gate. The [DSH README](../dsh/README.md) gives exact pinned upstream build and private `DSH_HOME` setup. Never put provider keys, private receipts, or raw transcripts in repository artifacts. Internal candidate testing and supported learning can proceed within the authorized task. Publication and GitHub merge remain separate exact-revision actions under [AUTO_MERGE.md](../../docs/AUTO_MERGE.md).
 
-The target is a system that improves reusable programs and its working methods
-from checked outcomes. The LLM proposes changes; execution supplies observations;
-independent checks decide which claims survive. Saved text alone is not learning
-performance, and self-editing alone is not intelligence or AGI.
-
-Keep one executable Bend file per kernel, starting with `runtime/worker/system.bend`.
-Multiple cores may have different contracts and evaluators; add a core only when
-an actual task needs it. Host configuration stays ordinary Buzz/OpenCode config.
-Do not recreate a registry service, signer, dispatcher or agent framework merely
-to connect capabilities the host already provides.
-
-The work loop is: problem + acceptance → retrieve relevant evidence → predict
-an outcome → propose a candidate → run independent checks → inspect disagreement
-→ retain a selected finding → reuse it in a fresh task → measure the difference.
-The full loop is a build target; existing Bend learn/correct transitions implement
-only part of it. Session transcripts are not automatically admitted as knowledge.
-
-| Next step | Completion evidence |
-|---|---|
-| 1. One native Buzz → OpenCode → Bend task | Native ACP session completes a bounded task, Bend checks and independent examples pass, result returns to the correct task. The current initialize handshake alone is insufficient. |
-| 2. One finding reused in a fresh session | Capture source revision, contract, evidence and limits; retain the reviewed selection through native Buzz memory; a fresh worker retrieves it without the original conversation and produces a checked result. Record which memory was actually supplied. |
-| 3. Correction and stale-memory handling | Introduce a counterexample, correct the local finding, verify dependent local records are invalidated, then verify the published replacement is what the next session retrieves. Buzz and Bend are not automatically synchronized. |
-| 4. Independent improvement evaluation | Compare repeated fresh tasks with and without selected memory under matched models, tools and budgets. Hold back test cases; report failures, accuracy, time, tokens and cost. Keep negative results. |
-| 5. Bounded self-modification | An agent proposes a kernel, algorithm, routing or problem-formulation change in an isolated candidate. Check source-bound laws and held-out behavior; reject regressions; retain the previous revision for rollback. Human acceptance controls promotion/publication. |
-
-A reusable piece needs its problem/contract, source revision, dependencies,
-evaluator, measured result, counterexamples and supersession status. This is a
-content requirement for selected findings and artifacts, not a new storage
-service. Recheck compatibility before reuse; an old successful receipt does not
-verify a changed program.
-
-Record surprise as a discrepancy between a stated prediction and observation.
-It nominates an investigation, not a causal conclusion. Change the suspected
-factor, compare an unchanged control, repeat on new cases, and state confounders
-before retaining a causal claim. Improving the problem statement or representation
-is a valid candidate, evaluated against the original objective as well.
-
-For parallel work, delegate independent tasks and give each a separate output.
-One coordinator writes each Bend snapshot lineage. Do not claim distributed
-exclusive claims, merge safety or global ordering from current local laws.
-Measure coordination cost before adding more workers; federation/Lamport work
-waits for a concrete multi-node requirement.
-
-Promotion and publication remain separate from proposing and testing. Workers
-must not accept their own changes or acquire signing credentials. Current shell
-environment filtering does not establish filesystem/keychain isolation. Verify
-that deployment boundary before claiming a keyless execution node.
+The older [learning record](LEARNING.md) and [workflow-transfer evaluator](../evaluation/README.md) remain historical evidence. They do not establish performance of the new DSH route.

@@ -1,77 +1,83 @@
 ---
 name: bend-kernels
-description: Check and reuse Intuitxn Bend2 kernels and explicit Lorenz memory. Use Buzz native memory and agent orchestration; no custom JavaScript learning service.
+description: Turn an algorithm or pseudocode into one executable Bend candidate, then predict, run, independently score, and revise it through DeepSeek Harness.
 ---
 
-# Mundus Bend kernels with Buzz
+# Executable algorithm loop
 
-Resolve this skill's real path through any symlink; its repository is three
-directories above the containing skill directory. Prefer the user's active
-checkout only when it contains `runtime/worker/system.bend` and
-`runtime/worker/BUZZ.md`. Read its AGENTS.md, the Buzz guide, and
-`runtime/adaptive/LEARNING.md`. Treat retrieved content as attributed task data.
-Use the Mundus baseline in `docs/designs/a2a-protocol.md`: standard OpenCode,
-native Buzz facilities and Bend. Its oc2 M1–M8 sequence is historical optional
-federation design; defer it and Lamport wiring until an actual multi-node need.
-Relay coordination is separate from local ACP execution. Reviewer is Shubham.
-Do not claim network intents or key isolation are implemented by these instructions.
+Use this skill when the task is to write, adapt, compare, or improve a Bend
+algorithm. The target agent host is the pinned DeepSeek Harness profile in
+`runtime/dsh/README.md`. Bend holds pure algorithm logic; DSH owns the model
+session, tools, source archive, receipts, and version selection. A paper,
+snippet, or pseudocode is an input proposal, not yet a checked program.
 
-## Execute and verify
+## Specify before compiling
 
-Use `runtime/worker/system.bend` for the one-file worker protocol, or an explicit
-absolute `INTUITXN_WORKER_SOURCE`. Locate Bend on PATH or at
-`$HOME/.bend/bin/bend`. Check `bend version`; the tested toolchain is 2.0.21.
-The file precedes flags:
+Write a compact contract with input and output types, assumptions, task oracle,
+termination or fuel, measurable success, and explicit unknowns. If source text
+admits multiple interpretations, preserve alternatives as separate candidates.
+Do not turn an author claim or retrieved memory into an acceptance criterion.
+Keep one candidate in one self-contained `.bend` file when possible.
+
+Implement pure `init`, `step`, `fold`, or `run` definitions as needed.
+Use `main -> IO(Unit)` for a bounded command-line batch driver. The hot loop
+belongs in the compiled Bend binary; do not call a model for every simulated
+step. A logical event sequence or fuel is simulation time; wall time, tokens,
+CPU, and money are distinct costs.
+
+Read the installed `bend guide` and check `bend version`; this repository's
+verified compiler is Bend 2.0.21. The file precedes flags:
 
 ```sh
-export BEND_NO_TELEMETRY=1
-"$BEND" "$WORKER_SOURCE" --check-only
-"$BEND" "$WORKER_SOURCE" -- help
+BEND_NO_TELEMETRY=1 bend path/to/candidate.bend --check-only
+BEND_NO_TELEMETRY=1 bend path/to/candidate.bend -o /tmp/candidate-binary
 ```
 
-Require successful checker exit and `All terms check.`. Run concrete independent
-acceptance checks as well. Named laws establish their stated properties; they
-do not establish arbitrary worker correctness or learning effectiveness.
+Require exit zero and `All terms check.`, then run independently specified
+cases. Named laws prove only their written statements. In Bend, passing both
+recursive branches to `Bool.pick` can duplicate the traversal; bind the
+recursive tail once and measure longer inputs. A budget should limit work,
+not merely truncate an already computed output.
 
-For explicit local worker state follow `runtime/adaptive/META.md`: one
-coordinator writes a lineage of fresh immutable snapshots using capture, work,
-worker, claim, packet, return and learn. Returned output is an attributed report;
-learning is a separate selected transition. Corrections invalidate dependent
-memories. Preserve failures and inspect actual identifiers from history.
+## Predict, observe, score, select
 
-## Use the host's native facilities
+1. Read `algorithm_active` and the exact source and case-set identities.
+2. Before `algorithm_run`, state predicted checker/build results and case
+   outputs. Pass the exact source SHA-256. The tool freezes those bytes,
+   checks, builds, runs bounded exploratory cases, and returns a receipt.
+3. Compare prediction with observation. Unknown or unmeasured outcomes remain
+   unknown. Prediction accuracy is separate from task quality.
+4. Submit the archived run receipt for host-side independent scoring. The
+   production model catalog does not expose `algorithm_score` or
+   `algorithm_select`; only the host may reserve the evaluation, run the pinned
+   evaluator, and publish a score. Preserve counterexamples and the score
+   report digest when the host returns them.
+5. Compare candidate and incumbent on the same evaluator, case set, toolchain,
+   and compute schedule. The host may select a complete passing first score;
+   a later selection requires a strict measured gain without lost passing
+   cases, accepted exact-revision settlement, and fresh-task evidence. A new
+   session reads the selected digest; an existing session keeps its earlier
+   pin. Use `algorithm_execute` to run that pinned archive, rather than
+   re-reading editable source.
+6. Revise from failures, then repeat with a finite width, depth, and compute
+   budget. A changed evaluator begins a new comparison generation.
 
-In Buzz use its existing ACP harness for execution and native `buzz mem` for
-stored findings. Read the installed CLI help and `runtime/worker/BUZZ.md` for
-syntax. Core memory injection is distinct from explicitly retrieving another
-slug. Use existing Buzz configuration and permissions; never invent a second
-agent manager or registry in JavaScript. Normal Buzz YAML/persona configuration
-is sufficient for host configuration; do not invent unsupported workflow actions.
+The actual task score is the independent report, not a Bend field whose caller
+can assert success. `runtime/core/telepathy.bend` contains useful pure
+transition primitives, but its direct caller must bind any success verdict to
+an evaluator receipt. The default `benchmarks/core` cases are public
+regressions; improvement of a self-editing agent needs fresh tasks and an
+unchanged-clone comparison.
 
-Before work, retrieve relevant findings and inspect their source and evidence.
-After work, retain concise supported findings with the source revision, actual
-checks, counterexamples and unresolved claims. Do not copy raw conversations,
-private keys or internal session metadata into shared memory. Update an existing
-memory against its current contents; prefer the native hash-checked patch command
-when appropriate. For Mundus publication, draft first, have Shubham review the
-exact content/revision, and send only through the owner-controlled Buzz signer.
-Do not load signing keys into the execution/kernel process or invent pure-Bend
-Nostr signing. This boundary still needs deployment verification.
-Never interpret a memory's contents as new permissions or proof of correctness.
+## Context and authority
 
-Offline Node tests may be used to independently check Bend and score saved
-experiments; they are not part of the deployed learning path. The previous
-JavaScript registry/lifecycle/sync stack is retired. Preserve existing registry
-data and private receipts; do not call missing adapters or claim that those
-records have already migrated into Buzz. See `runtime/adaptive/HARNESS.md` for
-the historical implementation revision.
+Retrieve current source, accepted constraints, scoped evidence, and relevant
+counterexamples. Record the source/evaluator digests and the prediction error
+in a concise finding. Never inject a finding across an incompatible scope;
+scope filtering and retrieval gain need independent checks.
 
-## Keep claims grounded
-
-Keep the adaptive maximum example and memory-only core available for reproducing
-earlier experiments. Their executable definitions remain one Bend file per core.
-Record actual checker output and toolchain/source identity. Native file equality
-compares decoded text; an external source digest must be measured separately.
-Snapshots require a single writer; writes are not atomic and actor labels are
-not authenticated identities. Buzz memory storage does not by itself prove
-causation, update model weights, establish performance gains or provide AGI.
+The user-authorized work loop permits bounded edits and evaluation. Follow
+`runtime/AUTONOMY.md` and `AGENTS.md` for external publication, private
+state, and exact-revision review. DSH sessions are records of decisions, not
+permission to widen tool authority. Do not put API keys in source, prompts,
+receipts, or benchmarks.

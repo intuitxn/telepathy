@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "name": "executable-kernel-reference",
+  "cases": [
+    {"id": "batch-256", "category": "throughput", "args": ["batch", "256"], "items": 256, "expect": {"exit": 0, "stdout": "clock=256;value=768\n", "stderr": ""}},
+    {"id": "prediction-correct", "category": "prediction", "args": ["predict", "2", "3", "0"], "items": 1, "expect": {"exit": 0, "stdout": "predicted=5;observed=5;error=0\n", "stderr": ""}},
+    {"id": "prediction-counterexample", "category": "prediction", "args": ["predict", "2", "3", "2"], "items": 1, "expect": {"exit": 0, "stdout": "predicted=5;observed=3;error=2\n", "stderr": ""}},
+    {"id": "replay-zero-fuel", "category": "causal-replay", "args": ["replay", "0", "2", "3", "4"], "items": 1, "expect": {"exit": 0, "stdout": "clock=0;value=0\n", "stderr": ""}},
+    {"id": "replay-prefix", "category": "causal-replay", "args": ["replay", "2", "2", "3", "4"], "items": 2, "expect": {"exit": 0, "stdout": "clock=2;value=5\n", "stderr": ""}},
+    {"id": "replay-exhausted-events", "category": "causal-replay", "args": ["replay", "7", "2", "3", "4"], "items": 3, "expect": {"exit": 0, "stdout": "clock=3;value=9\n", "stderr": ""}},
+    {"id": "retrieval-lexical-baseline", "category": "retrieval", "args": ["retrieve", "baseline"], "items": 1, "expect": {"exit": 0, "stdout": "answer=0;score=5;margin=2\n", "stderr": ""}},
+    {"id": "retrieval-scoped-fusion", "category": "retrieval", "args": ["retrieve", "scoped"], "items": 1, "expect": {"exit": 0, "stdout": "answer=2;score=8;margin=1\n", "stderr": ""}},
+    {"id": "retrieval-outside-heat-no-leak", "category": "retrieval", "args": ["retrieve", "outside-hot"], "items": 1, "expect": {"exit": 0, "stdout": "answer=2;score=8;margin=1\n", "stderr": ""}},
+    {"id": "retrieval-threshold-abstain", "category": "retrieval", "args": ["retrieve", "abstain-threshold"], "items": 1, "expect": {"exit": 0, "stdout": "abstain=threshold;score=8\n", "stderr": ""}},
+    {"id": "retrieval-margin-abstain", "category": "retrieval", "args": ["retrieve", "abstain-margin"], "items": 1, "expect": {"exit": 0, "stdout": "abstain=margin;score=8\n", "stderr": ""}}
+  ]
+}

@@ -1,113 +1,47 @@
-# Telepathy — operate (one page)
+# Telepathy — operate
 
-Root for every command below: `/Users/a3fckx/Desktop/Attri/telepathy`.
-```sh
-cd /Users/a3fckx/Desktop/Attri/telepathy
-```
+Use an owned `jj` workspace based on the integration revision. In the new source path, DSH owns algorithm sessions, Bend executes the source, and `jj` owns local code revisions. Operational cutover is pending; do not stop the installed legacy service as part of source cleanup. The website, forum, programs, and reviewer remain separate. Do not infer a live DeepSeek connection or agent identity from a local session or a saved receipt.
 
-> Pointers, not repeats. Rationale lives in linked docs.
-> System: `docs/designs/SYSTEM.md` · Harness: `HARNESS.md` · Programs: `runtime/programs/README.md` · State store: `docs/designs/agentic-git.md` · People flow: `forum/START_HERE.md` (+ `forum/WRITING.md` before artifacts).
-
-## 1. Prove — the Bend gate
-
-Toolchain: `bend 2.0.5` only at `/Users/a3fckx/.bend/bin/bend`. Always absolute path, always `BEND_NO_TELEMETRY=1`. Never bare `bend`. There is **no `bend check`** on 2.0.5.
+## Inspect and isolate work
 
 ```sh
-export BEND_NO_TELEMETRY=1
-BEND=/Users/a3fckx/.bend/bin/bend
-
-$BEND --version
-# expect: bend 2.0.5
-
-# THE GATE — must print `All terms check.`, exit 0:
-$BEND /Users/a3fckx/Desktop/Attri/telepathy/runtime/programs/bend-laws/PROOF.bend
-
-# Negative control — must FAIL with `5 TODOs found` (laws without proofs):
-$BEND /Users/a3fckx/Desktop/Attri/telepathy/runtime/programs/bend-laws/LAWS.bend
+jj status
+jj log -r '@ | @-'
+sh scripts/durability-guard.sh check
 ```
 
-Per-program law verdict (over that program's inline `bend-law`/`bend-proof` fences):
+Follow [WORKTREE_LIFECYCLE.md](docs/WORKTREE_LIFECYCLE.md) and [CONCURRENCY.md](docs/CONCURRENCY.md). Give each independent writer a separate `jj` workspace. Preserve candidate revisions and ignored private state before retiring a workspace. The recovery command is `sh scripts/durability-guard.sh snapshot`; it creates a private archive and local recovery tag. It does not publish or merge.
+
+## Start the algorithm session
+
+The intended DSH route is `deepseek-official/deepseek-flash`. Build the exact upstream revision and use the [DSH setup guide](runtime/dsh/README.md). Set `DEEPSEEK_API_KEY` in the private process environment or DSH private credential store, and put `DSH_HOME` outside this checkout. The plugin uses the host-pinned evaluator and case set:
 
 ```sh
-/Users/a3fckx/Desktop/Attri/telepathy/runtime/programs/telepathy-program bend-gate <name>
-# verdict: proven | open | failed | needs-toolchain
+export DSH_HOME=/path/to/private/telepathy-dsh-state
+export TELEPATHY_DSH_WORKSPACE="$PWD"
+export TELEPATHY_DSH_EVALUATOR="$PWD/benchmarks/core/run.mjs"
+export TELEPATHY_DSH_CASE_SET="$PWD/benchmarks/core/kernel-cases.json"
+export TELEPATHY_DSH_EVALUATOR_SHA256="$(shasum -a 256 "$TELEPATHY_DSH_EVALUATOR" | cut -d ' ' -f 1)"
+export TELEPATHY_DSH_CASE_SET_SHA256="$(shasum -a 256 "$TELEPATHY_DSH_CASE_SET" | cut -d ' ' -f 1)"
+node /path/to/deepseek-harness/apps/cli/lib/bin.js --profile headless --patch runtime/dsh/cordis.patch.yml --json 'Evaluate the Bend candidate against the pinned case set.'
 ```
 
-Detail: `runtime/programs/bend-laws/TOOLCHAIN.md`, `runtime/programs/bend-laws/README.md`.
+Replace the private paths with actual owned locations. `kernel-cases.json` is the frozen suite for the executable core; `cases.json` is a separate reference-fixture suite. Pin one case set per scoring generation and rescore both candidate and incumbent before comparing under a changed case set. The CLI and plugin revision are pinned in the setup guide. A direct `algorithm_run` receipt records source digest, prediction, check/build, bounded exploratory cases, and observations. `algorithm_score` independently reruns the archived source using the host-owned cases; it does not trust the model's expected output. `algorithm_select` compares score digests and updates the pointer for future sessions only. The keyless headless test verifies this flow without a provider key; a live DeepSeek API turn needs a configured key and its own observation.
 
-## 2. Transact — one program run
-
-Binary: `/Users/a3fckx/Desktop/Attri/telepathy/runtime/programs/telepathy-program`. Model default `opencode-go/deepseek-v4-flash` (`--model` / `TELEPATHY_PROGRAM_MODEL` overrides). Auth stays in your existing profile; nothing credential-like goes into bundles/receipts.
+## Verify and retain
 
 ```sh
-TP=/Users/a3fckx/Desktop/Attri/telepathy/runtime/programs/telepathy-program
-
-$TP list
-$TP compile <name>                                   # immutable bundle + digest, no model call
-$TP inspect <name>                                   # {source,digest,frozenDigest} of active source
-$TP bend-gate <name>                                 # §1 verdict for this program
-printf '%s' '{"title":"…","body":"…","sourceIds":[]}' | $TP run <name> --input - > result.json
-$TP gen-runner <name>                                # digest-pinned runner in runtime/programs/runners/ (gitignored); refuses on drift
+npm run check
+make check
+npm --prefix site run check   # website changes
 ```
 
-Lesson sub-flow (proposal only — activation still needs a human reviewer + exact digests):
+`make check` requires Bend and runs the core compiler and independent benchmark. Record the exact candidate revision, source/evaluator/case digests, per-case failures, toolchain, check/build/runtime times, and prediction discrepancies. Selected findings carry evidence and limits; raw private transcripts are not public artifacts. The historical workflow-transfer evaluator remains available for its own original comparison, not as a DSH score.
 
-```sh
-$TP validate-candidate <name> --input - < candidate.json  # {source,parentDigest} → {valid,digests}
-$TP promote-candidate <name> --input - < review.json      # exact-digest, locked, atomic pointer move
-```
+`scripts/agit.py` rejects old job lifecycle operations. Do not revive its Git branch/note/tag workflow. Old Meta shell and Mundus host records are retained in revision history; this cleanup does not stop installed services or delete their private state.
 
-Contract tests: `python3 -m unittest discover -s runtime/programs -p 'test_*.py'` from the repo root (stdlib-only; runs without the nudge checkout). Live-model runs: `runtime/programs/LIVE_RUN.md`. Full rules: `runtime/programs/README.md`.
+## Review and publication
 
-## 3. Remember — agit walk + human accept
+The integration owner combines checked `jj` changes, resolves conflicts, and verifies the exact resulting revision. Publish only an authorized bookmark. GitHub's current checks and exact-head review requirements remain in [AUTO_MERGE.md](docs/AUTO_MERGE.md). A passing algorithm benchmark is not a human acceptance or external publication.
 
-`agit` records every transition as a git object (commit/note/tag); it never invents digests — it copies them from `result.json` (receipt) + `proof.json`. SQLite (`.local/`) is a rebuildable cache; on disagreement **git wins**. Design: `docs/designs/agentic-git.md` (note: its §3 sketch shows `bend check` — superseded; gate is bare `bend PROOF.bend` per §1).
-
-```sh
-AGIT="python3 /Users/a3fckx/Desktop/Attri/telepathy/scripts/agit.py"
-
-$AGIT propose --job <id> --program <name> --request request.json
-$AGIT ready   --job <id>                        # refs/notes/agit-state
-# … run the program (§2), prove with Bend (§1) …
-$AGIT run     --job <id>                        # Active commit (bundle digest + receipt id)
-$AGIT prove   --job <id> --proof proof.json     # Waiting note (refs/notes/agit-proof)
-$AGIT review  --job <id>                        # Review commit (candidate digest)
-
-# ONLY a named human, on the exact reviewed revision:
-$AGIT accept  --job <id> --reviewer "Name"      # gate re-check → merge --no-ff → tag agit/<id>/resolved
-$AGIT cancel  --job <id> --by "Name" --reason "…"
-
-$AGIT log   <id>    # transition history from git alone
-$AGIT state <id>    # current stage + digests + what blocks next
-```
-
-Gate inside `accept`: proof `pass` + candidate==reviewed==merged bytes + reviewer human ≠ worker + bundle digest == active compile digest + no open law. Any failure: no merge, no tag, named rule.
-
-## 4. Crew — who does what
-
-- **bend-forge** (`.opencode/agents/bend-forge.md`): does Bend defs/laws/`PROOF.bend` + gates with negative controls, one job per file. Never self-accepts, merges, tags, touches network/credentials, or sends externally.
-- **relay-keeper** (`.opencode/agents/relay-keeper.md`): does service/tunnel/port-4110/node-route health (`scripts/workspace-service.py status`, `npm run doctor`) + user-domain service restart on approved proposal. Never publishes, accepts, resolves, touches credentials/invites, rewires the network, or sends externally.
-
-Job lifecycle both assume: `Proposed -> Ready -> Active -> Waiting -> Review -> Resolved | Cancelled` (`HARNESS.md` §2). Agents draft; humans accept.
-
-## 5. Share / publish — thread → accept → artifact → link
-
-Per `forum/START_HERE.md`: request lives in a thread (`Result` + `Owner` + `Ready when` + `Context` + links); an operator turns an accepted request into a job; candidate comes back for review; human accepts the **exact** revision; reply **in the original thread** with accepted result + link + still-open items. Code → its repo, linked from thread. Writing → artifact, linked from thread.
-
-```sh
-npm run desk -- help          # jobs, artifacts, Buzz drafts
-npm run check                 # runtime + plugin
-npm --prefix site run check   # website (separate)
-```
-
-Before writing: read `forum/WRITING.md`. Never put credentials, transcripts, or internal job metadata in an artifact; published `/p/` link quoted in the thread is the stable pointer, never a SQLite row id alone. Boundary: `AGENTS.md`.
-
-## 6. Troubleshoot — 5 reds
-
-| Red | Means | Fix |
-|---|---|---|
-| `bend: too many arguments` on `bend check …` | 2.0.5 has no `check` subcommand | use bare form §1 |
-| `LAWS.bend → 5 TODOs found` | laws asserted, not yet proved — expected | gate `PROOF.bend`, not `LAWS.bend` |
-| `bend-gate → failed` / `open` | a law is red / unproven for this program | new candidate + fresh proof; never edit the old proof note |
-| `run → failure` envelope, exit ≠ 0 | contract/type violation, 90 s timeout, or source-ID guard (output echoed a supplied `sourceIds` entry) | fix input/output, keep provenance IDs out of title/body, human re-reviews |
-| `agit accept` refuses / `gen-runner` refuses on drift | stale digest (bundle/candidate/parent moved), self-accept, open law, leak scan, or SQLite≠git | `agit state <id>` shows the blocker; reconcile to git, revalidate exact digests, human re-accepts |
+The governing execution policy is [AUTONOMY.md](runtime/AUTONOMY.md). Read [forum/WRITING.md](forum/WRITING.md) before preparing company artifacts.

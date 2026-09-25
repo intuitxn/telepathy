@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "scenarios": [
+    {
+      "id": "distractor-drift",
+      "rounds": 12,
+      "scope": 1,
+      "document_scan": 4,
+      "top_k": 4,
+      "default_estimate": 1,
+      "actions": [
+        { "id": 1, "one_time_gain": 3 },
+        { "id": 2, "one_time_gain": 6 },
+        { "id": 3, "one_time_gain": 0 },
+        { "id": 4, "one_time_gain": 8 }
+      ],
+      "seed": [
+        { "action": 1, "scope": 1, "estimate": 3, "verified": true },
+        { "action": 2, "scope": 1, "estimate": 6, "verified": true },
+        { "action": 3, "scope": 1, "estimate": 9, "verified": true },
+        { "action": 4, "scope": 1, "estimate": 8, "verified": true }
+      ],
+      "arrival_each_round": { "action": 3, "scope": 1, "estimate": 15, "verified": false, "count": 4 }
+    },
+    {
+      "id": "stale-verified-counterexample",
+      "rounds": 1,
+      "scope": 1,
+      "document_scan": 2,
+      "top_k": 2,
+      "default_estimate": 1,
+      "actions": [
+        { "id": 1, "one_time_gain": 0 },
+        { "id": 2, "one_time_gain": 5 }
+      ],
+      "seed": [
+        { "action": 1, "scope": 1, "estimate": 10, "verified": true },
+        { "action": 2, "scope": 1, "estimate": 3, "verified": true }
+      ],
+      "arrival_each_round": { "action": 2, "scope": 1, "estimate": 15, "verified": false, "count": 2 }
+    }
+  ]
+}
