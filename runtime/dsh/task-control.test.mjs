@@ -9,6 +9,9 @@ import { apply, createJjCombinedVerifier, createTaskControl, createTaskPlanTool 
 import { createPinnedSynthesisVerifier } from './synthesis-contract.mjs';
 
 const sha = value => createHash('sha256').update(value).digest('hex');
+const canonical = value => Array.isArray(value) ? `[${value.map(canonical).join(',')}]` :
+  value && typeof value === 'object' ? `{${Object.keys(value).sort().map(key =>
+    `${JSON.stringify(key)}:${canonical(value[key])}`).join(',')}}` : JSON.stringify(value);
 const A = 'a'.repeat(40);
 const B = 'b'.repeat(40);
 const C = 'c'.repeat(40);
@@ -116,6 +119,27 @@ async function researchFixture(t, options = {}) {
     artifact_sha256: D('a'), evidence_receipt_sha256: D('b'), source_refs: [D('c')],
   });
   return { ...checked, first, second, g, result };
+}
+
+async function goalComparison(t, frozen = spec()) {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'telepathy-goal-comparison-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const comparison = { schema: 1,
+    policy: 'telepathy.fresh-clone-comparison/v1',
+    fresh: { candidate_commit: C,
+      task_set_sha256: frozen.pinned_versions.case_set_sha256 },
+    evaluator_sha256: frozen.pinned_versions.evaluator_sha256,
+    candidate_cases: [{ id: 'goal-case', quality: 1, supported: true,
+      counterexample: false, unsupported_claims: 0 }],
+    baseline: { quality: 0 }, candidate: { quality: 1,
+      unsupported_claims: 0 }, regressions: [], counterexamples: [],
+    verdict: 'supported' };
+  const bytes = `${canonical(comparison)}\n`;
+  const comparisonSha = sha(bytes);
+  await mkdir(path.join(root, 'fresh-comparisons'));
+  await writeFile(path.join(root, 'fresh-comparisons',
+    `${comparisonSha}.json`), bytes);
+  return { root, comparisonSha };
 }
 
 test('open is frozen and replayable; grants reserve finite budgets and reject stale bases', async t => {
@@ -1456,25 +1480,37 @@ test('host audit closes an interrupted child intent and disposes a late handle',
   assert.equal(latest.grants.find(row => row.ref === g.grant_ref).pending_session_id, undefined);
 });
 
-test('combined verifier adapter requires root gate and separate pinned host evaluator', async () => {
+test('combined verifier adapter requires root gate and separate pinned host evaluator', async t => {
   let independentCalls = 0;
   const frozen = spec();
+  const comparison = await goalComparison(t, frozen);
+  const goal_context = { causal_cut: D('b'), accepted_results: [],
+    other_pending_evaluations: 0 };
   const verifier = createJjCombinedVerifier({ repoRoot: process.cwd(),
+    freshComparisonRoot: comparison.root,
     allowMockGateRunnerForTest: true,
     reconcile: async input => ({ commit: C, base_commit: input.expected_head,
       candidate_events: input.candidates.map(row => row.event_digest), ancestry_ok: true, conflicts_resolved: true }),
     gateRunner: async revision => ({ commit_id: revision, ok: true, gate: 'node scripts/check.mjs --require-dsh' }),
-    evaluateIndependent: async ({ combined_commit }) => { independentCalls++;
-      return { ok: combined_commit === C, task_accepted: true, receipt_sha256: D('9'),
+    evaluateIndependent: async ({ combined_commit, goal_binding }) => { independentCalls++;
+      const goal_evidence = { schema: 'telepathy.goal-evaluation/v1',
+        binding: goal_binding,
+        fresh_clone_receipt_sha256: comparison.comparisonSha,
+        case_count: 1, passed_count: 1, hard_constraints_passed: true,
+        unsupported_claims: 0, counterexamples: 0 };
+      return { ok: combined_commit === C, task_accepted: true,
+        receipt_sha256: D('8'), goal_evidence,
         evaluator_sha256: frozen.pinned_versions.evaluator_sha256,
         case_set_sha256: frozen.pinned_versions.case_set_sha256,
         toolchain: frozen.pinned_versions.toolchain }; },
   });
   const checked = await verifier({ task_ref: D('0'), spec: frozen, expected_head: A,
-    candidates: [{ event_digest: D('a') }], integration_grant: {} });
+    candidates: [{ event_digest: D('a') }], integration_grant: {}, goal_context });
   assert.equal(checked.ok, true);
   assert.equal(checked.checked_commit, C);
   assert.equal(checked.gate.revision, C);
+  assert.equal(checked.receipt_sha256, D('8'));
+  assert.equal(checked.goal_evidence_sha256, sha(canonical(checked.goal_evidence)));
   assert.equal(independentCalls, 1);
   const failGate = createJjCombinedVerifier({ repoRoot: process.cwd(),
     allowMockGateRunnerForTest: true,
@@ -1484,9 +1520,159 @@ test('combined verifier adapter requires root gate and separate pinned host eval
     evaluateIndependent: async () => { throw new Error('must not run'); },
   });
   const rejected = await failGate({ task_ref: D('0'), spec: frozen, expected_head: A,
-    candidates: [{ event_digest: D('a') }], integration_grant: {} });
+    candidates: [{ event_digest: D('a') }], integration_grant: {}, goal_context });
   assert.equal(rejected.ok, false);
   assert.equal(rejected.reason, 'exact-revision-gate-failed');
+});
+
+test('whole-goal evidence rejects changed bindings, failed cases, and unresolved evaluations', async t => {
+  const frozen = spec();
+  const comparison = await goalComparison(t, frozen);
+  let alter = evidence => evidence;
+  const verifier = createJjCombinedVerifier({ repoRoot: process.cwd(),
+    freshComparisonRoot: comparison.root,
+    allowMockGateRunnerForTest: true,
+    reconcile: async input => ({ commit: C, base_commit: input.expected_head,
+      candidate_events: input.candidates.map(row => row.event_digest),
+      ancestry_ok: true, conflicts_resolved: true }),
+    gateRunner: async revision => ({ commit_id: revision, ok: true,
+      gate: 'node scripts/check.mjs --require-dsh' }),
+    evaluateIndependent: async ({ goal_binding }) => {
+      const goal_evidence = alter({ schema: 'telepathy.goal-evaluation/v1',
+        binding: goal_binding,
+        fresh_clone_receipt_sha256: comparison.comparisonSha,
+        case_count: 1, passed_count: 1, hard_constraints_passed: true,
+        unsupported_claims: 0, counterexamples: 0 });
+      return { ok: true, task_accepted: true, goal_evidence,
+        receipt_sha256: D('8'),
+        evaluator_sha256: frozen.pinned_versions.evaluator_sha256,
+        case_set_sha256: frozen.pinned_versions.case_set_sha256,
+        toolchain: frozen.pinned_versions.toolchain };
+    } });
+  const input = { task_ref: D('0'), spec: frozen, expected_head: A,
+    candidates: [{ event_digest: D('a') }], integration_grant: {},
+    goal_context: { causal_cut: D('b'), accepted_results: [],
+      other_pending_evaluations: 0 } };
+  for (const [change, reason] of [
+    [evidence => ({ ...evidence, binding: { ...evidence.binding,
+      combined_commit: B } }), /differs from frozen task/],
+    [evidence => ({ ...evidence, passed_count: 0 }), /does not support/],
+    [evidence => ({ ...evidence, unsupported_claims: 1 }), /does not support/],
+    [evidence => ({ ...evidence, hard_constraints_passed: false }), /does not support/],
+  ]) {
+    alter = change;
+    await assert.rejects(verifier(input), reason);
+  }
+  alter = evidence => evidence;
+  await assert.rejects(verifier({ ...input, goal_context: {
+    ...input.goal_context, other_pending_evaluations: 1 } }),
+  /unresolved evaluations/);
+  alter = evidence => ({ ...evidence, fresh_clone_receipt_sha256: D('f') });
+  await assert.rejects(verifier(input), /fresh comparison receipt is unavailable/);
+});
+
+test('settlement binds accepted source receipts to the frozen goal and causal cut', async t => {
+  let seen;
+  const comparison = await goalComparison(t);
+  const verifier = createJjCombinedVerifier({ repoRoot: process.cwd(),
+    freshComparisonRoot: comparison.root,
+    allowMockGateRunnerForTest: true,
+    reconcile: async input => ({ commit: C, base_commit: input.expected_head,
+      candidate_events: input.candidates.map(row => row.event_digest),
+      ancestry_ok: true, conflicts_resolved: true }),
+    gateRunner: async revision => ({ commit_id: revision, ok: true,
+      gate: 'node scripts/check.mjs --require-dsh' }),
+    evaluateIndependent: async ({ goal_binding, goal_context, spec: frozen }) => {
+      seen = { goal_binding, goal_context };
+      const goal_evidence = { schema: 'telepathy.goal-evaluation/v1',
+        binding: goal_binding,
+        fresh_clone_receipt_sha256: comparison.comparisonSha,
+        case_count: 1, passed_count: 1, hard_constraints_passed: true,
+        unsupported_claims: 0, counterexamples: 0 };
+      return { ok: true, task_accepted: true, goal_evidence,
+        receipt_sha256: D('8'),
+        evaluator_sha256: frozen.pinned_versions.evaluator_sha256,
+        case_set_sha256: frozen.pinned_versions.case_set_sha256,
+        toolchain: frozen.pinned_versions.toolchain };
+    } });
+  const { controller, opened } = await fixture(t, { verifyCombined: verifier,
+    verifyResult: async input => researchVerdict(input) });
+  const source = await settledSource(controller, opened, 'alpha', 'goal-source');
+  const integrator = await grant(controller, opened, { id: 'goal-integration',
+    branch: 'goal-integration', owner: 'integrator', scope: 'beta',
+    budget: budget({ integrations: 1, evaluations: 1 }) });
+  const candidate = await admit(controller, opened, integrator, 'goal-candidate',
+    'candidate', { commit: B, artifact_sha256: D('3'),
+      observation_receipt_sha256: D('4') });
+  const settlement = await controller.settle(opened.task_ref, {
+    id: 'goal-settlement', integration_grant_ref: integrator.grant_ref,
+    expected_head: A, candidate_events: [candidate.event_digest] });
+  assert.equal(settlement.task_accepted, true);
+  assert.equal(settlement.receipt_sha256, D('8'));
+  assert.equal(settlement.goal_receipt_sha256,
+    (await controller.replay(opened.task_ref)).terminal.goal_receipt_sha256);
+  assert.equal((await controller.replay(opened.task_ref)).terminal.reason,
+    'verified-acceptance');
+  assert.equal(seen.goal_binding.task_ref, opened.task_ref);
+  assert.equal(seen.goal_binding.goal_sha256, sha(spec().goal));
+  assert.equal(seen.goal_binding.accepted_result_count, 1);
+  assert.equal(seen.goal_binding.accepted_results_sha256,
+    sha(canonical(seen.goal_context.accepted_results)));
+  assert.equal(seen.goal_context.accepted_results[0].event_digest,
+    source.result.event_digest);
+  assert.equal(seen.goal_context.accepted_results[0].verifier_receipt_sha256,
+    source.settled.receipt_sha256);
+  assert.equal(seen.goal_context.other_pending_evaluations, 0);
+  assert.match(seen.goal_binding.causal_cut, /^[a-f0-9]{64}$/);
+});
+
+test('whole-goal acceptance rejects a task-log change during independent evaluation', async t => {
+  let controller;
+  const comparison = await goalComparison(t);
+  const verifier = createJjCombinedVerifier({ repoRoot: process.cwd(),
+    freshComparisonRoot: comparison.root,
+    allowMockGateRunnerForTest: true,
+    reconcile: async input => ({ commit: C, base_commit: input.expected_head,
+      candidate_events: input.candidates.map(row => row.event_digest),
+      ancestry_ok: true, conflicts_resolved: true }),
+    gateRunner: async revision => ({ commit_id: revision, ok: true,
+      gate: 'node scripts/check.mjs --require-dsh' }),
+    evaluateIndependent: async ({ goal_binding, spec: frozen }) => {
+      const current = await controller.replay(goal_binding.task_ref);
+      await controller.plan(goal_binding.task_ref, { id: 'concurrent-goal-plan',
+        kind: 'analysis', scope: 'alpha', deliverable: 'Inspect newly found evidence',
+        acceptance: 'Independent check', source_refs: [], oracle_sha256: D('1'),
+        budget: budget(), depends_on: [], parent_plan_ref: null,
+        expected_log_head: current.log_head });
+      const goal_evidence = { schema: 'telepathy.goal-evaluation/v1',
+        binding: goal_binding,
+        fresh_clone_receipt_sha256: comparison.comparisonSha,
+        case_count: 1, passed_count: 1, hard_constraints_passed: true,
+        unsupported_claims: 0, counterexamples: 0 };
+      return { ok: true, task_accepted: true, goal_evidence,
+        receipt_sha256: sha(canonical(goal_evidence)),
+        evaluator_sha256: frozen.pinned_versions.evaluator_sha256,
+        case_set_sha256: frozen.pinned_versions.case_set_sha256,
+        toolchain: frozen.pinned_versions.toolchain };
+    } });
+  const checked = await fixture(t, { verifyCombined: verifier });
+  controller = checked.controller;
+  const integration = await grant(controller, checked.opened, {
+    id: 'raced-goal-integration', branch: 'raced-goal-integration',
+    owner: 'integrator', scope: 'alpha',
+    budget: budget({ integrations: 1, evaluations: 1 }) });
+  const candidate = await admit(controller, checked.opened, integration,
+    'raced-goal-candidate', 'candidate', { commit: B,
+      artifact_sha256: D('3'), observation_receipt_sha256: D('4') });
+  const result = await controller.settle(checked.opened.task_ref, {
+    id: 'raced-goal-settlement', integration_grant_ref: integration.grant_ref,
+    expected_head: A, candidate_events: [candidate.event_digest] });
+  assert.equal(result.status, 'rejected');
+  assert.equal(result.reason, 'stale-head-after-verification');
+  assert.equal(result.task_accepted, false);
+  const current = await controller.replay(checked.opened.task_ref);
+  assert.equal(current.task_head, A);
+  assert.equal(current.terminal, null);
 });
 
 test('production source settlement rejects unbranded and implicit mock gate verifiers', () => {
@@ -1547,7 +1733,9 @@ test('production gate adapter fails closed when the checked release is absent', 
       ancestry_ok: true, conflicts_resolved: true }),
     evaluateIndependent: async () => { independentCalls++; throw new Error('must not run'); } });
   const result = await verifier({ task_ref: D('0'), spec: spec(), expected_head: A,
-    candidates: [{ event_digest: D('a') }], integration_grant: {} });
+    candidates: [{ event_digest: D('a') }], integration_grant: {},
+    goal_context: { causal_cut: D('b'), accepted_results: [],
+      other_pending_evaluations: 0 } });
   assert.equal(result.ok, false);
   assert.equal(result.reason, 'exact-revision-gate-failed');
   assert.equal(independentCalls, 0);

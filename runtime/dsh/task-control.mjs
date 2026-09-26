@@ -637,7 +637,10 @@ function applyEvent(state, event) {
       }
       if (verdict.ok) {
         state.taskHead = verdict.combined_commit;
-        if (verdict.task_accepted) state.terminal = { reason: 'verified-acceptance', receipt_sha256: verdict.receipt_sha256 };
+        if (verdict.task_accepted) state.terminal = {
+          reason: 'verified-acceptance', receipt_sha256: verdict.receipt_sha256,
+          ...(verdict.goal_evidence_sha256 ? {
+            goal_receipt_sha256: verdict.goal_evidence_sha256 } : {}) };
       }
       state.lastSettlement = { ok: verdict.ok, reason: verdict.reason ?? null, event_digest: event.digest };
       failExhaustedResult(state, request.integration_grant_ref);
@@ -1279,13 +1282,31 @@ export function createTaskControl(settings = {}) {
         artifact_sha256: event.payload.payload.artifact_sha256,
         observation_receipt_sha256: event.payload.payload.observation_receipt_sha256 };
     });
+    const acceptedResults = [...state.results.entries()]
+      .filter(([, result]) => result.status === 'accepted')
+      .map(([event_digest, result]) => {
+        const event = state.byDigest.get(event_digest);
+        const grant = state.grants.get(result.grant_ref);
+        const plan = grant && state.plans.get(grant.plan_ref);
+        if (event?.type !== 'admitted' || event.payload.kind !== 'result' ||
+            !grant || !plan || !result.settlement_event_digest ||
+            !result.verifier_receipt_sha256)
+          fail('accepted goal source lacks independent settlement evidence');
+        return { event_digest, scope: grant.scope, kind: plan.kind,
+          artifact_sha256: event.payload.payload.artifact_sha256,
+          settlement_event_digest: result.settlement_event_digest,
+          verifier_receipt_sha256: result.verifier_receipt_sha256 };
+      }).sort((a, b) => a.event_digest.localeCompare(b.event_digest));
+    const priorLogHead = state.logHead;
+    const otherPendingEvaluations = state.pendingEvaluations.size;
     // Reserve the evaluation before running an expensive verifier. Replaying
     // the log after a crash still shows the spent slot and pending intent;
     // another settlement cannot spend the same grant concurrently.
     const reservation = await transact(taskRef, { ...request, id: `eval:${request.id}` },
       'evaluation_started', async ({ spec: latestSpec, state: latest }) => {
         const current = latest.grants.get(request.integration_grant_ref);
-        if (latest.terminal || latest.taskHead !== request.expected_head ||
+        if (latest.terminal || latest.logHead !== priorLogHead ||
+          latest.taskHead !== request.expected_head ||
           !current || !['active', 'ready'].includes(current.status) ||
           current.owner !== latestSpec.integration_owner ||
           current.left.integrations < 1 || current.left.evaluations < 1 ||
@@ -1303,7 +1324,10 @@ export function createTaskControl(settings = {}) {
     let raw;
     try {
       raw = await verifyCombined({ task_ref: taskRef, spec: clone(spec), expected_head: request.expected_head,
-        candidates: clone(candidates), integration_grant: clone(integrator) });
+        candidates: clone(candidates), integration_grant: clone(integrator),
+        goal_context: { causal_cut: reservation.log_head,
+          accepted_results: clone(acceptedResults),
+          other_pending_evaluations: otherPendingEvaluations } });
     } catch (error) {
       raw = { ok: false, task_accepted: false, base_commit: request.expected_head,
         candidate_events: request.candidate_events,
@@ -1316,7 +1340,8 @@ export function createTaskControl(settings = {}) {
     try {
       keys(raw, ['ok', 'combined_commit', 'checked_commit', 'base_commit', 'candidate_events',
         'evaluator_sha256', 'case_set_sha256', 'toolchain', 'receipt_sha256',
-        'ancestry_ok', 'conflicts_resolved', 'task_accepted', 'reason', 'gate'], 'independent verdict');
+        'ancestry_ok', 'conflicts_resolved', 'task_accepted', 'reason', 'gate',
+        'goal_evidence', 'goal_evidence_sha256'], 'independent verdict');
       if (typeof raw.ok !== 'boolean' || typeof raw.task_accepted !== 'boolean') fail('verifier returned invalid verdict flags');
       digest(raw.receipt_sha256, 'verifier receipt_sha256');
       if (raw.base_commit !== request.expected_head || canonical(raw.candidate_events) !== canonical(request.candidate_events) ||
@@ -1329,6 +1354,10 @@ export function createTaskControl(settings = {}) {
         if (raw.gate.revision !== raw.combined_commit || canonical(raw.gate.argv) !== canonical(REQUIRED_GATE_ARGS(raw.combined_commit)) ||
           raw.gate.exit_code !== 0) fail('verifier did not pass the exact jj revision gate');
         digest(raw.gate.receipt_sha256, 'gate receipt_sha256');
+        if (raw.task_accepted && combinedVerifierAdapters.has(verifyCombined) &&
+            (!raw.goal_evidence || !raw.goal_evidence_sha256 ||
+              hash(canonical(raw.goal_evidence)) !== raw.goal_evidence_sha256))
+          fail('accepted production task lacks a bound goal evidence receipt');
       } else {
         if (raw.task_accepted) fail('failed verification cannot accept the task');
         str(raw.reason, 'rejection reason', 1024);
@@ -1352,12 +1381,15 @@ export function createTaskControl(settings = {}) {
           !currentIntegrator || !['active', 'ready'].includes(currentIntegrator.status) ||
           currentIntegrator.left.integrations < 1 ||
           !latest.pendingEvaluations.has(request.id) ||
+          (raw.task_accepted && latest.logHead !== reservation.log_head) ||
           request.candidate_events.some(ref => latest.candidates.get(ref)?.status !== 'ready'));
         if (latestSpec.pinned_versions.evaluator_sha256 !== spec.pinned_versions.evaluator_sha256) fail('frozen evaluator changed');
         const result = { status: stale ? 'rejected' : raw.ok ? 'accepted' : 'rejected',
           accepted_head: stale ? latest.taskHead : raw.ok ? raw.combined_commit : latest.taskHead,
           task_accepted: !stale && raw.ok && raw.task_accepted,
           receipt_sha256: raw.receipt_sha256,
+          ...(!stale && raw.ok && raw.task_accepted && raw.goal_evidence_sha256 ?
+            { goal_receipt_sha256: raw.goal_evidence_sha256 } : {}),
           reason: stale ? 'stale-head-after-verification' : raw.ok ? null : str(raw.reason, 'rejection reason', 1024) };
         return { payload: { request, verdict, stale }, result };
       });
@@ -1517,6 +1549,22 @@ export function createTaskControl(settings = {}) {
 export function createJjCombinedVerifier(settings) {
   const repoRoot = path.resolve(str(settings.repoRoot, 'verifier repoRoot', 4096));
   if (realpathSync(repoRoot) !== repoRoot) fail('verifier repoRoot must be canonical');
+  const requestedComparisonRoot = settings.freshComparisonRoot === undefined ? null :
+    path.resolve(str(settings.freshComparisonRoot, 'fresh comparison root', 4096));
+  const comparisonRoot = requestedComparisonRoot && realpathSync(requestedComparisonRoot);
+  if (comparisonRoot) {
+    if ((settings.gateRunner === undefined && requestedComparisonRoot !== comparisonRoot) ||
+        !lstatSync(comparisonRoot).isDirectory())
+      fail('fresh comparison root must be a real directory');
+    const below = (root, target) => target === root || target.startsWith(`${root}${path.sep}`);
+    if (settings.gateRunner === undefined &&
+        [repoRoot, os.tmpdir(), '/tmp', '/var/tmp'].some(root =>
+          below(realpathSync(root), comparisonRoot)))
+      fail('production fresh comparison root must be outside model and temporary workspaces');
+    const stat = lstatSync(comparisonRoot);
+    if (stat.uid !== process.getuid() || (stat.mode & 0o077) !== 0)
+      fail('fresh comparison root must be private to the host');
+  }
   if (typeof settings.reconcile !== 'function' || typeof settings.evaluateIndependent !== 'function') {
     fail('reconcile and host-pinned evaluateIndependent callbacks are required');
   }
@@ -1529,6 +1577,23 @@ export function createJjCombinedVerifier(settings) {
   const gateRunner = settings.gateRunner ?? (revision =>
     checkedReleaseGate(repoRoot, settings.trustedReleaseRoot, revision));
   const verify = async input => {
+    keys(input.goal_context, ['causal_cut', 'accepted_results',
+      'other_pending_evaluations'], 'goal context');
+    digest(input.goal_context.causal_cut, 'goal causal cut');
+    integer(input.goal_context.other_pending_evaluations,
+      'other pending evaluations');
+    if (!Array.isArray(input.goal_context.accepted_results))
+      fail('goal accepted results must be an array');
+    for (const row of input.goal_context.accepted_results) {
+      keys(row, ['event_digest', 'scope', 'kind', 'artifact_sha256',
+        'settlement_event_digest', 'verifier_receipt_sha256'], 'accepted goal result');
+      for (const name of ['event_digest', 'artifact_sha256',
+        'settlement_event_digest', 'verifier_receipt_sha256'])
+        digest(row[name], `accepted goal result ${name}`);
+      id(row.scope, 'accepted goal result scope');
+      if (!['research', 'analysis', 'synthesis'].includes(row.kind))
+        fail('accepted goal result has unsupported kind');
+    }
     const common = { base_commit: input.expected_head,
       candidate_events: input.candidates.map(row => row.event_digest),
       evaluator_sha256: input.spec.pinned_versions.evaluator_sha256,
@@ -1550,20 +1615,93 @@ export function createJjCombinedVerifier(settings) {
       gateReceipt?.gate !== 'node scripts/check.mjs --require-dsh') fail('jj gate returned a receipt for another revision');
     const gate = { revision: combined.commit, argv: REQUIRED_GATE_ARGS(combined.commit),
       exit_code: 0, receipt_sha256: hash(canonical(gateReceipt)) };
+    const goalBinding = { task_ref: digest(input.task_ref, 'goal task_ref'),
+      goal_sha256: hash(input.spec.goal), acceptance_sha256: hash(input.spec.acceptance),
+      causal_cut: input.goal_context.causal_cut,
+      base_commit: input.expected_head, combined_commit: combined.commit,
+      candidate_events: common.candidate_events,
+      accepted_results_sha256: hash(canonical(input.goal_context.accepted_results)),
+      accepted_result_count: input.goal_context.accepted_results.length,
+      evaluator_sha256: common.evaluator_sha256,
+      case_set_sha256: common.case_set_sha256, toolchain: common.toolchain,
+      gate_receipt_sha256: gate.receipt_sha256 };
     let measured;
     try { measured = await settings.evaluateIndependent({ ...clone(input), combined_commit: combined.commit,
-      gate_receipt: clone(gateReceipt) }); }
+      gate_receipt: clone(gateReceipt), goal_binding: clone(goalBinding) }); }
     catch (error) { return { ...common, ok: false, task_accepted: false,
       receipt_sha256: hash(`independent-evaluator-error:${combined.commit}:${String(error)}`), reason: 'independent-evaluator-failed' }; }
-    keys(measured, ['ok', 'task_accepted', 'receipt_sha256', 'evaluator_sha256', 'case_set_sha256', 'toolchain', 'reason'], 'independent measurement');
+    keys(measured, ['ok', 'task_accepted', 'receipt_sha256', 'evaluator_sha256',
+      'case_set_sha256', 'toolchain', 'reason', 'goal_evidence'], 'independent measurement');
     if (typeof measured.ok !== 'boolean' || typeof measured.task_accepted !== 'boolean') fail('independent measurement flags are invalid');
     digest(measured.receipt_sha256, 'independent receipt_sha256');
     if (measured.evaluator_sha256 !== common.evaluator_sha256 ||
       measured.case_set_sha256 !== common.case_set_sha256 || measured.toolchain !== common.toolchain) fail('independent measurement used different pinned inputs');
+    if (measured.task_accepted) {
+      if (!measured.ok || input.goal_context.other_pending_evaluations !== 0)
+        fail('whole-goal acceptance has unresolved evaluations or failed revision checks');
+      const evidence = measured.goal_evidence;
+      keys(evidence, ['schema', 'binding', 'fresh_clone_receipt_sha256',
+        'case_count', 'passed_count', 'hard_constraints_passed',
+        'unsupported_claims', 'counterexamples'], 'goal evidence');
+      if (evidence.schema !== 'telepathy.goal-evaluation/v1' ||
+          canonical(evidence.binding) !== canonical(goalBinding))
+        fail('goal evidence differs from frozen task and exact revision');
+      digest(evidence.fresh_clone_receipt_sha256, 'fresh clone receipt');
+      integer(evidence.case_count, 'goal case count', 1);
+      integer(evidence.passed_count, 'goal passed count');
+      integer(evidence.unsupported_claims, 'unsupported goal claims');
+      integer(evidence.counterexamples, 'goal counterexamples');
+      if (evidence.passed_count !== evidence.case_count ||
+          evidence.hard_constraints_passed !== true ||
+          evidence.unsupported_claims !== 0 || evidence.counterexamples !== 0)
+        fail('goal evidence does not support independent acceptance');
+      if (!comparisonRoot) fail('whole-goal acceptance needs a private fresh comparison root');
+      const comparisonFile = path.join(comparisonRoot, 'fresh-comparisons',
+        `${evidence.fresh_clone_receipt_sha256}.json`);
+      let comparisonStat;
+      let comparisonBytes;
+      try {
+        comparisonStat = await fs.lstat(comparisonFile);
+      } catch { fail('fresh comparison receipt is unavailable'); }
+      if (!comparisonStat.isFile() || comparisonStat.size > 1024 * 1024)
+        fail('fresh comparison receipt must be a bounded regular file');
+      try { comparisonBytes = await fs.readFile(comparisonFile); }
+      catch { fail('fresh comparison receipt is unavailable'); }
+      if (comparisonBytes.length > 1024 * 1024)
+        fail('fresh comparison receipt exceeds its bound');
+      if (hash(comparisonBytes) !== evidence.fresh_clone_receipt_sha256)
+        fail('fresh comparison receipt digest differs from archived bytes');
+      let comparison;
+      try { comparison = JSON.parse(comparisonBytes); }
+      catch { fail('fresh comparison receipt is not JSON'); }
+      if (comparisonBytes.toString('utf8') !== `${canonical(comparison)}\n` ||
+          comparison?.schema !== 1 ||
+          comparison.policy !== 'telepathy.fresh-clone-comparison/v1' ||
+          comparison.fresh?.candidate_commit !== combined.commit ||
+          comparison.fresh?.task_set_sha256 !== common.case_set_sha256 ||
+          comparison.evaluator_sha256 !== common.evaluator_sha256 ||
+          comparison.verdict !== 'supported' ||
+          !Array.isArray(comparison.candidate_cases) ||
+          comparison.candidate_cases.length !== evidence.case_count ||
+          comparison.candidate_cases.some(row => row?.supported !== true ||
+            !Number.isSafeInteger(row.quality) || row.quality < 1 ||
+            row.counterexample !== false || row.unsupported_claims !== 0) ||
+          comparison.candidate?.unsupported_claims !== 0 ||
+          !Array.isArray(comparison.counterexamples) ||
+          comparison.counterexamples.length !== 0 ||
+          !Array.isArray(comparison.regressions) ||
+          comparison.regressions.length !== 0 ||
+          !Number.isSafeInteger(comparison.candidate?.quality) ||
+          !Number.isSafeInteger(comparison.baseline?.quality) ||
+          comparison.candidate.quality <= comparison.baseline.quality)
+        fail('fresh comparison does not independently support this goal');
+    }
     return { ...common, ok: measured.ok, task_accepted: measured.ok && measured.task_accepted,
       combined_commit: combined.commit, checked_commit: combined.commit,
       ancestry_ok: true, conflicts_resolved: true, gate,
       receipt_sha256: measured.receipt_sha256,
+      ...(measured.task_accepted ? { goal_evidence: clone(measured.goal_evidence),
+        goal_evidence_sha256: hash(canonical(measured.goal_evidence)) } : {}),
       ...(measured.ok ? {} : { reason: str(measured.reason, 'independent rejection reason', 1024) }) };
   };
   // A synthetic runner can exercise the adapter protocol in tests, but it
