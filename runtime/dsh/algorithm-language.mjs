@@ -206,22 +206,31 @@ function evaluate(node, state, tick) {
   return args[0] < args[1] ? args[2] : args[3];
 }
 
-/** Fast in-process transition simulation; differential aid, not a task oracle. */
-export function simulateAlgorithmText(source, steps) {
+/** Parse once, then simulate many bounded probes without another source parse. */
+export function prepareAlgorithmText(source) {
   const parsed = parseProgram(source);
   if (!parsed.program) return { ok: false, source_sha256: parsed.sourceSha256, diagnostics: parsed.diagnostics };
-  if (!Number.isSafeInteger(steps) || steps < 0 || steps > MAX_STEPS) {
-    return { ok: false, source_sha256: parsed.sourceSha256,
-      diagnostics: [diagnostic(0, 0, 1, 'step-range', `Steps must be an integer 0..${MAX_STEPS}.`)] };
-  }
-  let state = new Map(parsed.program.states);
-  for (let tick = 0; tick < steps; tick += 1) {
-    const next = new Map();
-    for (const [name, entry] of parsed.program.steps) next.set(name, evaluate(entry.ast, state, BigInt(tick)));
-    state = next;
-  }
-  return { ok: true, source_sha256: parsed.sourceSha256, steps,
-    stdout: `${state.get(parsed.program.output)}\n` };
+  const simulate = steps => {
+    if (!Number.isSafeInteger(steps) || steps < 0 || steps > MAX_STEPS) {
+      return { ok: false, source_sha256: parsed.sourceSha256,
+        diagnostics: [diagnostic(0, 0, 1, 'step-range', `Steps must be an integer 0..${MAX_STEPS}.`)] };
+    }
+    let state = new Map(parsed.program.states);
+    for (let tick = 0; tick < steps; tick += 1) {
+      const next = new Map();
+      for (const [name, entry] of parsed.program.steps) next.set(name, evaluate(entry.ast, state, BigInt(tick)));
+      state = next;
+    }
+    return { ok: true, source_sha256: parsed.sourceSha256, steps,
+      stdout: `${state.get(parsed.program.output)}\n` };
+  };
+  return { ok: true, source_sha256: parsed.sourceSha256, simulate };
+}
+
+/** Fast in-process transition simulation; differential aid, not a task oracle. */
+export function simulateAlgorithmText(source, steps) {
+  const prepared = prepareAlgorithmText(source);
+  return prepared.ok ? prepared.simulate(steps) : prepared;
 }
 
 async function cli(args) {

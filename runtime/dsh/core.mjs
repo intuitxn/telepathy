@@ -660,14 +660,25 @@ export function createTool(settings) {
 export function createCompileTool() {
   return {
     name: 'algorithm_compile',
-    description: 'Compile one bounded recurrence pseudocode text into deterministic one-file Bend. Return exact source and digests or source-position diagnostics. This does not execute or score the algorithm.',
+    description: 'Compile one bounded recurrence pseudocode text into deterministic one-file Bend and simulate up to 16 step counts in process. Return exact source, digests, outputs or diagnostics. This does not run native Bend or score correctness.',
     parameters: { type: 'object', additionalProperties: false, required: ['source_text'],
-      properties: { source_text: { type: 'string', maxLength: 16 * 1024 } } },
+      properties: { source_text: { type: 'string', maxLength: 16 * 1024 },
+        steps: { type: 'array', maxItems: 16, uniqueItems: true,
+          items: { type: 'integer', minimum: 0, maximum: 128 } } } },
     output: { schema: { type: 'object', additionalProperties: true },
       render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
     execute: async args => {
-      const { compileAlgorithmText } = await import('./algorithm-language.mjs');
-      return compileAlgorithmText(args?.source_text);
+      const steps = args?.steps ?? [];
+      if (!Array.isArray(steps) || steps.length > 16 ||
+          steps.some(step => !Number.isSafeInteger(step) || step < 0 || step > 128) ||
+          new Set(steps).size !== steps.length) throw new Error('steps must be up to 16 distinct integers in 0..128');
+      const { compileAlgorithmText, prepareAlgorithmText } = await import('./algorithm-language.mjs');
+      const compiled = compileAlgorithmText(args?.source_text);
+      if (!compiled.ok || !steps.length) return { ...compiled, simulations: [] };
+      const prepared = prepareAlgorithmText(args.source_text);
+      if (!prepared.ok) throw new Error('compiled source differs from prepared simulation');
+      return { ...compiled, simulations: steps.map(step => ({ steps: step,
+        stdout: prepared.simulate(step).stdout })) };
     },
   };
 }

@@ -415,8 +415,9 @@ The bounded `algorithm-language.mjs` compiler now turns a small natural-number
 recurrence syntax into one deterministic Bend file, with immediate simulation
 and editor-shaped diagnostics. Its operator `run` command compares the simulated
 prediction with native Bend and retains the exact receipt. A funded DSH agent
-can call `algorithm_compile`, write the returned Bend bytes with a scoped file
-tool, then call `algorithm_run` with the returned digest. It is a fast executable
+can call `algorithm_compile` with up to 16 step counts, write the returned Bend
+bytes with a scoped file tool, then call `algorithm_run` with the returned digest.
+The batched simulation parses the text once. It is a fast executable
 pseudocode subset, not an automatic translation of an arbitrary paper or an
 independent evaluator.
 

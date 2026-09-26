@@ -32,11 +32,16 @@ test('registers the six raw-schema tools in the isolated keyless smoke profile',
   assert.deepEqual(registrations[0].parameters.required,
     ['source', 'source_sha256', 'predict_check_pass', 'predict_build_pass', 'cases']);
   const compiled = await registrations[3].execute({ source_text:
-    'algorithm counter\nstate total = 0\nstep total = add(total, 1)\nreturn total\n' });
+    'algorithm counter\nstate total = 0\nstep total = add(total, 1)\nreturn total\n',
+  steps: [0, 3, 128] });
   assert.equal(compiled.ok, true);
   assert.match(compiled.bend_source, /def algorithm_step\(/);
   assert.match(compiled.bend_sha256, /^[a-f0-9]{64}$/);
+  assert.deepEqual(compiled.simulations, [{ steps: 0, stdout: '0\n' },
+    { steps: 3, stdout: '3\n' }, { steps: 128, stdout: '128\n' }]);
   assert.equal((await registrations[3].execute({ source_text: 'bad' })).ok, false);
+  await assert.rejects(registrations[3].execute({ source_text: 'bad', steps: [1, 1] }),
+    /distinct integers/);
 });
 
 test('funded profile requires control services and hides scoring and global selection', async () => {

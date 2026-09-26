@@ -6,7 +6,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { compileAlgorithmText, simulateAlgorithmText } from './algorithm-language.mjs';
+import { compileAlgorithmText, prepareAlgorithmText, simulateAlgorithmText } from './algorithm-language.mjs';
 import { defineAlgorithmTask, runAlgorithmTask } from './algorithm-spec.mjs';
 
 const sha256 = value => createHash('sha256').update(value).digest('hex');
@@ -28,6 +28,10 @@ test('compiles one pseudocode file deterministically and simulates simultaneous 
   assert.deepEqual(compiled, compileAlgorithmText(source));
   assert.match(compiled.bend_source, /def algorithm_repeat\(/);
   assert.deepEqual([0, 1, 2, 3, 4].map(steps => simulateAlgorithmText(source, steps).stdout),
+    ['0\n', '2\n', '4\n', '5\n', '5\n']);
+  const prepared = prepareAlgorithmText(source);
+  assert.equal(prepared.ok, true);
+  assert.deepEqual([0, 1, 2, 3, 4].map(steps => prepared.simulate(steps).stdout),
     ['0\n', '2\n', '4\n', '5\n', '5\n']);
   const tick = 'algorithm tick_sum\nstate total = 0\nstep total = add(total, tick)\nreturn total\n';
   assert.equal(simulateAlgorithmText(tick, 5).stdout, '10\n');

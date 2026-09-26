@@ -23,8 +23,9 @@ For a recurrence with at most eight natural-number state fields and 128 steps,
 write one bounded algorithm text using `algorithm`, `state`, `step`, and
 `return`. Expressions admit literals, prior state fields, `tick`, `add`,
 saturating `sub`, and `if_lt`. Call the funded `algorithm_compile` tool with
-the exact text. Resolve any returned diagnostics, then write its exact
-`bend_source` to a `.bend` file with the scoped file tool. Use its
+the exact text and up to 16 step counts to simulate in one call. Resolve any
+returned diagnostics, then write its exact `bend_source` to a `.bend` file
+with the scoped file tool. Use its
 `bend_sha256` for `algorithm_run`. This translation is executable syntax,
 not evidence that the algorithm's claim is correct. For other algorithms,
 write the one-file Bend source directly.

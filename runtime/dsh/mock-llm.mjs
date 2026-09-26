@@ -19,7 +19,7 @@ class AlgorithmMockAdapter extends LlmAdapter {
     if (!toolText) {
       call = process.env.TELEPATHY_DSH_MOCK_COMPILE_SOURCE
         ? { name: 'algorithm_compile', id: 'algorithm-compile-smoke',
-          args: { source_text: process.env.TELEPATHY_DSH_MOCK_COMPILE_SOURCE } }
+          args: { source_text: process.env.TELEPATHY_DSH_MOCK_COMPILE_SOURCE, steps: [0, 3] } }
         : { name: 'algorithm_active', id: 'algorithm-active-smoke', args: {} };
     } else {
       let result;

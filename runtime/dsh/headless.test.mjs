@@ -36,7 +36,8 @@ test('keyless DSH session invokes the bounded pseudocode compiler', async t => {
   const events = stdout.trim().split('\n').map(line => JSON.parse(line));
   const tool = events.find(row => row.type === 'tool_result' && row.callId === 'algorithm-compile-smoke');
   assert.equal(tool?.status, 'completed');
-  assert.deepEqual(JSON.parse(tool.result), compileAlgorithmText(source));
+  assert.deepEqual(JSON.parse(tool.result), { ...compileAlgorithmText(source),
+    simulations: [{ steps: 0, stdout: '0\n' }, { steps: 3, stdout: '3\n' }] });
   assert.equal(events.at(-1)?.type, 'final');
 });
 
