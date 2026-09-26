@@ -8,6 +8,8 @@ import Base
 # CLI:
 #   bend runtime/core/telepathy.bend -- batch EVENT_SCAN CANDIDATE_SCAN
 #     DOC_SCAN AUTHORIZED_SCOPE K EVENTS CANDIDATES DOCS
+#   bend runtime/core/telepathy.bend -- diffuse STEPS BUDGET K
+#     NODES EDGES ANCHORS AUTHORIZED_SCOPE_IDS
 #
 # EVENTS is newline-separated rows of five canonical 0..65535 integers:
 #   seq, predicted, observed, calibration_measured (0/1), host_verdict
@@ -26,6 +28,12 @@ import Base
 # of actual value. A sequence gap is rejected and
 # reported, never silently omitted. Retrieval returns scoped records, not
 # bare IDs. A query's scope must already be authorized by the host.
+# Diffusion blocks contain canonical newline-separated 0..65535 integers:
+# NODES, ANCHORS and AUTHORIZED_SCOPE_IDS contain node IDs; EDGES contains
+# triples (source ID, destination ID, weight 0..8). Each block is at most 4096
+# characters and 128 records. STEPS is at most 16; BUDGET and K at most 128.
+# The host authenticates the scope and ID mapping. The kernel computes only a
+# pure, bounded context ranking over the induced in-scope graph.
 
 type TpVerdict is Data:
   HostSuccess{}
@@ -501,14 +509,310 @@ law retrieval_scan_exhausted:
 def retrieval_scan_exhausted():
   {==}
 
+# Task-scoped context diffusion. Node IDs have one meaning within a graph;
+# the CLI rejects duplicates. This is a small pure fold of the former separate
+# diffusion draft, not a second runtime or a source of authority.
+type TpDEdge is Data:
+  TpDEdge{src: Nat, dst: Nat, weight: Nat}
+
+type TpDCell is Data:
+  TpDCell{activation: Nat, id: Nat}
+
+def tp_d_member(+x: Nat, +xs: +List<Nat>) -> Bool:
+  match xs:
+    case Nil{}:
+      False{}
+    case Con{h, t}:
+      Nat.is_eq(x, h) || tp_d_member(x, t)
+
+def tp_d_unique(+xs: +List<Nat>) -> Bool:
+  match xs:
+    case Nil{}:
+      True{}
+    case Con{h, t}:
+      Bool.not(tp_d_member(h, t)) && tp_d_unique(t)
+
+def tp_d_edges_valid(+edges: +List<TpDEdge>, +nodes: +List<Nat>) -> Bool:
+  match edges:
+    case Nil{}:
+      True{}
+    case Con{e, t}:
+      match e:
+        case TpDEdge{s, d, w}:
+          Nat.is_le(w, 8n) && tp_d_member(s, nodes) && tp_d_member(d, nodes) && tp_d_edges_valid(t, nodes)
+
+def tp_d_len(+xs: +List<Nat>) -> Nat:
+  match xs:
+    case Nil{}:
+      0n
+    case Con{h, t}:
+      (1n + tp_d_len(t) : Nat)
+
+def tp_d_zeros(n: Nat) -> +List<Nat>:
+  match n:
+    case 0n:
+      []
+    case 1n+p:
+      0n <> tp_d_zeros(p)
+
+def tp_d_index(+x: Nat, +xs: +List<Nat>, +i: Nat) -> Nat:
+  match xs:
+    case Nil{}:
+      i
+    case Con{h, t}:
+      Bool.pick(Nat, Nat.is_eq(x, h), i, tp_d_index(x, t, (i + 1n : Nat)))
+
+def tp_d_nth(+xs: +List<Nat>, i: Nat) -> Nat:
+  match xs:
+    case Nil{}:
+      0n
+    case Con{h, t}:
+      match i:
+        case 0n:
+          h
+        case 1n+p:
+          tp_d_nth(t, p)
+
+def tp_d_cap(+x: Nat) -> Nat:
+  Bool.pick(Nat, Nat.is_le(x, 32n), x, 32n)
+
+def tp_d_bump(+xs: +List<Nat>, i: Nat, amount: Nat) -> +List<Nat>:
+  match xs:
+    case Nil{}:
+      []
+    case Con{h, t}:
+      match i:
+        case 0n:
+          tp_d_cap((h + amount : Nat)) <> t
+        case 1n+p:
+          h <> tp_d_bump(t, p, amount)
+
+def tp_d_seed_go(+anchors: +List<Nat>, +nodes: +List<Nat>, +scope: +List<Nat>, +scores: +List<Nat>) -> +List<Nat>:
+  match anchors:
+    case Nil{}:
+      scores
+    case Con{a, t}:
+      +next = Bool.pick(+List<Nat>, tp_d_member(a, nodes) && tp_d_member(a, scope),
+        tp_d_bump(scores, tp_d_index(a, nodes, 0n), 8n), scores)
+      tp_d_seed_go(t, nodes, scope, next)
+
+def tp_d_seed(+nodes: +List<Nat>, +anchors: +List<Nat>, +scope: +List<Nat>) -> +List<Nat>:
+  tp_d_seed_go(anchors, nodes, scope, tp_d_zeros(tp_d_len(nodes)))
+
+# Integer fixed point: floor(floor(activation * weight / 8) * 4 / 8).
+def tp_d_hop(activation: Nat, weight: Nat) -> Nat:
+  (((((activation * weight : Nat) / 8n : Nat) * 4n : Nat) / 8n : Nat))
+
+def tp_d_edge_into(+edge: TpDEdge, +nodes: +List<Nat>, +scope: +List<Nat>, +old: +List<Nat>, +next: +List<Nat>) -> +List<Nat>:
+  match edge:
+    case TpDEdge{s, d, w}:
+      Bool.pick(+List<Nat>, tp_d_member(s, scope) && tp_d_member(d, scope),
+        tp_d_bump(next, tp_d_index(d, nodes, 0n), tp_d_hop(tp_d_nth(old, tp_d_index(s, nodes, 0n)), w)),
+        next)
+
+def tp_d_fold_edges(+edges: +List<TpDEdge>, +nodes: +List<Nat>, +scope: +List<Nat>, +old: +List<Nat>, +next: +List<Nat>) -> +List<Nat>:
+  match edges:
+    case Nil{}:
+      next
+    case Con{e, t}:
+      tp_d_fold_edges(t, nodes, scope, old, tp_d_edge_into(e, nodes, scope, old, next))
+
+def tp_d_before(+a: Nat, +id: Nat, +b: Nat, other: Nat) -> Bool:
+  Nat.is_gt(a, b) || (Nat.is_eq(a, b) && Nat.is_lt(id, other))
+
+def tp_d_insert(+cell: TpDCell, +sorted: +List<TpDCell>) -> +List<TpDCell>:
+  match cell sorted:
+    case TpDCell{a, id} Nil{}:
+      [TpDCell{a, id}]
+    case TpDCell{a, id} Con{h, t}:
+      match h:
+        case TpDCell{b, other}:
+          Bool.pick(+List<TpDCell>, tp_d_before(a, id, b, other),
+            TpDCell{a, id} <> (TpDCell{b, other} <> t),
+            TpDCell{b, other} <> tp_d_insert(TpDCell{a, id}, t))
+
+def tp_d_cells(+nodes: +List<Nat>, +scores: +List<Nat>, +scope: +List<Nat>) -> +List<TpDCell>:
+  match nodes scores:
+    case Nil{} _:
+      []
+    case Con{id, nt} Nil{}:
+      []
+    case Con{id, nt} Con{score, st}:
+      +tail = tp_d_cells(nt, st, scope)
+      Bool.pick(+List<TpDCell>, Nat.is_gt(score, 0n) && tp_d_member(id, scope),
+        TpDCell{score, id} <> tail, tail)
+
+def tp_d_sort(+cells: +List<TpDCell>, +sorted: +List<TpDCell>) -> +List<TpDCell>:
+  match cells:
+    case Nil{}:
+      sorted
+    case Con{h, t}:
+      tp_d_sort(t, tp_d_insert(h, sorted))
+
+def tp_d_take(k: Nat, +cells: +List<TpDCell>) -> +List<TpDCell>:
+  match k cells:
+    case 0n _:
+      []
+    case _ Nil{}:
+      []
+    case 1n+p Con{h, t}:
+      h <> tp_d_take(p, t)
+
+def tp_d_set_cells(+cells: +List<TpDCell>, +nodes: +List<Nat>, +scores: +List<Nat>) -> +List<Nat>:
+  match cells:
+    case Nil{}:
+      scores
+    case Con{h, t}:
+      match h:
+        case TpDCell{a, id}:
+          tp_d_set_cells(t, nodes, tp_d_bump(scores, tp_d_index(id, nodes, 0n), a))
+
+def tp_d_round(+nodes: +List<Nat>, +edges: +List<TpDEdge>, +scope: +List<Nat>, +old: +List<Nat>, budget: Nat) -> +List<Nat>:
+  +next = tp_d_fold_edges(edges, nodes, scope, old, tp_d_zeros(tp_d_len(nodes)))
+  tp_d_set_cells(tp_d_take(budget, tp_d_sort(tp_d_cells(nodes, next, scope), [])), nodes, tp_d_zeros(tp_d_len(nodes)))
+
+def tp_d_drive(steps: Nat, +nodes: +List<Nat>, +edges: +List<TpDEdge>, +scope: +List<Nat>, +scores: +List<Nat>, +budget: Nat) -> +List<Nat>:
+  match steps:
+    case 0n:
+      scores
+    case 1n+p:
+      tp_d_drive(p, nodes, edges, scope, tp_d_round(nodes, edges, scope, scores, budget), budget)
+
+def tp_d_context(+nodes: +List<Nat>, +edges: +List<TpDEdge>, +anchors: +List<Nat>, +scope: +List<Nat>, steps: Nat, +budget: Nat, k: Nat) -> +List<TpDCell>:
+  +seed = tp_d_seed(nodes, anchors, scope)
+  +final = tp_d_drive(steps, nodes, edges, scope, seed, budget)
+  tp_d_take(k, tp_d_take(budget, tp_d_sort(tp_d_cells(nodes, final, scope), [])))
+
+def tp_d_nat_cons(head: Maybe<&2, Nat>, tail: Maybe<&2, +List<Nat>>) -> Maybe<&2, +List<Nat>>:
+  match head tail:
+    case Some{h} Some{t}:
+      Some{h <> t}
+    case _ _:
+      None{}
+
+def tp_d_edge_cons(head: Maybe<&2, TpDEdge>, tail: Maybe<&2, +List<TpDEdge>>) -> Maybe<&2, +List<TpDEdge>>:
+  match head tail:
+    case Some{h} Some{t}:
+      Some{h <> t}
+    case _ _:
+      None{}
+
+def tp_d_edge(s: Maybe<&2, Nat>, d: Maybe<&2, Nat>, w: Maybe<&2, Nat>) -> Maybe<&2, TpDEdge>:
+  match s d w:
+    case Some{src} Some{dst} Some{weight}:
+      Some{TpDEdge{src, dst, weight}}
+    case _ _ _:
+      None{}
+
+def tp_d_parse_nats(rows: Nat, +lines: +List<String>) -> Maybe<&2, +List<Nat>>:
+  match rows lines:
+    case _ Nil{}:
+      Some{[]}
+    case 0n _:
+      None{}
+    case 1n+p Con{h, t}:
+      tp_d_nat_cons(tp_nat(h), tp_d_parse_nats(p, t))
+
+def tp_d_parse_edges(rows: Nat, +lines: +List<String>) -> Maybe<&2, +List<TpDEdge>>:
+  match rows lines:
+    case _ Nil{}:
+      Some{[]}
+    case 0n _:
+      None{}
+    case 1n+p Con{s, Con{d, Con{w, t}}}:
+      tp_d_edge_cons(tp_d_edge(tp_nat(s), tp_nat(d), tp_nat(w)), tp_d_parse_edges(p, t))
+    case _ _:
+      None{}
+
+def tp_d_cell_json(cell: TpDCell) -> String:
+  match cell:
+    case TpDCell{a, id}:
+      "{\"id\":" ++ Nat.show(id) ++ ",\"activation\":" ++ Nat.show(a) ++ "}"
+
+def tp_d_cell_join(cell: TpDCell, rest: String) -> String:
+  match rest:
+    case SNil{}:
+      tp_d_cell_json(cell)
+    case _:
+      tp_d_cell_json(cell) ++ "," ++ rest
+
+def tp_d_cells_json(+cells: +List<TpDCell>) -> String:
+  match cells:
+    case Nil{}:
+      ""
+    case Con{h, t}:
+      tp_d_cell_join(h, tp_d_cells_json(t))
+
+def tp_d_result(+cells: +List<TpDCell>, steps: Nat, budget: Nat) -> String:
+  "{\"schema\":\"telepathy.diffusion/v1\",\"scope_source\":\"host_supplied_unauthed\",\"steps\":" ++ Nat.show(steps) ++ ",\"budget\":" ++ Nat.show(budget) ++ ",\"context\":[" ++ tp_d_cells_json(cells) ++ "]}"
+
+def tp_d_valid_branch(ok: Bool, +nodes: +List<Nat>, +edges: +List<TpDEdge>, +anchors: +List<Nat>, +scope: +List<Nat>, +steps: Nat, +budget: Nat, k: Nat) -> IO(Unit):
+  match ok:
+    case True{}:
+      IO.print(tp_d_result(tp_d_context(nodes, edges, anchors, scope, steps, budget, k), steps, budget))
+    case False{}:
+      IO.die(Unit, 2, "invalid diffusion graph: duplicate node id, unknown endpoint, or weight above 8")
+
+def tp_d_parsed(n: Maybe<&2, +List<Nat>>, e: Maybe<&2, +List<TpDEdge>>, a: Maybe<&2, +List<Nat>>, s: Maybe<&2, +List<Nat>>, steps: Nat, budget: Nat, k: Nat) -> IO(Unit):
+  match n e a s:
+    case Some{+nodes} Some{+edges} Some{anchors} Some{scope}:
+      tp_d_valid_branch(tp_d_unique(nodes) && tp_d_edges_valid(edges, nodes), nodes, edges, anchors, scope, steps, budget, k)
+    case _ _ _ _:
+      IO.die(Unit, 2, "invalid diffusion rows: use canonical 0..65535 integers in complete records")
+
+def tp_d_blocks(ok: Bool, steps: Nat, budget: Nat, k: Nat, nodes: String, edges: String, anchors: String, scope: String) -> IO(Unit):
+  match ok:
+    case False{}:
+      IO.die(Unit, 2, "diffusion block exceeds 4096 characters")
+    case True{}:
+      tp_d_parsed(tp_d_parse_nats(128n, tp_lines(nodes)), tp_d_parse_edges(128n, tp_lines(edges)), tp_d_parse_nats(128n, tp_lines(anchors)), tp_d_parse_nats(128n, tp_lines(scope)), steps, budget, k)
+
+def tp_d_limits(ok: Bool, steps: Nat, budget: Nat, k: Nat, +nodes: String, +edges: String, +anchors: String, +scope: String) -> IO(Unit):
+  match ok:
+    case False{}:
+      IO.die(Unit, 2, "diffusion steps must be 0..16 and budget/K 0..128")
+    case True{}:
+      tp_d_blocks(Nat.is_le(String.length(nodes), 4096n) && Nat.is_le(String.length(edges), 4096n) && Nat.is_le(String.length(anchors), 4096n) && Nat.is_le(String.length(scope), 4096n), steps, budget, k, nodes, edges, anchors, scope)
+
+def tp_d_numbers(steps: Maybe<&2, Nat>, budget: Maybe<&2, Nat>, k: Maybe<&2, Nat>, nodes: String, edges: String, anchors: String, scope: String) -> IO(Unit):
+  match steps budget k:
+    case Some{+rounds} Some{+width} Some{+count}:
+      tp_d_limits(Nat.is_le(rounds, 16n) && Nat.is_le(width, 128n) && Nat.is_le(count, 128n), rounds, width, count, nodes, edges, anchors, scope)
+    case _ _ _:
+      IO.die(Unit, 2, "invalid numeric diffusion argument")
+
+def tp_d_command(ok: Bool, steps: String, budget: String, k: String, nodes: String, edges: String, anchors: String, scope: String) -> IO(Unit):
+  match ok:
+    case True{}:
+      tp_d_numbers(tp_nat(steps), tp_nat(budget), tp_nat(k), nodes, edges, anchors, scope)
+    case False{}:
+      IO.die(Unit, 2, "usage: diffuse STEPS BUDGET K NODES EDGES ANCHORS AUTHORIZED_SCOPE_IDS")
+
+law diffusion_blocks_out_of_scope_hub:
+  {tp_d_context([0n, 1n, 2n, 3n], [TpDEdge{0n, 1n, 8n}, TpDEdge{1n, 3n, 8n}, TpDEdge{0n, 2n, 8n}, TpDEdge{2n, 1n, 8n}], [0n], [0n, 1n, 3n], 2n, 2n, 2n) == tp_d_context([0n, 1n, 3n], [TpDEdge{0n, 1n, 8n}, TpDEdge{1n, 3n, 8n}], [0n], [0n, 1n, 3n], 2n, 2n, 2n) : +List<TpDCell>}
+def diffusion_blocks_out_of_scope_hub():
+  {==}
+
+law diffusion_scoped_chain_score:
+  {tp_d_context([0n, 1n, 3n], [TpDEdge{0n, 1n, 8n}, TpDEdge{1n, 3n, 8n}], [0n], [0n, 1n, 3n], 2n, 2n, 2n) == [TpDCell{2n, 3n}] : +List<TpDCell>}
+def diffusion_scoped_chain_score():
+  {==}
+
+law diffusion_tie_breaks_by_id:
+  {tp_d_context([3n, 2n, 1n], [TpDEdge{1n, 3n, 8n}, TpDEdge{1n, 2n, 8n}], [1n], [1n, 2n, 3n], 1n, 2n, 2n) == [TpDCell{4n, 2n}, TpDCell{4n, 3n}] : +List<TpDCell>}
+def diffusion_tie_breaks_by_id():
+  {==}
+
 def tp_main(args: List<String>) -> IO(Unit):
   match args:
     case Nil{}:
       IO.print(tp_demo())
     case Con{command, Con{event_scan, Con{candidate_scan, Con{doc_scan, Con{scope, Con{k, Con{events, Con{candidates, Con{docs, Nil{}}}}}}}}}}:
       tp_batch_command(String.eq(command, "batch"), event_scan, candidate_scan, doc_scan, scope, k, events, candidates, docs)
+    case Con{command, Con{steps, Con{budget, Con{k, Con{nodes, Con{edges, Con{anchors, Con{scope, Nil{}}}}}}}}}:
+      tp_d_command(String.eq(command, "diffuse"), steps, budget, k, nodes, edges, anchors, scope)
     case _:
-      IO.die(Unit, 2, "usage: batch EVENT_SCAN CANDIDATE_SCAN DOC_SCAN AUTHORIZED_SCOPE K EVENTS CANDIDATES DOCS")
+      IO.die(Unit, 2, "usage: batch EVENT_SCAN CANDIDATE_SCAN DOC_SCAN AUTHORIZED_SCOPE K EVENTS CANDIDATES DOCS | diffuse STEPS BUDGET K NODES EDGES ANCHORS AUTHORIZED_SCOPE_IDS")
 
 def main() -> IO(Unit):
   do IO<Unit>:

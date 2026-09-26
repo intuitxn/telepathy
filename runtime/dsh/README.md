@@ -127,6 +127,55 @@ The host preflights the exact jj base, key, private paths, checked release manif
 
 ## Funded research task program
 
+`resident-ingress.mjs` is a thin host-owned entry point for this research
+program. It provides durable `submit`, `status`, `list`, `runNext`, and explicit
+`resume` calls, plus a local CLI. It does not start a second model scheduler,
+resume Meta ACP sessions, read the old `intuitxn-meta` database, or turn a
+reported job into accepted knowledge. A submission must name a reviewed
+profile that freezes one scope, the exact jj base, integration owner, oracle
+and case-set digests, DSH toolchain, finite compute, planner workspace, and
+verifier paths. The request supplies only its kind, goal, acceptance, profile
+ID, and idempotent request ID. Research and analysis are supported; coding and
+other kinds receive `unsupported` without a provider call. The profile has no
+credential field. `DEEPSEEK_API_KEY` enters only from the private host process.
+
+The private CLI config is one JSON object with `stateRoot` and `profiles`.
+Each profile has the fields validated in `profileValue` in
+`resident-ingress.mjs`; keep the config outside model workspaces and mode 0600.
+From the checked release, use:
+
+```sh
+node runtime/dsh/resident-ingress.mjs --config /private/ingress.json submit < /private/request.json
+node runtime/dsh/resident-ingress.mjs --config /private/ingress.json status REQUEST_ID
+node runtime/dsh/resident-ingress.mjs --config /private/ingress.json list
+node runtime/dsh/resident-ingress.mjs --config /private/ingress.json run-next
+```
+
+`run-next` journals an invocation before constructing the DSH host. An
+interrupted or ambiguous planner/worker turn remains `unknown` and is skipped
+on later runs. Only a trusted host can call `reconcile` with an exact archived
+attempt/profile receipt proving completion or absence; there is deliberately
+no model-facing or CLI reconcile command. An absence receipt permits a new
+attempt, while an unknown receipt never does. A paused non-ambiguous program
+requires an explicit `resume` call. An existing request is held if its profile
+digest changes. Different request IDs for identical work are durable aliases
+of one program, so every submitted ID resolves in `status`. `reported` means
+the program reached its terminal checkpoint; it does not mean the frozen goal
+was independently accepted. No service or LaunchAgent is installed by this
+module.
+
+`scoped-context.mjs` is an opt-in host diagnostic for retrieval. Given a
+trusted controller view at an exact causal cut, a host-owned source resolver,
+host-authored relationship edges, and a pinned native Bend binary, it compares
+the existing flat selection with bounded graph diffusion under the same K and
+output-byte cap. Every returned ref retains its event digest, source digest,
+scope, and evidence status. It rejects changed source bytes, unknown graph
+events, duplicate or out-of-scope kernel IDs, and an unpinned binary. Its timing
+and graph-size diagnostics remain host-only because they can reveal the
+presence of out-of-scope records. The fixed keyless case is evidence of one
+ranking difference, not a reason to switch live planner context. It is not a
+model tool or a source of authority.
+
 `createResearchTaskProgramHost` composes the funded DeepSeek planner with the same archived, independently settled research worker. Give it the frozen `spec`, `prompt`, `programId`, `targetTasks` ceiling, `plannerBudget`, and `workerBudget` plus the private paths and checked `dsh` settings above. This one-attempt slice requires exactly one evaluation per worker. Use `plannerWorkspace` with `@-` at `spec.initial_head` instead of `workerWorkspace`, and provide a private, canonical `workerWorkspaceRoot` outside the planner workspace, state, archive, verifier, case set, and DSH roots. The host creates one deterministic linked jj workspace per granted plan at the exact base. It runs one worker at a time and accepts `research` and `analysis` results only after the pinned host verifier accepts their artifact, evidence, plan kind, and oracle. Default feedback planning can stop below the ceiling after observing those settled outcomes. The worker must return a `telepathy.research-proposal/v1` JSON object. Raw bytes are archived before a malformed claim is rejected through independent settlement; no provider turn is repeated. The parser validates structure and causal parent only. Its source hashes remain proposals until the host-pinned oracle checks the underlying sources.
 
 ```js

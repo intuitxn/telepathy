@@ -31,6 +31,11 @@ function batch({ eventScan = 3, candidateScan = 3, docScan = 3, scope = 1, k = 2
   return invoke('batch', String(eventScan), String(candidateScan), String(docScan), String(scope), String(k), events, candidates, docs);
 }
 
+function diffuse({ steps = 1, budget = 2, k = 2, nodes = [], edges = [], anchors = [], scope = [] } = {}) {
+  const block = rows => rows.map(String).join('\n');
+  return invoke('diffuse', String(steps), String(budget), String(k), block(nodes), block(edges), block(anchors), block(scope));
+}
+
 function report(result) {
   assert.equal(result.error, undefined);
   assert.equal(result.exit_code, 0, result.stderr);
@@ -144,6 +149,66 @@ test('malformed and oversized input fails closed', async () => {
     { candidates: '9\n1\n1\n01' },
   ]) {
     const result = await batch(input);
+    assert.equal(result.error, undefined);
+    assert.notEqual(result.exit_code, 0, `accepted ${JSON.stringify(input)}`);
+  }
+});
+
+test('context diffusion ranks a scoped graph with deterministic ties and a node budget', async () => {
+  const graph = { nodes: [3, 2, 1], edges: [1, 3, 8, 1, 2, 8], anchors: [1], scope: [1, 2, 3] };
+  const full = report(await diffuse(graph));
+  assert.deepEqual(full, {
+    schema: 'telepathy.diffusion/v1', scope_source: 'host_supplied_unauthed',
+    steps: 1, budget: 2, context: [
+      { id: 2, activation: 4 }, { id: 3, activation: 4 },
+    ],
+  });
+  assert.deepEqual(report(await diffuse({ ...graph, budget: 1 })).context, [{ id: 2, activation: 4 }]);
+  assert.deepEqual(report(await diffuse({ ...graph, k: 1 })).context, [{ id: 2, activation: 4 }]);
+  assert.deepEqual(report(await diffuse({ ...graph, steps: 0 })).context, [{ id: 1, activation: 8 }]);
+  assert.deepEqual(report(await diffuse({ ...graph, anchors: [] })).context, []);
+});
+
+test('out-of-scope nodes and edges cannot change an in-scope context score', async () => {
+  const base = { steps: 2, budget: 2, k: 2, nodes: [0, 1, 3], edges: [0, 1, 8, 1, 3, 8], anchors: [0], scope: [0, 1, 3] };
+  const baseline = report(await diffuse(base));
+  const withHub = report(await diffuse({ ...base,
+    nodes: [0, 1, 2, 3], edges: [...base.edges, 0, 2, 8, 2, 1, 8],
+  }));
+  assert.deepEqual(baseline.context, [{ id: 3, activation: 2 }]);
+  assert.deepEqual(withHub.context, baseline.context);
+  assert.deepEqual(report(await diffuse({ ...base, anchors: [2], nodes: [0, 1, 2, 3] })).context, []);
+});
+
+test('a bounded 32-edge fanout keeps only four context cells', async () => {
+  const ids = Array.from({ length: 33 }, (_, id) => id);
+  const edges = Array.from({ length: 32 }, (_, index) => [0, index + 1, 8]).flat();
+  const result = report(await diffuse({ nodes: ids, edges, anchors: [0], scope: ids, budget: 4, k: 4 }));
+  assert.deepEqual(result.context, [1, 2, 3, 4].map(id => ({ id, activation: 4 })));
+  const saturated = report(await diffuse({
+    nodes: [0, 1], edges: Array.from({ length: 16 }, () => [0, 1, 8]).flat(),
+    anchors: [0], scope: [0, 1], budget: 1, k: 1,
+  }));
+  assert.deepEqual(saturated.context, [{ id: 1, activation: 32 }]);
+});
+
+test('diffusion rejects ambiguous IDs, invalid edges, and malformed or excessive input', async () => {
+  const base = { nodes: [0, 1], edges: [0, 1, 8], anchors: [0], scope: [0, 1] };
+  const invalid = [
+    { ...base, nodes: [0, 0, 1] },
+    { ...base, edges: [0, 9, 8] },
+    { ...base, edges: [0, 1, 9] },
+    { ...base, edges: [0, 1] },
+    { ...base, nodes: ['00', 1] },
+    { ...base, steps: 17 },
+    { ...base, budget: 129 },
+    { ...base, k: 129 },
+    { ...base, nodes: Array.from({ length: 129 }, (_, id) => id) },
+    { ...base, edges: Array.from({ length: 129 }, () => [0, 1, 8]).flat() },
+    { ...base, scope: [1, ...Array.from({ length: 4097 }, () => 1)] },
+  ];
+  for (const input of invalid) {
+    const result = await diffuse(input);
     assert.equal(result.error, undefined);
     assert.notEqual(result.exit_code, 0, `accepted ${JSON.stringify(input)}`);
   }

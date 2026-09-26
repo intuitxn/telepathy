@@ -3,6 +3,12 @@
 Status: local migration under test, 2026-09-25. The live DeepSeek API path
 has not yet been exercised with a credential.
 
+This candidate descends from remote `main`; local `main` has additional
+diffusion, context, and resident-service capabilities. Their port or retirement
+decisions and cutover gates are tracked in
+[local-main reconciliation](local-main-reconciliation.md). A passing candidate
+gate alone does not establish complete local-main migration.
+
 ## What runs
 
 ```text
@@ -78,14 +84,20 @@ independent checks. Calibration compares prediction with observation. The
 agent's assertion never supplies the verdict.
 
 The target retrieval path enforces a host grant before ranking current
-evidence and counterexamples within a context budget. Diffusion, if
-introduced, must beat a simpler
-scope-safe baseline at matched compute and cannot expand authority. The
-present Bend core filters records by a caller-supplied scope; it does not
-authenticate that scope or implement diffusion. Its `calibration_measured`
-and `HostSuccess`/`HostFailure` fields are also caller supplied. A host must
-bind scope and verdict to grants and independent receipts before this can
-become accepted task state.
+evidence and counterexamples within a context budget. The one-file Bend core
+has flat scoped retrieval and a bounded `diffuse` operation over host-supplied
+node IDs and edges. Every conducting edge requires both endpoints in the
+supplied scope; integer activation, round/frontier budgets, and ranking are
+deterministic. It does not authenticate the scope, map IDs to source text, or
+prove timing isolation. The host-only `scoped-context.mjs` adapter binds a
+controller view at an exact task cut to verified archived source bytes and
+compares flat versus native diffusion ranking at one output budget. Its one
+keyless case favors diffusion, but this is an opt-in diagnostic, not the live
+context path. Diffusion must beat the simpler scope-safe baseline on matched
+tasks and total compute before selection. The old `ctx.bend` static
+inventory is historical, not the live context engine. `calibration_measured`
+and `HostSuccess`/`HostFailure` are also caller supplied: the host must bind
+them to grants and independent receipts before accepting task state.
 
 ## The small task control service
 

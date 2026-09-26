@@ -13,6 +13,7 @@ const ID = /^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$/;
 const PLAN_KINDS = new Set(['research', 'algorithm', 'implementation', 'evaluation',
   'integration', 'retrieval', 'analysis']);
 const MAX_PAGE_REPLANS = 3;
+export const MAX_TASK_PROGRAM_STEPS = 1024;
 const hash = value => createHash('sha256').update(value).digest('hex');
 const fail = message => { throw new Error(`task program: ${message}`); };
 const localRunTails = new Map();
@@ -469,7 +470,7 @@ export function createTaskProgram(settings) {
   }
 
   async function run({ maxSteps = 64, replanPageDigest = null } = {}) {
-    integer(maxSteps, 1, 1024, 'maxSteps');
+    integer(maxSteps, 1, MAX_TASK_PROGRAM_STEPS, 'maxSteps');
     if (replanPageDigest !== null) digest(replanPageDigest, 'replanPageDigest');
     const opened = await controller.open(frozenSpec);
     const taskRef = opened.task_ref;
