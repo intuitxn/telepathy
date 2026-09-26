@@ -912,7 +912,7 @@ test('synthesis oracle is a pinned host file; mutation and unbranded callbacks f
   assert.throws(() => createTaskControl({ storeRoot, allowUnsafeStoreRootForTest: true,
     verifySynthesis: async () => ({ ok: true }) }), /host-pinned oracle adapter/);
   assert.throws(() => createTaskControl({
-    storeRoot: path.join(os.homedir(), '.local', 'state', 'telepathy-synthesis-test-only'),
+    storeRoot: path.join(os.userInfo().homedir, '.local', 'state', 'telepathy-synthesis-test-only'),
     verifySynthesis: async () => ({ ok: true }),
     allowSyntheticSynthesisVerifierForTest: true }), /temporary test store/);
   const oraclePath = path.join(oracleRoot, 'oracle.mjs');
@@ -921,7 +921,7 @@ test('synthesis oracle is a pinned host file; mutation and unbranded callbacks f
   const verifySynthesis = createPinnedSynthesisVerifier({ oraclePath, trustedRoot: oracleRoot,
     workspaceRoot: process.cwd(), artifactRoot: oracleRoot, allowUnsafeOraclePathForTest: true });
   assert.throws(() => createTaskControl({
-    storeRoot: path.join(os.homedir(), '.local', 'state', 'telepathy-synthesis-production'),
+    storeRoot: path.join(os.userInfo().homedir, '.local', 'state', 'telepathy-synthesis-production'),
     verifySynthesis,
   }), /production synthesis requires a host-pinned oracle adapter/);
   assert.deepEqual(await verifySynthesis({ synthesis_oracle_sha256: sha(source) }), { oracle: sha(source) });
