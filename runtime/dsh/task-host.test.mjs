@@ -5,9 +5,9 @@ import { mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } f
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { createFundedTaskProgram, createResearchTaskProgramHost, createSingleTaskHost,
+import { createAlgorithmTaskHost, createFundedTaskProgram, createResearchTaskProgramHost, createSingleTaskHost,
   createTwoScopeResearchSynthesisHost, researchProgramForecast,
-  twoScopeResearchSynthesisForecast, validatedDeepSeekEnv } from './task-host.mjs';
+  sdkTurn, twoScopeResearchSynthesisForecast, validatedDeepSeekEnv } from './task-host.mjs';
 
 const hash = value => createHash('sha256').update(value).digest('hex');
 const workerWorkspaces = async root => (await readdir(root)).filter(name => /^worker-[a-f0-9]{40}$/.test(name));
@@ -189,6 +189,185 @@ test('production DSH child environment rejects runtime and provider overrides', 
   }
   assert.throws(() => validatedDeepSeekEnv({ PATH: base.PATH, HOME: base.HOME }),
     /DSH child environment must contain only/);
+});
+
+test('funded algorithm SDK turn mounts the executable patch and a private archive', async t => {
+  const root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'telepathy-sdk-route-')));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const sdkModule = path.join(root, 'mock-sdk.mjs');
+  await writeFile(sdkModule, `export class DeepSeekHarness {
+    constructor(config) { this.config = config; }
+    session(id) { return { run: async () => ({ id, config: this.config }) }; }
+    async close() {}
+  }`);
+  const config = { sdkModule, dshBin: path.join(root, 'dsh'), trustedRoot: root,
+    dshHome: path.join(root, 'private-home'),
+    env: { PATH: '/usr/bin:/bin', HOME: root, DEEPSEEK_API_KEY: 'private-test-key' } };
+  const args = [config, root, path.join(root, 'tasks'), hash('task'), hash('grant'),
+    'algorithm-session', 128, 'Run one bounded kernel.'];
+  const research = await sdkTurn(...args);
+  assert.deepEqual(research.config.patches.map(file => path.basename(file)),
+    ['cordis.patch.yml', 'research-only.patch.yml']);
+  assert.equal(research.config.env.TELEPATHY_DSH_ARCHIVE, undefined);
+  const algorithm = await sdkTurn(...args, 'algorithm');
+  assert.deepEqual(algorithm.config.patches.map(file => path.basename(file)),
+    ['cordis.patch.yml']);
+  assert.equal(algorithm.config.env.TELEPATHY_DSH_ARCHIVE,
+    path.join(config.dshHome, 'algorithm-archive'));
+  assert.equal((await realpath(algorithm.config.env.TELEPATHY_DSH_ARCHIVE)),
+    algorithm.config.env.TELEPATHY_DSH_ARCHIVE);
+  await assert.rejects(sdkTurn(...args, 'unfunded'), /DSH turn kind/);
+});
+
+async function algorithmHostFixture(t, name, receiptSession = null, archiveSource = null,
+  skipReservation = false) {
+  const root = await realpath(await mkdtemp(path.join(os.tmpdir(), `telepathy-algorithm-host-${name}-`)));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const workspace = path.join(root, 'workspace');
+  execFileSync('jj', ['git', 'init', '--no-colocate', workspace], { encoding: 'utf8' });
+  const initial = execFileSync('jj', ['--ignore-working-copy', 'log', '-r', '@-', '--no-graph', '-T', 'commit_id'],
+    { cwd: workspace, encoding: 'utf8' }).trim();
+  const spec = { goal: 'Improve one Bend algorithm', acceptance: 'Pass the frozen algorithm cases',
+    scopes: ['algorithm'], integration_owner: 'host', initial_head: initial,
+    pinned_versions: { evaluator_sha256: hash('goal-verifier'),
+      case_set_sha256: hash('goal-cases'), toolchain: 'fixture' },
+    limits: { max_tasks: 1, max_branches: 1, max_active_grants: 1, max_depth: 0,
+      tokens: 10_000, fuel: 100, integrations: 1, evaluations: 1 },
+    policy_version: 'algorithm-host-test-v1' };
+  let turns = 0;
+  let candidate = null;
+  const source = 'def main = 1\n';
+  const sourceSha = hash(source);
+  const verifyCombined = async ({ expected_head, candidates }) => ({
+    ok: true, task_accepted: false, base_commit: expected_head,
+    combined_commit: candidate, checked_commit: candidate,
+    candidate_events: candidates.map(row => row.event_digest),
+    evaluator_sha256: spec.pinned_versions.evaluator_sha256,
+    case_set_sha256: spec.pinned_versions.case_set_sha256,
+    toolchain: spec.pinned_versions.toolchain, receipt_sha256: hash('goal-verdict'),
+    ancestry_ok: true, conflicts_resolved: true,
+    gate: { revision: candidate,
+      argv: ['jj', '--ignore-working-copy', 'run', '--ignore-changes', '--clean', '--root',
+        '-r', candidate, '--', 'node', 'scripts/check.mjs', '--require-dsh'],
+      exit_code: 0, receipt_sha256: hash('gate-receipt') },
+  });
+  const settings = { spec, prompt: 'Create the one-file Bend program.', programId: `algorithm-${name}`,
+    workerBudget: { tokens: 4000, fuel: 64, children: 0, integrations: 1, evaluations: 1 },
+    sourcePath: 'kernel.bend', workerWorkspace: workspace,
+    taskStateRoot: path.join(root, 'tasks'), archiveRoot: path.join(root, 'archive'),
+    verifyCombined, allowUnsafeRootsForTest: true, allowMockRunnerForTest: true,
+    runSessionForTest: async ({ task_ref, grant, dispatch_id, controller, archiveRoot }) => {
+      turns++;
+      const live = { id: dispatch_id, header: { origin: 'user', cwd: workspace } };
+      await controller.bindRootSession(task_ref, { id: `bind:${dispatch_id}`,
+        grant_ref: grant.ref, session_id: dispatch_id },
+      { sessions: { get: id => id === dispatch_id ? live : null } });
+      if (!skipReservation) await controller.reserveAlgorithmCall(task_ref, { session_id: dispatch_id,
+        call_id: 'one-run', tool: 'algorithm_run', input_sha256: hash(source) });
+      await writeFile(path.join(workspace, 'kernel.bend'), source);
+      execFileSync('jj', ['status'], { cwd: workspace, encoding: 'utf8' });
+      candidate = execFileSync('jj', ['--ignore-working-copy', 'log', '-r', '@', '--no-graph', '-T', 'commit_id'],
+        { cwd: workspace, encoding: 'utf8' }).trim();
+      await mkdir(path.join(archiveRoot, 'candidates'), { recursive: true });
+      await mkdir(path.join(archiveRoot, 'receipts'), { recursive: true });
+      await writeFile(path.join(archiveRoot, 'candidates', `${sourceSha}.bend`), archiveSource ?? source);
+      const receiptId = '11111111-1111-4111-8111-111111111111';
+      const receipt = { schema: 1, receipt_id: receiptId,
+        session_id: receiptSession ?? dispatch_id, call_id: 'one-run', source: 'kernel.bend',
+        source_sha256: sourceSha, status: 'executed' };
+      await writeFile(path.join(archiveRoot, 'receipts', `${receiptId}.json`), `${JSON.stringify(receipt)}\n`);
+      return { sessionId: dispatch_id, finalResponse: 'One run completed.', events: [] };
+    } };
+  return { settings, spec, workspace, getTurns: () => turns, getCandidate: () => candidate };
+}
+
+test('one funded algorithm session submits its exact source to independent settlement once', async t => {
+  const f = await algorithmHostFixture(t, 'accepted');
+  const host = await createAlgorithmTaskHost(f.settings);
+  const first = await host.run();
+  assert.equal(first.status, 'accepted');
+  assert.equal(first.candidate_commit, f.getCandidate());
+  assert.equal(first.task_accepted, false);
+  assert.equal((await host.controller.replay(first.task_ref)).task_head, f.getCandidate());
+  const again = await host.run();
+  assert.equal(again.existing, true);
+  assert.equal(f.getTurns(), 1);
+});
+
+test('a model auto declaration uses a pinned measured host index', async t => {
+  const f = await algorithmHostFixture(t, 'model-auto');
+  f.settings.algorithmText = 'algorithm counter\nmodel auto\nstate total = 0\nstep total = add(total, 1)\nreturn total\n';
+  const root = path.dirname(f.workspace);
+  const receiptRoot = path.join(root, 'model-receipts');
+  await mkdir(receiptRoot, { mode: 0o700 });
+  const generation = hash('measured-generation');
+  const receipt = { schema: 1, generation_sha256: generation, name: 'deepseek-flash',
+    provider: 'deepseek-official', model: 'deepseek-flash',
+    passed: 6, cases: 6, compute_units: 20 };
+  const receiptBytes = `${JSON.stringify(receipt)}\n`;
+  const receiptSha = hash(receiptBytes);
+  await writeFile(path.join(receiptRoot, `${receiptSha}.json`), receiptBytes);
+  const index = { generation_sha256: generation, routes: [{ name: 'deepseek-flash',
+    provider: 'deepseek-official', model: 'deepseek-flash', available: true,
+    measurement: { passed: 6, cases: 6, compute_units: 20,
+      receipt_sha256: receiptSha } }] };
+  const indexBytes = `${JSON.stringify(index)}\n`;
+  f.settings.modelIndexFile = path.join(root, 'model-index.json');
+  f.settings.modelIndexSha256 = hash(indexBytes);
+  f.settings.modelReceiptRoot = receiptRoot;
+  await writeFile(f.settings.modelIndexFile, indexBytes);
+  const host = await createAlgorithmTaskHost(f.settings);
+  assert.equal((await host.run()).status, 'accepted');
+  const dispatches = await readdir(path.join(f.settings.archiveRoot, 'dispatches'));
+  const intent = JSON.parse(await readFile(path.join(f.settings.archiveRoot, 'dispatches',
+    dispatches.find(name => name.endsWith('.intent.json'))), 'utf8'));
+  assert.equal(intent.model_route.name, 'deepseek-flash');
+  assert.equal(intent.model_route.measurement.receipt_sha256, receiptSha);
+  await writeFile(path.join(receiptRoot, `${receiptSha}.json`), 'changed receipt\n');
+  await assert.rejects(createAlgorithmTaskHost(f.settings), /model route receipt bytes differ/);
+});
+
+test('an archived algorithm admission resumes settlement without another model turn', async t => {
+  const f = await algorithmHostFixture(t, 'resume');
+  f.settings.afterAdmissionForTest = async () => { throw new Error('simulated host crash'); };
+  const first = await createAlgorithmTaskHost(f.settings);
+  await assert.rejects(first.run(), /simulated host crash/);
+  delete f.settings.afterAdmissionForTest;
+  const resumed = await createAlgorithmTaskHost(f.settings);
+  const result = await resumed.run();
+  assert.equal(result.status, 'accepted');
+  assert.equal(result.candidate_commit, f.getCandidate());
+  assert.equal(f.getTurns(), 1);
+});
+
+test('a receipt for another DSH session cannot become an algorithm candidate', async t => {
+  const f = await algorithmHostFixture(t, 'forged', 'other-session');
+  const host = await createAlgorithmTaskHost(f.settings);
+  await assert.rejects(host.run(), /exactly one executed receipt/);
+  const state = await host.controller.replay((await host.controller.open(f.spec)).task_ref);
+  assert.equal(state.task_head, f.spec.initial_head);
+  assert.equal(state.events.some(event => event.type === 'admitted'), false);
+  assert.equal(f.getTurns(), 1);
+  await assert.rejects(host.run(), /exactly one executed receipt/);
+  assert.equal(f.getTurns(), 1);
+});
+
+test('a changed archived source cannot be admitted or independently settled', async t => {
+  const f = await algorithmHostFixture(t, 'changed-source', null, 'def main = 2\n');
+  const host = await createAlgorithmTaskHost(f.settings);
+  await assert.rejects(host.run(), /differs from archived executed source/);
+  const state = await host.controller.replay((await host.controller.open(f.spec)).task_ref);
+  assert.equal(state.task_head, f.spec.initial_head);
+  assert.equal(state.events.some(event => event.type === 'admitted'), false);
+});
+
+test('an unmetered algorithm receipt cannot become an accepted candidate', async t => {
+  const f = await algorithmHostFixture(t, 'unmetered', null, null, true);
+  const host = await createAlgorithmTaskHost(f.settings);
+  await assert.rejects(host.run(), /no funded run reservation/);
+  const state = await host.controller.replay((await host.controller.open(f.spec)).task_ref);
+  assert.equal(state.task_head, f.spec.initial_head);
+  assert.equal(state.events.some(event => event.type === 'admitted'), false);
 });
 
 async function plannerFixture(t, name, runPlannerSessionForTest, overrides = {}) {

@@ -106,6 +106,7 @@ const files = [...new Set([
   'runtime/dsh/research-claim.mjs',
   'runtime/dsh/algorithm-spec.mjs',
   'runtime/dsh/algorithm-language.mjs',
+  'runtime/dsh/algorithm-lsp.mjs',
   'runtime/dsh/delegation-governor.mjs',
   'runtime/dsh/delegation-evidence.mjs',
   'runtime/dsh/synthesis-host.mjs',

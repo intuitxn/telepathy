@@ -8,6 +8,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
+import { compileAlgorithmText, selectModelRoute } from './algorithm-language.mjs';
 import { createTaskControl } from './task-control.mjs';
 import { createPinnedSynthesisVerifier } from './synthesis-contract.mjs';
 import { createSynthesisHost } from './synthesis-host.mjs';
@@ -244,7 +245,8 @@ export async function verifyDsh(config, workspace, spec) {
   return { ...config, env, dshBin, sdkModule, llmModule, trustedRoot, dshHome };
 }
 
-export async function sdkTurn(config, workspace, taskStateRoot, taskRef, grantRef, dispatchId, budgetTokens, prompt) {
+export async function sdkTurn(config, workspace, taskStateRoot, taskRef, grantRef, dispatchId, budgetTokens, prompt, kind = 'research') {
+  if (kind !== 'research' && kind !== 'algorithm') fail('DSH turn kind must be research or algorithm');
   const sdkModule = absolute(config.sdkModule, 'sdkModule');
   const dshBin = absolute(config.dshBin, 'dshBin');
   const trustedRoot = absolute(config.trustedRoot, 'trustedRoot');
@@ -257,9 +259,15 @@ export async function sdkTurn(config, workspace, taskStateRoot, taskRef, grantRe
     TELEPATHY_TASK_STATE: taskStateRoot,
     TELEPATHY_TASK_REF: taskRef,
     TELEPATHY_ROOT_GRANT_REF: grantRef };
+  if (kind === 'algorithm') {
+    const archiveRoot = path.join(dshHome, 'algorithm-archive');
+    await makePrivate(archiveRoot);
+    env.TELEPATHY_DSH_ARCHIVE = archiveRoot;
+  }
+  const patches = [path.join(trustedRoot, 'runtime/dsh/cordis.patch.yml')];
+  if (kind === 'research') patches.push(path.join(trustedRoot, 'runtime/dsh/research-only.patch.yml'));
   const harness = new DeepSeekHarness({ dshBin, profile: 'sdk',
-    patches: [path.join(trustedRoot, 'runtime/dsh/cordis.patch.yml'),
-      path.join(trustedRoot, 'runtime/dsh/research-only.patch.yml')],
+    patches,
     dshHome, processCwd: workspace, cwd: workspace, env,
     provider: 'deepseek-official', model: 'deepseek-flash',
     maxTokens: Math.min(4096, budgetTokens),
@@ -521,6 +529,249 @@ export async function createSingleTaskHost(settings) {
       accepted_plans: snapshot.plans.filter(row => row.status === 'accepted').length,
       task_accepted: false };
   } });
+}
+
+/** One funded algorithm turn: exact source and receipt, then independently verified jj settlement. */
+export async function createAlgorithmTaskHost(settings) {
+  if (!settings || typeof settings !== 'object') fail('algorithm host settings are required');
+  const { spec, prompt, programId, workerBudget, sourcePath } = settings;
+  if (!spec || JSON.stringify(spec.scopes) !== '["algorithm"]')
+    fail('algorithm host requires one frozen algorithm scope');
+  if (typeof prompt !== 'string' || !prompt || Buffer.byteLength(prompt) > 16 * 1024)
+    fail('algorithm prompt must be 1..16384 UTF-8 bytes');
+  if (typeof programId !== 'string' || !/^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$/.test(programId))
+    fail('algorithm programId is invalid');
+  if (typeof sourcePath !== 'string' || !/^[a-zA-Z0-9_/-]+\.bend$/.test(sourcePath) ||
+      sourcePath.split('/').some(part => !part || part === '.' || part === '..'))
+    fail('algorithm sourcePath must be one relative .bend file');
+  let requestedModel = 'deepseek-flash';
+  if (settings.algorithmText !== undefined) {
+    const compiled = compileAlgorithmText(settings.algorithmText);
+    if (!compiled.ok) fail('algorithmText has compiler diagnostics');
+    requestedModel = compiled.model_request ?? requestedModel;
+  }
+  if (!workerBudget || Object.keys(workerBudget).sort().join(',') !==
+      'children,evaluations,fuel,integrations,tokens' ||
+      Object.values(workerBudget).some(value => !Number.isSafeInteger(value) || value < 0) ||
+      workerBudget.children !== 0 || workerBudget.integrations < 1 ||
+      workerBudget.evaluations < 1 || workerBudget.fuel < 62 || workerBudget.tokens < 1)
+    fail('algorithm grant needs finite run, integration and evaluation capacity');
+  const workspace = absolute(settings.workerWorkspace, 'workerWorkspace');
+  if (await fs.realpath(workspace) !== workspace) fail('workerWorkspace must be canonical');
+  const initial = execFileSync('jj', ['--ignore-working-copy', 'log', '-r', '@-',
+    '--no-graph', '-T', 'commit_id'], { cwd: workspace, encoding: 'utf8', timeout: 30_000 }).trim();
+  if (initial !== spec.initial_head) fail('algorithm workspace parent differs from frozen head');
+  const testRunner = settings.runSessionForTest;
+  if (testRunner && (settings.allowMockRunnerForTest !== true || typeof testRunner !== 'function'))
+    fail('algorithm mock session runner is test-only');
+  const allowUnsafe = settings.allowUnsafeRootsForTest === true;
+  if (testRunner && !allowUnsafe) fail('algorithm mock runner requires temporary test roots');
+  if (allowUnsafe && (!testRunner || settings.allowMockRunnerForTest !== true))
+    fail('unsafe algorithm roots require an injected test runner');
+  if (!testRunner && (!settings.dsh || typeof settings.dsh !== 'object'))
+    fail('algorithm host needs checked DSH settings');
+  if (typeof settings.verifyCombined !== 'function')
+    fail('algorithm host needs an independent combined verifier');
+  if (settings.afterAdmissionForTest && (!testRunner ||
+      typeof settings.afterAdmissionForTest !== 'function'))
+    fail('algorithm admission hook is test-only');
+  const checkedDsh = testRunner ? null : await verifyDsh(settings.dsh, workspace, spec);
+  let routeIndex = { generation_sha256: null, routes: [{ name: 'deepseek-flash',
+    provider: 'deepseek-official', model: 'deepseek-flash', available: true,
+    measurement: null }] };
+  if (settings.modelIndexFile !== undefined) {
+    const indexFile = await hostLocation(settings.modelIndexFile, workspace, 'modelIndexFile', allowUnsafe);
+    const receiptRoot = await hostLocation(settings.modelReceiptRoot, workspace,
+      'modelReceiptRoot', allowUnsafe);
+    const indexBytes = await fs.readFile(indexFile);
+    if (!SHA.test(settings.modelIndexSha256 ?? '') ||
+        hash(indexBytes) !== settings.modelIndexSha256)
+      fail('model index differs from host-pinned bytes');
+    await makePrivate(receiptRoot);
+    routeIndex = JSON.parse(indexBytes.toString('utf8'));
+    for (const route of routeIndex.routes ?? []) {
+      if (!route.measurement) continue;
+      const receiptSha = route.measurement.receipt_sha256;
+      if (!SHA.test(receiptSha ?? '')) fail('model route receipt digest is invalid');
+      const receiptFile = path.join(receiptRoot, `${receiptSha}.json`);
+      const receiptStat = await fs.lstat(receiptFile);
+      if (!receiptStat.isFile() || receiptStat.isSymbolicLink() ||
+          receiptStat.size > 1024 * 1024) fail('model route receipt file is unsafe');
+      const bytes = await fs.readFile(receiptFile);
+      if (hash(bytes) !== receiptSha) fail('model route receipt bytes differ');
+      const receipt = JSON.parse(bytes.toString('utf8'));
+      if (Object.keys(receipt).sort().join(',') !==
+          'cases,compute_units,generation_sha256,model,name,passed,provider,schema' ||
+          receipt.schema !== 1 || receipt.generation_sha256 !== routeIndex.generation_sha256 ||
+          receipt.name !== route.name || receipt.provider !== route.provider ||
+          receipt.model !== route.model || receipt.passed !== route.measurement.passed ||
+          receipt.cases !== route.measurement.cases ||
+          receipt.compute_units !== route.measurement.compute_units)
+        fail('model route receipt differs from its host index');
+    }
+  } else if (settings.modelIndexSha256 !== undefined || settings.modelReceiptRoot !== undefined) {
+    fail('model index path, digest and receipt root must be supplied together');
+  }
+  selectModelRoute(requestedModel, routeIndex);
+  // The installed DSH toolchain currently admits only this provider/model.
+  const admittedIndex = { ...routeIndex, routes: routeIndex.routes.filter(route =>
+    route.provider === 'deepseek-official' && route.model === 'deepseek-flash') };
+  const selectedRoute = selectModelRoute(requestedModel, admittedIndex);
+  const taskStateRoot = await hostLocation(settings.taskStateRoot, workspace, 'taskStateRoot', allowUnsafe);
+  const archiveRoot = await hostLocation(testRunner ? settings.archiveRoot :
+    path.join(checkedDsh.dshHome, 'algorithm-archive'), workspace, 'archiveRoot', allowUnsafe);
+  await Promise.all([makePrivate(taskStateRoot), makePrivate(archiveRoot),
+    makePrivate(path.join(archiveRoot, 'dispatches'))]);
+  const controller = createTaskControl({ storeRoot: taskStateRoot, workspaceRoot: workspace,
+    verifyCombined: settings.verifyCombined,
+    allowUnsafeStoreRootForTest: allowUnsafe,
+    allowSyntheticCombinedVerifierForTest: allowUnsafe && settings.allowMockRunnerForTest === true });
+  const id = hash(programId).slice(0, 24);
+  const planId = `algorithm:${id}`;
+  const grantId = `algorithm-grant:${id}`;
+  const dispatchId = `algorithm-session:${hash(`${programId}\n${spec.initial_head}`).slice(0, 40)}`;
+  const deliverable = `Write ${sourcePath}, run one predicted batch, and return the receipt.`;
+  const jj = (args, encoding = 'utf8') => execFileSync('jj', ['--ignore-working-copy', ...args],
+    { cwd: workspace, encoding, timeout: 30_000 });
+  const dispatchFile = path.join(archiveRoot, 'dispatches', `${dispatchId}.intent.json`);
+  const responseFile = path.join(archiveRoot, 'dispatches', `${dispatchId}.response.json`);
+
+  async function oneReceipt() {
+    const directory = path.join(archiveRoot, 'receipts');
+    const names = await fs.readdir(directory);
+    const matches = [];
+    for (const name of names) {
+      if (!/^[a-f0-9-]{36}\.json$/.test(name)) continue;
+      const file = path.join(directory, name);
+      const stat = await fs.lstat(file);
+      if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 1024 * 1024)
+        fail('algorithm receipt file is unsafe');
+      const bytes = await fs.readFile(file);
+      const receipt = JSON.parse(bytes.toString('utf8'));
+      if (receipt.session_id === dispatchId && receipt.status === 'executed')
+        matches.push({ receipt, sha256: hash(bytes), id: name.slice(0, -5) });
+    }
+    if (matches.length !== 1) fail('algorithm session needs exactly one executed receipt');
+    return matches[0];
+  }
+
+  async function run() {
+    const opened = await controller.open(spec);
+    let state = await controller.replay(opened.task_ref);
+    let plan = state.plans.find(row => row.id === planId);
+    if (!plan) {
+      await controller.plan(opened.task_ref, { id: planId, kind: 'algorithm', scope: 'algorithm',
+        deliverable, acceptance: spec.acceptance, source_refs: [],
+        oracle_sha256: spec.pinned_versions.evaluator_sha256, budget: workerBudget,
+        depends_on: [], parent_plan_ref: null, expected_log_head: state.log_head });
+      state = await controller.replay(opened.task_ref);
+      plan = state.plans.find(row => row.id === planId);
+    }
+    if (!plan || plan.kind !== 'algorithm' || plan.scope !== 'algorithm' ||
+        plan.deliverable !== deliverable || plan.acceptance !== spec.acceptance ||
+        Object.keys(workerBudget).some(key => plan.budget[key] !== workerBudget[key]))
+      fail('existing algorithm plan differs');
+    let grant = state.grants.find(row => row.id === grantId);
+    if (!grant) {
+      await controller.grant(opened.task_ref, { id: grantId, plan_ref: plan.ref,
+        branch: `algorithm:${id}`, owner: spec.integration_owner, scope: 'algorithm',
+        deliverable, base_refs: { task_commit: state.task_head, causal_event: state.log_head },
+        budget: workerBudget, location: workspace, parent_grant_ref: null });
+      state = await controller.replay(opened.task_ref);
+      grant = state.grants.find(row => row.id === grantId);
+    }
+    if (!grant || grant.plan_ref !== plan.ref || grant.location !== workspace ||
+        grant.owner !== spec.integration_owner || grant.scope !== 'algorithm' ||
+        grant.base_refs.task_commit !== spec.initial_head ||
+        Object.keys(workerBudget).some(key => grant.budget[key] !== workerBudget[key]))
+      fail('existing algorithm grant differs');
+    const settled = state.events.find(row => row.id === `algorithm-settle:${id}`);
+    if (settled) return { task_ref: opened.task_ref, status: settled.result.status,
+      accepted_head: settled.result.accepted_head ?? null, task_accepted: false, existing: true };
+    const priorCandidate = state.events.find(row => row.id === `algorithm-candidate:${id}`);
+    if (!['active', 'ready'].includes(grant.status) ||
+        (grant.status === 'ready' && !priorCandidate) ||
+        (grant.session_id && grant.session_id !== dispatchId))
+      fail('algorithm grant is not active for this session');
+
+    let response = null;
+    try { response = JSON.parse(await fs.readFile(responseFile, 'utf8')); }
+    catch (error) { if (error.code !== 'ENOENT') throw error; }
+    if (!response) {
+      let claimed = false;
+      try {
+        const handle = await fs.open(dispatchFile, 'wx', 0o600);
+        try { await handle.writeFile(`${JSON.stringify({ task_ref: opened.task_ref,
+          grant_ref: grant.ref, dispatch_id: dispatchId, base_commit: spec.initial_head,
+          model_route: selectedRoute })}\n`);
+          await handle.sync(); claimed = true; }
+        finally { await handle.close(); }
+      } catch (error) { if (error.code !== 'EEXIST') throw error; }
+      if (!claimed) return { task_ref: opened.task_ref, status: 'dispatch-audit-required',
+        task_accepted: false };
+      const directory = await fs.open(path.dirname(dispatchFile), 'r');
+      try { await directory.sync(); } finally { await directory.close(); }
+      const workPrompt = `${prompt}${settings.algorithmText === undefined ? '' :
+        `\n\nExecutable pseudocode:\n${settings.algorithmText}`}\n\nUse only ${sourcePath}. Predict the check, build, and up to 16 cases before one algorithm_run call. The host will score and settle independently.`;
+      response = testRunner
+        ? await testRunner({ task_ref: opened.task_ref, grant, dispatch_id: dispatchId,
+          workspace, archiveRoot, controller, prompt: workPrompt })
+        : await sdkTurn(checkedDsh, workspace, taskStateRoot, opened.task_ref, grant.ref,
+          dispatchId, grant.budget.tokens, workPrompt, 'algorithm');
+      if (response?.sessionId !== dispatchId) fail('algorithm SDK response session differs');
+      const bytes = Buffer.from(`${JSON.stringify(response)}\n`);
+      if (bytes.length > 16 * 1024 * 1024) fail('algorithm SDK response exceeds archive bound');
+      await publish(responseFile, bytes);
+    }
+    const intent = JSON.parse(await fs.readFile(dispatchFile, 'utf8'));
+    if (intent.task_ref !== opened.task_ref || intent.grant_ref !== grant.ref ||
+        intent.dispatch_id !== dispatchId || intent.base_commit !== spec.initial_head ||
+        JSON.stringify(intent.model_route) !== JSON.stringify(selectedRoute))
+      fail('algorithm dispatch intent differs from frozen grant');
+    if (response.sessionId !== dispatchId) fail('archived algorithm session differs');
+    const { receipt, sha256: receiptSha, id: receiptId } = await oneReceipt();
+    if (receipt.receipt_id !== receiptId || receipt.source !== sourcePath ||
+        !SHA.test(receipt.source_sha256 ?? '') ||
+        typeof receipt.call_id !== 'string' || !receipt.call_id)
+      fail('algorithm receipt source differs');
+    const reservationId = `algorithm:${hash(`${opened.task_ref}\n${dispatchId}\n${receipt.call_id}`)}`;
+    const reserved = (await controller.replay(opened.task_ref)).events.find(row =>
+      row.id === reservationId && row.type === 'algorithm_call_reserved' &&
+      row.result?.grant_ref === grant.ref && row.result?.charged?.fuel === 60);
+    if (!reserved) fail('algorithm receipt has no funded run reservation');
+    execFileSync('jj', ['status'], { cwd: workspace, timeout: 30_000 });
+    const candidate = jj(['log', '-r', '@', '--no-graph', '-T', 'commit_id']).trim();
+    const parent = jj(['log', '-r', '@-', '--no-graph', '-T', 'commit_id']).trim();
+    const changed = jj(['diff', '--summary', '-r', '@']).trim();
+    if (candidate === spec.initial_head || parent !== spec.initial_head ||
+        (changed !== `A ${sourcePath}` && changed !== `M ${sourcePath}`))
+      fail('algorithm candidate must change only its one Bend file from the frozen head');
+    const source = await fs.readFile(path.join(workspace, sourcePath));
+    const archived = await fs.readFile(path.join(archiveRoot, 'candidates',
+      `${receipt.source_sha256}.bend`));
+    if (hash(source) !== receipt.source_sha256 || !source.equals(archived) ||
+        !source.equals(jj(['file', 'show', '-r', candidate, sourcePath], null)))
+      fail('algorithm candidate differs from archived executed source');
+    state = await controller.replay(opened.task_ref);
+    grant = state.grants.find(row => row.id === grantId);
+    if (grant?.session_id !== dispatchId || !['active', 'ready'].includes(grant.status) ||
+        (grant.status === 'ready' && !priorCandidate))
+      fail('algorithm run has no live bound grant');
+    const admission = await controller.admit(opened.task_ref, { id: `algorithm-candidate:${id}`,
+      grant_ref: grant.ref, actor: grant.owner, scope: 'algorithm',
+      base_commit: spec.initial_head, parents: [grant.event_digest], kind: 'candidate',
+      payload: { commit: candidate, artifact_sha256: receipt.source_sha256,
+        observation_receipt_sha256: receiptSha } });
+    if (settings.afterAdmissionForTest) await settings.afterAdmissionForTest(admission);
+    const settlement = await controller.settle(opened.task_ref, { id: `algorithm-settle:${id}`,
+      integration_grant_ref: grant.ref, expected_head: spec.initial_head,
+      candidate_events: [admission.event_digest] });
+    return { task_ref: opened.task_ref, status: settlement.status,
+      candidate_commit: candidate, receipt_sha256: receiptSha,
+      accepted_head: settlement.accepted_head ?? null,
+      task_accepted: false };
+  }
+  return Object.freeze({ controller, run });
 }
 
 // This patch is generated by the checked host, stored under a private root,
