@@ -6,7 +6,8 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { compileAlgorithmText, prepareAlgorithmText, simulateAlgorithmText } from './algorithm-language.mjs';
+import { compileAlgorithmText, prepareAlgorithmText, selectModelRoute,
+  simulateAlgorithmText } from './algorithm-language.mjs';
 import { defineAlgorithmTask, runAlgorithmTask } from './algorithm-spec.mjs';
 
 const sha256 = value => createHash('sha256').update(value).digest('hex');
@@ -55,6 +56,44 @@ test('emits bounded LSP-shaped source diagnostics for invalid names and syntax',
   assert.equal(compileAlgorithmText('algorithm a\nstate x = 0\nstep x = add(x, add(x, 1))\nreturn x\n').ok, true);
   assert.equal(simulateAlgorithmText(source, 129).diagnostics[0].code, 'step-range');
   assert.equal(compileAlgorithmText(`${source}state another = 0\n`).diagnostics[0].code, 'statement-order');
+});
+
+test('a model declaration requests a route without changing simulation semantics', () => {
+  const requested = source.replace('algorithm service_queue\n',
+    'algorithm service_queue\nmodel deepseek-flash\n');
+  assert.equal(compileAlgorithmText(source).model_request, null);
+  assert.equal(compileAlgorithmText(requested).model_request, 'deepseek-flash');
+  assert.equal(prepareAlgorithmText(requested).model_request, 'deepseek-flash');
+  assert.equal(simulateAlgorithmText(requested, 3).stdout, simulateAlgorithmText(source, 3).stdout);
+  assert.equal(compileAlgorithmText(requested.replace('model deepseek-flash\n',
+    'model deepseek-flash\nmodel auto\n')).diagnostics[0].code, 'statement-order');
+  assert.equal(compileAlgorithmText(source.replace('state backlog = 5\n',
+    'state backlog = 5\nmodel deepseek-flash\n')).diagnostics[0].code, 'statement-order');
+});
+
+test('host index selects available measured gain per compute and rejects credential fields', () => {
+  const receipt = sha256('measured receipt');
+  const index = { generation_sha256: sha256('same held-out generation'), routes: [
+    { name: 'fast', provider: 'provider-a', model: 'model-a', available: true,
+      measurement: { passed: 8, cases: 10, compute_units: 20, receipt_sha256: receipt } },
+    { name: 'accurate', provider: 'provider-b', model: 'model-b', available: true,
+      measurement: { passed: 9, cases: 10, compute_units: 30, receipt_sha256: receipt } },
+    { name: 'offline', provider: 'provider-c', model: 'model-c', available: false,
+      measurement: { passed: 10, cases: 10, compute_units: 1, receipt_sha256: receipt } },
+  ] };
+  assert.equal(selectModelRoute('auto', index).name, 'fast');
+  assert.equal(selectModelRoute('accurate', index).model, 'model-b');
+  assert.throws(() => selectModelRoute('offline', index), /unavailable/);
+  assert.throws(() => selectModelRoute('unknown', index), /unavailable/);
+  assert.throws(() => selectModelRoute('auto', { generation_sha256: null,
+    routes: [{ name: 'deepseek-flash', provider: 'deepseek-official',
+      model: 'deepseek-flash', available: true, measurement: null }] }),
+  /no available measured route/);
+  assert.throws(() => selectModelRoute('auto', { ...index, routes: [
+    { ...index.routes[0], api_key: 'must-never-be-an-index-field' }] }), /route is invalid/);
+  assert.throws(() => selectModelRoute('auto', { ...index, routes: [
+    { ...index.routes[0], measurement: { ...index.routes[0].measurement, cases: 9 } },
+    index.routes[1]] }), /same case count/);
 });
 
 test('one-file CLI checks, simulates, and emits exact Bend bytes from pseudocode', async () => {

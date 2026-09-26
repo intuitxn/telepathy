@@ -8,10 +8,26 @@ The runtime is pinned to [`deepseek-ai/deepseek-harness` commit `477b4f420553e8a
 
 ```text
 algorithm counter
+model deepseek-flash
 state total = 0
 step total = add(total, 1)
 return total
 ```
+
+`model NAME` is optional and must appear between `algorithm` and the first
+`state`. It is a request to the trusted host, not part of the numerical
+transition. The same source simulates with or without the declaration.
+`model auto` asks the host to choose an available route by measured passing
+cases per compute unit. The
+`selectModelRoute` function takes a host-owned index whose measurements bind
+to one evaluation generation and retain receipt digests. The host must verify
+that index and its receipts before use, and derive availability from credential,
+provider capacity, and grant budget. An unmeasured route can be requested
+by name for an initial pilot but cannot win `auto`. Credentials stay in the
+private host environment and are never a DSL or index field. The current
+production DSH toolchain and task grants still pin
+`deepseek-official/deepseek-flash`; this
+syntax and selector do not authorize another live provider.
 
 ```sh
 node runtime/dsh/algorithm-language.mjs check counter.algo
@@ -27,6 +43,8 @@ node runtime/dsh/algorithm-language.mjs score RECEIPT_ID RECEIPT_SHA256
 `score` consumes only the run receipt ID and digest. The host process must set `TELEPATHY_DSH_EVALUATOR`, `TELEPATHY_DSH_EVALUATOR_SHA256`, `TELEPATHY_DSH_CASE_SET`, and `TELEPATHY_DSH_CASE_SET_SHA256` to approved bytes outside the candidate workspace. It replays the archived Bend source against every frozen case, archives the score, and exits nonzero on a failed case. `benchmarks/algorithm-language/cases.json` is a public six-case service-queue fixture for local reproduction; it is not a hidden task oracle or evidence of general correctness. Scoring does not select a global active candidate.
 
 In a funded DSH algorithm session, `algorithm_compile` accepts the same bounded text and up to 16 distinct step counts. It returns deterministic Bend source, both source digests, diagnostics, and in-process simulation outputs after one source parse. The agent can write those exact Bend bytes with its scoped file tool, then call `algorithm_run` with the returned Bend digest and an explicit prediction. Compilation and batched simulation consume one grant fuel unit. They do not run native Bend or score correctness.
+
+For editor feedback on `.algo` files, run `node runtime/dsh/algorithm-lsp.mjs` as a stdio language server. It uses the same bounded compiler diagnostics and supports full-document changes, completion, keyword hover, and state definitions. It does not execute or score candidate code.
 
 `node benchmarks/algorithm-language/run.mjs 10000 128` measures compile throughput, simulation with a fresh parse, and repeated simulation of a prepared program on the current machine. It verifies identical outputs and reports elapsed time without a machine-specific pass threshold.
 

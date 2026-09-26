@@ -425,11 +425,13 @@ Bend source against a host-pinned evaluator and case set. Its public fixture is
 for reproduction; production cases and oracle authority remain outside the
 candidate workspace.
 
-An LSP would expose Bend diagnostics, symbol navigation, completion for the
-small algorithm contract, and source-to-receipt links. It is a developer aid,
-not a new runtime. The first milestone is fast checker diagnostics on one
-candidate file and a counterexample at the current cursor. The current small
-syntax is bounded to recurrences; broader syntax should follow measured needs.
+The small syntax has a stdio language server in `runtime/dsh/algorithm-lsp.mjs`.
+It publishes the compiler's live diagnostics, full-document edits, completion,
+keyword hover, and state definition locations. Editors can launch it with
+`node runtime/dsh/algorithm-lsp.mjs`; it never runs Bend or reads score archives.
+Bend checker diagnostics and source-to-receipt links remain later milestones.
+The current syntax is bounded to recurrences; broader syntax should follow
+measured needs.
 
 ## Measured migration gates
 
