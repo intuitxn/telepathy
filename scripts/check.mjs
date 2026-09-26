@@ -326,6 +326,7 @@ if (!bendExecutable) {
     // Both keyless DSH tests launch a real host; run them in sequence so the
     // gate measures program behavior without two compiler/session boots racing.
     const bendTests = runNode(['--test', '--test-reporter=tap', '--test-concurrency=1', ...BEND_TESTS], {
+      PATH: `${path.dirname(bendBin)}${path.delimiter}${childEnv.PATH}`,
       BEND_NO_TELEMETRY: '1', BEND: bendBin, BEND_BIN: bendBin, BEND_BINARY: bendBin,
     });
     // Node's t.skip() exits zero. A required integration gate must detect

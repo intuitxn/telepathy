@@ -79,7 +79,7 @@ test('keyless DSH session runs, scores, selects and pins a new session', async t
     assert.equal(events.at(-1)?.type, 'final');
     const result = tool => {
       const event = events.find(row => row.type === 'tool_result' && row.callId === `${tool}-smoke`);
-      assert.equal(event?.status, 'completed', `${tool} did not complete`);
+      assert.equal(event?.status, 'completed', `${tool} did not complete: ${JSON.stringify(event).slice(0, 2000)}`);
       return JSON.parse(event.result);
     };
     return { sessionId: session.sessionId, active: result('algorithm-active'),
