@@ -38,6 +38,31 @@ function profile() {
   };
 }
 
+function twoScopeProfile() {
+  const base = profile();
+  return { id: base.id, mode: 'two_scope', scopes: ['lab', 'theory'],
+    integration_owner: base.integration_owner, initial_head: base.initial_head,
+    policy_version: base.policy_version,
+    pinned_versions: { ...base.pinned_versions,
+      synthesis_oracle_sha256: digest('6') },
+    limits: { ...base.limits, max_tasks: 5, max_branches: 5,
+      max_active_grants: 1, tokens: 40000, fuel: 100, evaluations: 3 },
+    planner_budget: { ...base.planner_budget, fuel: 2 },
+    worker_budget: { ...base.worker_budget, tokens: 4000, fuel: 5 },
+    synthesis_budget: { tokens: 6000, fuel: 5, children: 0,
+      integrations: 0, evaluations: 1 },
+    planner_workspaces: ['/host/planner-lab', '/host/planner-theory'],
+    synthesis_workspace: '/host/synthesis', verifier_file: base.verifier_file,
+    case_set_file: base.case_set_file,
+    synthesis_oracle_trusted_root: '/host/oracles',
+    synthesis_oracle_file: '/host/oracles/synthesis.mjs',
+    synthesis_deliverable: 'State a testable relation across both scopes',
+    synthesis_acceptance: 'Both accepted sources and a new prediction are checked',
+    synthesis_model_token_limit: 2048,
+    max_retained_worker_workspaces: base.max_retained_worker_workspaces,
+    dsh: base.dsh };
+}
+
 function settings(stateRoot, runner, auditUnknown, selected = profile()) {
   return { stateRoot, profiles: [selected], runner, auditUnknown,
     allowTestRunner: true };
@@ -76,6 +101,78 @@ test('request ID and content dedupe, unsupported coding, and frozen profile fiel
     assert.equal(done.progress.task_accepted, false);
     assert.equal(calls, 1);
     assert.equal(await ingress.runNext(), null);
+  } finally { ingress.close(); }
+}));
+
+test('two-scope prompt ingress reports checked synthesis without claiming goal completion', async () => fixture(async root => {
+  const seen = [];
+  const selected = twoScopeProfile();
+  const ingress = await createResidentIngress(settings(root, async input => {
+    seen.push(input);
+    return { task_ref: taskRef, progress: { task_ref: taskRef,
+      phase: 'synthesis', status: 'accepted',
+      source_refs: [digest('c'), digest('d')], task_accepted: false } };
+  }, null, selected));
+  try {
+    const queued = ingress.submit(request('joint',
+      'Find an independently testable relation between lab and theory', 'cross_field'));
+    assert.equal(queued.status, 'queued');
+    assert.equal(queued.kind, 'cross_field');
+    assert.equal(ingress.submit(request('joint-alias',
+      'Find an independently testable relation between lab and theory', 'cross_field')).request_id,
+    'joint');
+    const done = await ingress.runNext();
+    assert.equal(done.status, 'reported');
+    assert.equal(done.progress.task_accepted, false);
+    assert.deepEqual(seen[0].spec.scopes, ['lab', 'theory']);
+    assert.equal(seen[0].spec.pinned_versions.synthesis_oracle_sha256, digest('6'));
+    assert.equal(seen[0].row.program_id, done.program_id);
+    assert.equal(await ingress.runNext(), null);
+  } finally { ingress.close(); }
+}));
+
+test('a two-scope page that has not finished planning remains resumable', async () => fixture(async root => {
+  let calls = 0;
+  const ingress = await createResidentIngress(settings(root, async () => {
+    calls++;
+    return { task_ref: taskRef, progress: calls === 1
+      ? { task_ref: taskRef, phase: 'lab', status: 'source-absent',
+        progress: { planning_done: false }, task_accepted: false }
+      : { task_ref: taskRef, phase: 'lab', status: 'source-rejected',
+        progress: { planning_done: true }, task_accepted: false } };
+  }, null, twoScopeProfile()));
+  try {
+    ingress.submit(request('joint-paging', 'Test two linked fields', 'cross_field'));
+    assert.equal((await ingress.runNext()).status, 'paused');
+    assert.equal(await ingress.runNext(), null);
+    assert.equal(ingress.resume('joint-paging').status, 'queued');
+    assert.equal((await ingress.runNext()).status, 'reported');
+    assert.equal(calls, 2);
+  } finally { ingress.close(); }
+}));
+
+test('two-scope profile pins synthesis compute and oracle before queueing', async () => fixture(async root => {
+  const runner = async () => { throw Error('invalid profile ran'); };
+  for (const [mutate, reason] of [
+    [value => { value.scopes[1] = value.scopes[0]; }, /two distinct scopes/],
+    [value => { value.synthesis_budget.evaluations = 0; }, /one-evaluation turn/],
+    [value => { value.limits.evaluations = 2; }, /compute forecast has a shortfall/],
+    [value => { value.planner_workspaces[1] = value.planner_workspaces[0]; }, /must be distinct/],
+    [value => { value.pinned_versions.synthesis_oracle_sha256 = 'bad'; }, /synthesis oracle digest/],
+  ]) {
+    const selected = twoScopeProfile();
+    mutate(selected);
+    await assert.rejects(createResidentIngress(settings(root, runner, null, selected)), reason);
+  }
+  const selected = twoScopeProfile();
+  let ingress = await createResidentIngress(settings(root, runner, null, selected));
+  ingress.submit(request('frozen-joint', 'Joint question', 'cross_field'));
+  ingress.close();
+  selected.synthesis_acceptance = 'A different criterion';
+  ingress = await createResidentIngress(settings(root, runner, null, selected));
+  try {
+    await assert.rejects(ingress.runNext(), /profile changed/);
+    assert.equal(ingress.status('frozen-joint').status, 'queued');
   } finally { ingress.close(); }
 }));
 

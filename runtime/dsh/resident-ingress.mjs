@@ -8,8 +8,10 @@ import { DatabaseSync } from 'node:sqlite';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createResearchTaskProgramHost, dshToolchainFingerprint,
-  researchProgramForecast } from './task-host.mjs';
+import { createResearchTaskProgramHost, createTwoScopeResearchSynthesisHost,
+  dshToolchainFingerprint, researchProgramForecast,
+  twoScopeResearchSynthesisForecast } from './task-host.mjs';
+import { createCheckedSynthesisRunner } from './synthesis-session.mjs';
 import { MAX_TASK_PROGRAM_STEPS } from './task-program.mjs';
 
 const SHA = /^[0-9a-f]{64}$/;
@@ -67,19 +69,38 @@ function budget(value, label) {
   return Object.fromEntries(BUDGET.map(key => [key, count(value[key], `${label}.${key}`)]));
 }
 function inside(root, candidate) { return candidate === root || candidate.startsWith(`${root}${path.sep}`); }
+const workspaces = profile => profile.mode === 'two_scope'
+  ? [...(Array.isArray(profile.planner_workspaces) ? profile.planner_workspaces : []),
+    profile.synthesis_workspace].filter(value => typeof value === 'string')
+  : [profile.planner_workspace].filter(value => typeof value === 'string');
 
 function profileValue(raw) {
-  exactKeys(raw, ['id', 'scope', 'integration_owner', 'initial_head', 'policy_version',
-    'pinned_versions', 'limits', 'target_tasks', 'planner_budget', 'worker_budget',
-    'planner_workspace', 'verifier_file', 'case_set_file', 'dsh',
-    'max_retained_worker_workspaces'], 'profile');
-  exactKeys(raw.pinned_versions, ['evaluator_sha256', 'case_set_sha256', 'toolchain'],
+  const twoScope = raw?.mode === 'two_scope';
+  exactKeys(raw, twoScope ? ['id', 'mode', 'scopes', 'integration_owner',
+    'initial_head', 'policy_version', 'pinned_versions', 'limits',
+    'planner_budget', 'worker_budget', 'synthesis_budget',
+    'planner_workspaces', 'synthesis_workspace', 'verifier_file',
+    'case_set_file', 'synthesis_oracle_trusted_root', 'synthesis_oracle_file',
+    'synthesis_deliverable', 'synthesis_acceptance',
+    'synthesis_model_token_limit', 'dsh', 'max_retained_worker_workspaces'] :
+    ['id', 'scope', 'integration_owner', 'initial_head', 'policy_version',
+      'pinned_versions', 'limits', 'target_tasks', 'planner_budget', 'worker_budget',
+      'planner_workspace', 'verifier_file', 'case_set_file', 'dsh',
+      'max_retained_worker_workspaces'], 'profile');
+  exactKeys(raw.pinned_versions, twoScope ? ['evaluator_sha256',
+    'case_set_sha256', 'synthesis_oracle_sha256', 'toolchain'] :
+    ['evaluator_sha256', 'case_set_sha256', 'toolchain'],
     'profile.pinned_versions');
   exactKeys(raw.limits, LIMITS, 'profile.limits');
   exactKeys(raw.dsh, DSH, 'profile.dsh');
   const profile = JSON.parse(canonical(raw));
   identifier(profile.id, 'profile id');
-  identifier(profile.scope, 'profile scope');
+  if (twoScope) {
+    if (!Array.isArray(profile.scopes) || profile.scopes.length !== 2 ||
+        profile.scopes.some(value => typeof value !== 'string' || !ID.test(value)) ||
+        new Set(profile.scopes).size !== 2) fail('two-scope profile needs two distinct scopes');
+    sha(profile.pinned_versions.synthesis_oracle_sha256, 'synthesis oracle digest');
+  } else identifier(profile.scope, 'profile scope');
   identifier(profile.integration_owner, 'integration owner');
   boundedText(profile.policy_version, 'policy version', 128);
   if (!COMMIT.test(profile.initial_head)) fail('profile initial_head must be an exact jj commit');
@@ -92,17 +113,32 @@ function profileValue(raw) {
     fail('profile toolchain does not bind the configured DSH entrypoints');
   for (const key of ['dshBin', 'sdkModule', 'llmModule', 'trustedRoot', 'dshHome'])
     absolute(profile.dsh[key], `dsh.${key}`);
-  for (const key of ['planner_workspace', 'verifier_file', 'case_set_file'])
-    absolute(profile[key], key);
+  for (const key of ['verifier_file', 'case_set_file',
+    ...(twoScope ? ['synthesis_workspace', 'synthesis_oracle_trusted_root',
+      'synthesis_oracle_file'] : ['planner_workspace'])]) absolute(profile[key], key);
+  if (twoScope) {
+    if (!Array.isArray(profile.planner_workspaces) ||
+        profile.planner_workspaces.length !== 2)
+      fail('two-scope profile needs two planner workspaces');
+    profile.planner_workspaces.forEach((value, index) =>
+      absolute(value, `planner_workspaces[${index}]`));
+    if (new Set(workspaces(profile)).size !== 3)
+      fail('two-scope workspaces must be distinct');
+    boundedText(profile.synthesis_deliverable, 'synthesis deliverable', 2048);
+    boundedText(profile.synthesis_acceptance, 'synthesis acceptance', 2048);
+    count(profile.synthesis_model_token_limit, 'synthesis model token limit', 1, 4096);
+  }
   for (const key of LIMITS) count(profile.limits[key], `limits.${key}`,
     key === 'max_depth' ? 0 : 1, key === 'max_tasks' ? 100_000 :
       key === 'max_branches' ? 20_000 : key === 'max_active_grants' ? 64 :
       key === 'max_depth' ? 64 : 1_000_000_000);
-  count(profile.target_tasks, 'target_tasks', 1, 10_000);
+  if (!twoScope) count(profile.target_tasks, 'target_tasks', 1, 10_000);
   count(profile.max_retained_worker_workspaces,
     'max_retained_worker_workspaces', 1, 1024);
   profile.planner_budget = budget(profile.planner_budget, 'planner_budget');
   profile.worker_budget = budget(profile.worker_budget, 'worker_budget');
+  if (twoScope) profile.synthesis_budget = budget(profile.synthesis_budget,
+    'synthesis_budget');
   if (profile.planner_budget.children !== 0 ||
       profile.planner_budget.integrations !== 0 ||
       profile.planner_budget.evaluations !== 0 ||
@@ -113,12 +149,22 @@ function profileValue(raw) {
       profile.worker_budget.integrations !== 0 ||
       profile.worker_budget.fuel < 2 || profile.worker_budget.tokens < 1)
     fail('research workers need one evaluation, funded tokens/fuel, and no child or integration authority');
+  if (twoScope && (profile.synthesis_budget.children !== 0 ||
+      profile.synthesis_budget.integrations !== 0 ||
+      profile.synthesis_budget.evaluations !== 1 ||
+      profile.synthesis_budget.fuel < 2 ||
+      profile.synthesis_budget.tokens < profile.synthesis_model_token_limit + 1024))
+    fail('synthesis profile needs a funded one-evaluation turn');
   const sample = specification(profile, 'Profile forecast', 'Profile forecast');
-  const forecast = researchProgramForecast({ spec: sample,
-    targetTasks: profile.target_tasks, plannerBudget: profile.planner_budget,
-    workerBudget: profile.worker_budget });
+  const forecast = twoScope ? twoScopeResearchSynthesisForecast({ spec: sample,
+    plannerBudget: profile.planner_budget, workerBudget: profile.worker_budget,
+    synthesisBudget: profile.synthesis_budget,
+    synthesisDeliverable: profile.synthesis_deliverable,
+    synthesisAcceptance: profile.synthesis_acceptance }) :
+    researchProgramForecast({ spec: sample, targetTasks: profile.target_tasks,
+      plannerBudget: profile.planner_budget, workerBudget: profile.worker_budget });
   if (Object.values(forecast.shortfall).some(Boolean)) fail('profile compute forecast has a shortfall');
-  if (profile.target_tasks > 1 && profile.limits.max_active_grants < 2)
+  if (!twoScope && profile.target_tasks > 1 && profile.limits.max_active_grants < 2)
     fail('multi-task feedback needs a planner and worker grant');
   if (profile.limits.max_active_grants > profile.limits.max_branches)
     fail('active grant cap exceeds branch bound');
@@ -126,7 +172,8 @@ function profileValue(raw) {
 }
 
 function specification(profile, task, acceptance) {
-  return { goal: task, acceptance, scopes: [profile.scope],
+  return { goal: task, acceptance,
+    scopes: profile.mode === 'two_scope' ? profile.scopes : [profile.scope],
     integration_owner: profile.integration_owner, initial_head: profile.initial_head,
     pinned_versions: profile.pinned_versions, limits: profile.limits,
     policy_version: profile.policy_version };
@@ -143,13 +190,23 @@ function publicRow(row) {
     created_ms: row.created_ms, updated_ms: row.updated_ms };
 }
 
-function progressState(progress, taskRef) {
+function progressState(progress, taskRef, kind, profile) {
   if (!progress || typeof progress !== 'object' || Array.isArray(progress) ||
       progress.task_ref !== taskRef || typeof progress.status !== 'string' ||
       !ID.test(progress.status) || progress.task_accepted !== false ||
       Buffer.byteLength(canonical(progress)) > 64 * 1024)
     fail('runner returned an unbound or oversized progress record');
   if (AUDIT_STATUSES.has(progress.status)) return 'unknown';
+  if (kind === 'cross_field' && profile.mode === 'two_scope') {
+    if (progress.phase === 'synthesis' &&
+        ['accepted', 'rejected'].includes(progress.status) &&
+        Array.isArray(progress.source_refs) && progress.source_refs.length === 2 &&
+        progress.source_refs.every(ref => SHA.test(ref))) return 'reported';
+    if (profile.scopes.includes(progress.phase) &&
+        ['source-rejected', 'source-absent'].includes(progress.status) &&
+        progress.progress?.planning_done === true)
+      return 'reported';
+  }
   if (progress.status === 'terminal' && progress.planning_done === true &&
       progress.active_grants === 0) return 'reported';
   return 'paused';
@@ -160,20 +217,35 @@ async function productionRun({ row, profile, stateRoot, spec }) {
     'runtime/dsh/resident-ingress.mjs'))
     fail('production ingress must run from its checked release');
   const requestHash = hash(row.fingerprint);
-  const host = await createResearchTaskProgramHost({
+  const taskStateRoot = path.join(stateRoot, 'tasks');
+  const dsh = { ...profile.dsh, env: { PATH: process.env.PATH,
+    HOME: process.env.HOME, DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY } };
+  const common = {
     spec, prompt: row.task, programId: row.program_id,
-    targetTasks: profile.target_tasks,
     plannerBudget: profile.planner_budget, workerBudget: profile.worker_budget,
-    plannerWorkspace: profile.planner_workspace,
     workerWorkspaceRoot: path.join(stateRoot, 'workspaces', requestHash),
     stateRoot: path.join(stateRoot, 'programs'),
-    taskStateRoot: path.join(stateRoot, 'tasks'),
+    taskStateRoot,
     archiveRoot: path.join(stateRoot, 'archives', requestHash),
     verifierFile: profile.verifier_file, caseSetFile: profile.case_set_file,
     maxRetainedWorkerWorkspaces: profile.max_retained_worker_workspaces,
-    dsh: { ...profile.dsh, env: { PATH: process.env.PATH, HOME: process.env.HOME,
-      DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY } },
-  });
+    dsh,
+  };
+  const host = profile.mode === 'two_scope'
+    ? await createTwoScopeResearchSynthesisHost({ ...common,
+      plannerWorkspaces: profile.planner_workspaces,
+      synthesisWorkspace: profile.synthesis_workspace,
+      synthesisOracleTrustedRoot: profile.synthesis_oracle_trusted_root,
+      synthesisOracleFile: profile.synthesis_oracle_file,
+      synthesisBudget: profile.synthesis_budget,
+      synthesisDeliverable: profile.synthesis_deliverable,
+      synthesisAcceptance: profile.synthesis_acceptance,
+      synthesisModelTokenLimit: profile.synthesis_model_token_limit,
+      synthesisRunner: createCheckedSynthesisRunner({ dsh, taskStateRoot }),
+    })
+    : await createResearchTaskProgramHost({ ...common,
+      targetTasks: profile.target_tasks,
+      plannerWorkspace: profile.planner_workspace });
   return { task_ref: host.task_ref,
     progress: await host.run({ maxSteps: MAX_TASK_PROGRAM_STEPS }) };
 }
@@ -222,8 +294,8 @@ export async function createResidentIngress(settings) {
     profiles.set(profile.id, { value: profile, digest: hash(canonical(profile)) });
   }
   if (!testing) for (const { value: profile } of profiles.values()) {
-    if (inside(profile.planner_workspace, stateRoot) ||
-        inside(stateRoot, profile.planner_workspace))
+    if (workspaces(profile).some(workspace => inside(workspace, stateRoot) ||
+        inside(stateRoot, workspace)))
       fail('production stateRoot overlaps a model workspace');
   }
   const file = path.join(stateRoot, 'ingress.sqlite');
@@ -314,7 +386,8 @@ export async function createResidentIngress(settings) {
     const acceptance = boundedText(input.acceptance, 'acceptance', 4096);
     const profile = profiles.get(profileId);
     if (!profile) fail('unknown reviewed profile');
-    const supported = kind === 'research' || kind === 'analysis';
+    const supported = profile.value.mode === 'two_scope'
+      ? kind === 'cross_field' : kind === 'research' || kind === 'analysis';
     const spec = supported ? specification(profile.value, task, acceptance) : null;
     const specText = spec ? canonical(spec) : null;
     const fingerprint = hash(canonical({ profile_id: profileId,
@@ -354,7 +427,7 @@ export async function createResidentIngress(settings) {
         const output = await run({ row, profile: row.profile,
           stateRoot, spec: JSON.parse(row.spec) });
         const taskRef = sha(output?.task_ref, 'runner task_ref');
-        const state = progressState(output.progress, taskRef);
+        const state = progressState(output.progress, taskRef, row.kind, row.profile);
         return finish(row, state, taskRef, output.progress, null,
           state === 'unknown' ? 'DSH progress requires exact host audit' : null);
       } catch (error) {
@@ -407,7 +480,7 @@ export async function createResidentIngress(settings) {
         taskRef = sha(audit.task_ref, 'audited task_ref');
         if (row.task_ref && row.task_ref !== taskRef) fail('audit changed the bound task_ref');
         progress = audit.progress;
-        next = progressState(progress, taskRef);
+        next = progressState(progress, taskRef, row.kind, profile.value);
       }
       return write(() => {
         const changed = update.run(next, audit.status === 'absent' ? null : row.attempt_id,
@@ -442,8 +515,8 @@ async function cli(argv) {
   const temp = realpathSync(os.tmpdir());
   const legacy = path.join(os.homedir(), '.local', 'state', 'intuitxn-meta');
   if (inside(temp, configFile) || inside(legacy, configFile) ||
-      config.profiles.some(profile => inside(absolute(profile.planner_workspace,
-        'profile planner_workspace'), configFile)))
+       config.profiles.some(profile => workspaces(profile).some(workspace =>
+         inside(absolute(workspace, 'profile workspace'), configFile))))
     fail('config must be outside temporary, legacy, and model workspace roots');
   const ingress = await createResidentIngress({ ...config,
     runner: null, auditUnknown: null, allowTestRunner: false });

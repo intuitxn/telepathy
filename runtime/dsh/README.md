@@ -132,16 +132,30 @@ program. It provides durable `submit`, `status`, `list`, `runNext`, and explicit
 `resume` calls, plus a local CLI. It does not start a second model scheduler,
 resume Meta ACP sessions, read the old `intuitxn-meta` database, or turn a
 reported job into accepted knowledge. A submission must name a reviewed
-profile that freezes one scope, the exact jj base, integration owner, oracle
-and case-set digests, DSH toolchain, finite compute, planner workspace, and
-verifier paths. The request supplies only its kind, goal, acceptance, profile
-ID, and idempotent request ID. Research and analysis are supported; coding and
-other kinds receive `unsupported` without a provider call. The profile has no
+profile that freezes the exact jj base, integration owner, oracle and case-set
+digests, DSH toolchain, finite compute, workspaces, and verifier paths. The
+request supplies only its kind, goal, acceptance, profile ID, and idempotent
+request ID. A single-scope profile admits `research` or `analysis`; a
+`mode: "two_scope"` profile admits `cross_field`. Coding and other kinds receive
+`unsupported` without a provider call. The profile has no
 credential field. `DEEPSEEK_API_KEY` enters only from the private host process.
 
 The private CLI config is one JSON object with `stateRoot` and `profiles`.
 Each profile has the fields validated in `profileValue` in
 `resident-ingress.mjs`; keep the config outside model workspaces and mode 0600.
+The `two_scope` profile replaces `scope`, `target_tasks`, and
+`planner_workspace` with two distinct `scopes`, two `planner_workspaces`, and a
+third `synthesis_workspace`. It also pins `synthesis_oracle_sha256`,
+`synthesis_oracle_trusted_root`, `synthesis_oracle_file`, `synthesis_budget`,
+`synthesis_deliverable`, `synthesis_acceptance`, and
+`synthesis_model_token_limit`. All three workspaces must share one jj store
+and have `@-` at the frozen `initial_head`. The host checks the oracle bytes,
+the full five-plan compute forecast, and the release before a provider turn.
+For example, a request using that reviewed profile is:
+
+```json
+{"request_id":"joint-001","profile_id":"reviewed-joint-v1","kind":"cross_field","task":"Find a testable relation between two frozen fields","acceptance":"Independently checked sources in both fields and a synthesis with a falsifiable prediction"}
+```
 From the checked release, use:
 
 ```sh
@@ -160,9 +174,11 @@ attempt, while an unknown receipt never does. A paused non-ambiguous program
 requires an explicit `resume` call. An existing request is held if its profile
 digest changes. Different request IDs for identical work are durable aliases
 of one program, so every submitted ID resolves in `status`. `reported` means
-the program reached its terminal checkpoint; it does not mean the frozen goal
-was independently accepted. No service or LaunchAgent is installed by this
-module.
+the program reached its terminal checkpoint, including an accepted or rejected
+two-source synthesis; it does not mean the frozen goal was independently
+accepted. An unfinished two-scope phase is `paused` and needs explicit
+`resume`. This ingress funds at most one research or analysis result in each
+scope and one synthesis. No service or LaunchAgent is installed by this module.
 
 `scoped-context.mjs` is an opt-in host diagnostic for retrieval. Given a
 trusted controller view at an exact causal cut, a host-owned source resolver,
