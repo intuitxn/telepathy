@@ -1,11 +1,5 @@
 Telepathy Project→Job→Timeline — Minimum Contract (6d237531) — to 8bda7e6d
 
-> Status update (2026-09-22): `runtime/desk` was retired 2026-09-22. The
-> `runtime/desk/*` implementation paths cited below are historical design
-> references; retained execution is standard OpenCode + native Buzz ACP + the
-> checked Bend worker (`runtime/adaptive/HARNESS.md`, `runtime/worker/`). The
-> contract body is preserved as a design record.
-
 Owner: workspace-sync / Reviewer:intuition-telepathy-harness. Authority: read-only, no pushes/deploy/membership/config. Ledger harness/ledger.jsonl {id,ts,type,actor,payload} is truth; typed job events layered on top. Implementation: runtime/desk/src/jobs.js + .archive/harness/jobs.ts (fold+validate), verified via runtime/desk/test/jobs.test.js (4 tests). Agent Manager is navigation only (task/sessions/reservations + send/read), no SQLite direct, localhost-only.
 
 1. Project→Job→Timeline

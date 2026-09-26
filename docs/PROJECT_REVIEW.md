@@ -1,14 +1,8 @@
 # Review inside the existing Buzz project
 
-This guide applies when a task requests native project/PR review or an applicable
-project policy requires it. It is not a human-approval prerequisite for every
-implementation, internal result, or memory update. Routine work follows
-[AUTONOMY.md](../runtime/AUTONOMY.md). Preserve actual platform review requirements
-and recorded human decisions; prompt changes do not bypass them.
-
 Use the existing project's repository and review conversation. A candidate names
 an immutable Git commit, the proposed change, verification evidence and unresolved
-issues. When human review is required, it follows that exact revision. This document defines the native
+issues. Human review follows that exact revision. This document defines the native
 workflow; it does not claim that a live review has already been created.
 
 Prepared for the current change: [candidate at fa56d57](drafts/project-review/candidate-fa56d57.md)
@@ -85,8 +79,8 @@ PR, repository and commit. It treats PR-author/repository-owner review requests 
 trusted and counts decisions from requested reviewers or the repository owner.
 It excludes the PR author as their own reviewer.
 
-Consequently, a candidate in this human-review workflow retains the real agent
-author identity and requests the authorized human reviewer. If the human authored the PR, the native
+Consequently, an agent candidate should retain the real agent author identity and
+request the authorized human reviewer. If the human authored the PR, the native
 client will not let that same identity approve it. Never relabel an owner-signed
 event as agent-authored to evade this rule. An explicit human acceptance reply can
 record a decision in a project thread, but is a separate convention and must not
@@ -134,10 +128,3 @@ Confirm the installed UI and live project before reporting successful setup.
 No custom review server, signing adapter, memory database or automatic acceptance
 is introduced. Keep session logs, private signing material and raw conversations
 out of public candidate records.
-
-## OpenCode reviewer and GitHub auto-merge
-
-Use the repo's `@reviewer` for a read-only assessment of the exact candidate.
-[Auto-merge setup](AUTO_MERGE.md) describes the separate GitHub checks and
-approval requirements. A Buzz review or an OpenCode `no_findings` report does
-not automatically satisfy GitHub's required independent approval.

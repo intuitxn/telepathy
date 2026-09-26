@@ -2,10 +2,6 @@
 
 Telepathy is now a first-party team workspace that turns selected conversation into reviewed, shareable pages. Its artifact and learning operations are typed Markdown programs compiled with Nudge and executed through the existing OpenCode fork.
 
-> Status update (2026-09-22): the OpenCode fork/pilot (`runtime/opencode-v2`) was
-> retired 2026-09-22; retained execution is standard OpenCode + native Buzz ACP +
-> the checked Bend worker. This September 8 release record is historical.
-
 ## Use
 
 Open https://telepathy.intuitxn.com with a personal invitation. Shubham can create personal invitations for Om and Kush in People. Invitations are private one-use credentials; never post them to a public page or shared channel.

@@ -2,7 +2,9 @@
 
 Templates here are shared. Working drafts and review receipts live privately in `.local/artifacts/`. Reviewed exports live in `.local/exports/` until their destination is chosen.
 
-Start by drafting privately in `.local/artifacts/`, using the matching template in `artifacts/templates/`. When a draft is reviewed, promote the exact reviewed file into `artifacts/` (for example `artifacts/reports/YYYY-MM-DD-slug.md` for a report). The retired Desk command (`npm run desk -- new TYPE "Title"`) is history and is not a current tool.
+Create a working draft in `.local/artifacts/` using the relevant template, then
+record its owner, source revision, review evidence, destination, and actual send
+receipt. The retired Desk command is not part of this checkout.
 
 Types: report, announcement, blog, proposal, writing.
 

@@ -5,9 +5,10 @@
 - **channel:** `sansara` (stream) — the program's home on the Buzz relay
 - **owner:** Shubham
 - **reviewers:** Om, Kush
-- **agents:** `@forge` for node changes, `@scout` for world/runtime questions, `@ledger` for release projection
-- **runtime:** standard OpenCode with native Buzz ACP and the checked Bend worker; the node itself runs separately (local Go or Docker)
+- **roles:** engineering, research, and release review as needed; the former Telepathy agent aliases are historical, not a deployed Sansara runtime
+- **runtime:** this charter previously used Telepathy Desk intake; use the Sansara repository to verify its current node runtime
 - **what it owns:** the agent portal, world runtime, wiki, federation
 
-Jobs here change the Go node, the world graph, or the runtime adapters. Acceptance
-requires the named human at an exact revision before anything deploys.
+Telepathy's current DSH checkout does not poll this channel or submit Sansara
+tasks automatically. Work on the Go node, world graph, or runtime adapters
+requires its own scoped task, checks, and an authorized deployment decision.

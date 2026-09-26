@@ -4,10 +4,6 @@
 > Milestones M1–M8 are ordered and testable; M1 is guaranteed pixel-identical to the current alpha.
 > Owner review required before any milestone starts.
 
-> Status update (2026-09-22): the oc2 fork/pilot (`runtime/opencode-v2`) and the
-> Desk engine (`runtime/desk`) were retired; `oc2` and `oc2-labs.sh` references
-> below are historical build-host context. The design body is preserved.
-
 # Work environments as apps — UX & AX design
 
 **Stack:** telepathy / oc2 · **Status:** design proposal (one deliverable) · **Base:** current alpha at `site/` + nudge typed-Markdown idea + Interfaces catalog (`plugins/telepathy-meta-agents/registry.json`)

@@ -1,0 +1,101 @@
+# Target DeepSeek Harness source: 477b4f420553e8a52c2fbccc464d7561b239c443.
+# Load this patch itself from TELEPATHY_DSH_TRUSTED_ROOT, a checked, host-owned
+# release outside the model-writable workspace and temporary roots. Set that
+# absolute environment variable before launch. Keep DSH_HOME private.
+# Check the plugin without any DSH installation: `node --test runtime/dsh/core.test.mjs`.
+# A model workspace must never hot reload host plugin code.
+- id: agent-default-model
+  config:
+    provider: deepseek-official
+    model: deepseek-flash
+
+# Cordis merges entry inject with AgentLoop's built-in dependencies. Its
+# configured agents and provider turns cannot start while this host readiness
+# service is absent. A missing grant or failed optional plugin therefore
+# leaves agent-loop PENDING rather than allowing an unmetered turn.
+- id: agent-loop
+  inject: [telepathyStartupReady]
+
+# File edits use the guarded read/write/edit tools below. The upstream
+# workspace-write policy alone permits reads and network access outside it.
+- id: sandbox-policy
+  config:
+    mode: workspace-write
+    workspaceRoot: !!js "(() => { const p = process.env.TELEPATHY_DSH_WORKSPACE; if (!p || !process.getBuiltinModule('node:path').isAbsolute(p)) throw new Error('set absolute TELEPATHY_DSH_WORKSPACE'); return p; })()"
+
+# Node PTC programs can import node:fs and node:net directly. Keep the tool
+# catalog native and remove its runtime, so a later mode override fails closed.
+- id: tools
+  config:
+    mode: native
+- id: ptc-runtime
+  disabled: true
+- id: workflow-ptc
+  disabled: true
+
+# These model-facing tools can read host files, spawn code, reach the network,
+# or create children without a Telepathy grant. Child sessions are created by
+# the trusted task-control adapter and bound through telepathyToolBoundary.
+- id: tool-bash
+  disabled: true
+- id: tool-pwsh
+  disabled: true
+- id: tool-fs-search
+  disabled: true
+- id: tool-web
+  disabled: true
+- id: tool-workflow
+  disabled: true
+- id: tool-subagent
+  disabled: true
+- id: tool-subagent-fork
+  disabled: true
+- id: tool-subagent-control
+  disabled: true
+- id: tool-subagent-list-agents
+  disabled: true
+
+- id: hmr
+  disabled: true
+
+# Automatic title generation makes a separate provider call during a model
+# turn. Telepathy tasks only fund the main turn, so use the local fallback title.
+- id: session-title-llm
+  disabled: true
+
+# DSH discovers project skills by walking for .git. This jj workspace has no
+# .git, so pin the checked release's skill root for nested sessions.
+- id: skill-filesystem
+  config:
+    customSkillDirs:
+      - !!js "(() => { const p = process.env.TELEPATHY_DSH_TRUSTED_ROOT; if (!p || !process.getBuiltinModule('node:path').isAbsolute(p)) throw new Error('set absolute TELEPATHY_DSH_TRUSTED_ROOT'); return process.getBuiltinModule('node:path').join(p, '.agents/skills'); })()"
+
+- insert:
+    - id: telepathy-tool-boundary
+      name: ./tool-boundary.mjs
+      config:
+        workspaceRoot: !!js process.env.TELEPATHY_DSH_WORKSPACE
+    - id: telepathy-task-control
+      name: ./task-control.mjs
+      config:
+        allowUnsafeStoreRootForTest: !!js "process.env.TELEPATHY_DSH_TEST_ALLOW_UNSAFE_TASK_STORE === '1'"
+    - id: telepathy-algorithm-core
+      name: ./core.mjs
+      inject: [telepathyTaskControl, telepathyToolBoundary]
+      config:
+        mode: funded
+        taskRef: !!js process.env.TELEPATHY_TASK_REF
+    # Every production model turn requires a host-funded task grant. Successful
+    # keyless mock sessions use the separate headless-smoke.patch.yml.
+    - id: telepathy-usage-meter
+      disabled: !!js "!process.env.TELEPATHY_TASK_REF && !process.env.TELEPATHY_ROOT_GRANT_REF"
+      name: ./usage-meter.mjs
+      config:
+        taskRef: !!js process.env.TELEPATHY_TASK_REF
+        rootGrantRef: !!js process.env.TELEPATHY_ROOT_GRANT_REF
+        allowUnsafeStoreRootForTest: !!js "process.env.TELEPATHY_DSH_TEST_ALLOW_UNSAFE_USAGE_STORE === '1'"
+    # This required service stays absent when the meter is disabled or fails.
+    # AgentLoop then cannot dispatch the default DeepSeek provider.
+    - id: telepathy-startup-ready-task
+      name: ./startup-ready.mjs
+      inject: [telepathyUsageMeter]

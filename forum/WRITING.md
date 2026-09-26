@@ -16,7 +16,7 @@ Start with the reader and the thing they need to understand. State the point ear
 
 1. Write a self-contained draft. Keep private discussion, raw agent transcripts, credentials and review notes outside its public body.
 2. Check each consequential claim. Cite the original source. Distinguish findings from hypotheses and shipped work from plans.
-3. Apply the task's authorization to the content, intended audience and destination. If exact-version human review is explicitly required, obtain it; changes outside that review need a new review. Otherwise use editorial/factual checks and continue. Ask before publication only when the existing authorization does not cover it; routine internal notes and memory maintenance follow `runtime/AUTONOMY.md`.
+3. Ask the accountable human to review the exact version, intended audience and destination. Changes after review need a new review.
 4. Export the reviewed artifact. Export means the files are ready to share; it does not mean they have been published.
 5. When publication is authorized, publish to the chosen destination and return the real link to the original thread.
 

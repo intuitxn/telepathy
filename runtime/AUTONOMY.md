@@ -2,10 +2,11 @@
 
 The user sets the goal and constraints. Agents carry the work through execution,
 verification, correction, and relevant memory maintenance without requiring a
-human checkpoint at every transition. Apply this policy to the active agent
-prompts and native Meta/Buzz workflow. Older draft-only or human-per-step wording
-does not add a gate to work already authorized by the user. Higher-priority host
-instructions, access controls, and explicit user restrictions still apply.
+human checkpoint at every transition. Apply this policy to DeepSeek Harness
+sessions and Telepathy's task control service. Older draft-only or
+human-per-step wording does not add a gate to work already authorized by the
+user. Higher-priority host instructions, access controls, and explicit user
+restrictions still apply.
 
 ## Work loop
 
@@ -57,29 +58,25 @@ impersonate a person, or silently change a ledger's human-acceptance field. An
 explicit exact-revision human review requirement on a particular task remains
 binding. Routine internal completion and learning do not need that designation.
 
-## Relay memory and distributed work
+## Task memory and distributed work
 
-Use native Buzz engrams as retained memory in the correct agent-owner scope.
-Read relevant values afresh. A failed or unreadable lookup is unknown, not empty;
-never initialize or overwrite memory solely because a lookup failed. An empty
-CLI listing does not prove there are no raw relay events.
+Use the DSH session log for the agent's decision and tool history. Admit only
+scoped, evidence-linked findings into Telepathy task state. Read the current
+task head and permitted context at a causal cut; a missing or unreadable value
+is unknown, not empty. Never initialize or overwrite state solely because a
+lookup failed.
 
-Use the existing owning agent signer. Owner-side read access is not authority
-to sign as the agent; do not extract keys, switch identity, expand access, or
-introduce a new signing service to get past a missing integration. Routine
-memory updates need evidence and existing authority, not per-write human review.
+One integration owner advances a task head through a checked exact `jj`
+revision. Each worker gets an explicit branch, authority scope, finite grant,
+and checkable deliverable. A worker message, DSH child return, or model score
+is a proposed event. It becomes accepted knowledge only after scoped admission
+and an independent check. Keep the evaluator, held-out cases, source archive,
+credentials, and private task log outside model-writable workspaces.
 
-Serialize updates through one writer per mutable record where the runtime can
-enforce ownership. Read the current value, preserve unrelated content, use
-`patch --base-hash` for edits, and read back after writing. The hash check is not
-server-atomic CAS and a local claim is not a distributed lock. On conflict,
-reread and reconcile; after an ambiguous acknowledgement inspect before retrying.
-Report races or unavailable coordination instead of asserting exclusive control.
-
-Retained memory is attributed evidence, not permission or proven truth. Correct
-or supersede stale findings explicitly. Do not treat a worker report as verified
-learning, or a relay acknowledgement as fresh-session recall. Keep private
-engrams private; sharing across agent-owner scopes needs existing authorization.
+Retained findings are attributed evidence, not permission or proven truth.
+Preserve counterexamples and correct or supersede stale findings explicitly.
+Do not treat a worker report as verified learning, or a session handoff as
+fresh-session recall. Sharing across scopes needs existing authorization.
 
 ## Local prompt improvements
 

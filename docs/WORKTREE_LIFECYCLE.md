@@ -37,8 +37,8 @@ policy. Status can snapshot local edits; it is not a claim or a lease.
 
 ## Recovery
 
-`./mundus guard check` reports whether `@` has changes relative to its parents;
-`./mundus guard snapshot` makes a local recovery tag and a private external
+`sh scripts/durability-guard.sh check` reports whether `@` has changes relative to its parents;
+`sh scripts/durability-guard.sh snapshot` makes a local recovery tag and a private external
 snapshot. Snapshot finalizes the current change with a tag and lets jj continue
 in a new child change with the same files. The tag binds the original commit,
 so later edits cannot move the recovery reference. Preserve operation history

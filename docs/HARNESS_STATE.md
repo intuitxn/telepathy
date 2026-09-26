@@ -1,52 +1,30 @@
 # Harness state
 
-Source-backed state of Intuitxn's harness. Record agent verification separately
-from named-human acceptance. Follow runtime/AUTONOMY.md; mark uncertainty explicitly.
+This file keeps dated harness evidence and lessons. The current source target is
+the checked DSH algorithm machine; a source check does not prove that the live
+DeepSeek provider, installed service, or old relay intake has switched.
 
-## Consolidated candidate — 2026-09-23
+## Current source baseline — 2026-09-26
 
-The candidate combines integration and Mundus without reintroducing Desk or the
-retired plugin. `./mundus` uses real Lorenz worker transitions, frozen source per
-mutation, fresh snapshots, a local writer lock and atomic head publication.
-Its plan/retrieve commands remain experimental and separate from worker state.
-The command installer preserves previous config and installs both `/meta` and
-its agent role. `make check` requires Bend; default npm checks explicitly report
-when Bend is unavailable. See [native boundaries](META_NATIVE.md).
+`runtime/core/telepathy.bend` is the self-contained algorithm candidate.
+`runtime/dsh/` contains the pinned DeepSeek Harness plugin, host task control,
+source archives, independent settlement, and a local resident ingress for
+research and analysis. The intended provider route is
+`deepseek-official/deepseek-flash`. The exact source and keyless checks are
+specified in the [DSH guide](../runtime/dsh/README.md); the operator sequence
+is in [OPERATE.md](../OPERATE.md). A live DeepSeek turn and migration from the
+old resident service still need their separate gates. Keep the old private
+ledger, sessions, and reviewable workspaces during that transition.
 
-This is a candidate state, not a claim that main has landed or that a host was
-restarted. GitHub requires independent approval. The existing Buzz host could
-not be called from this shell, so native relay recall/correction and a complete
-Buzz-to-OpenCode-to-Bend task remain unverified.
+The root `npm run check` checks source with optional local Bend; `make check`
+requires Bend; `make integration-check` additionally requires a built pinned
+DSH checkout. These commands are source checks, not human acceptance or a
+claim of current provider connectivity.
 
-## Current baseline — 2026-09-22
-
-Standard OpenCode executes directly or through native Buzz ACP; a checked Bend
-worker (`runtime/worker/`) owns local kernel logic and explicit learn/correct
-transitions; Buzz holds selected shared findings. The Desk engine (`runtime/desk`)
-was **retired 2026-09-22** — its npm workspace, `setup`/`doctor`/`desk`/`opencode`
-scripts and watch service were removed, and its history remains in git. The
-retired oc2 pilot (`runtime/opencode-v2`) and the custom `plugins/telepathy`
-integration were removed on the same date. No oc2 fork, custom plugin, fixed
-provider/model, or second managed service is required. The separate workspace
-service (`runtime/workspace`, `scripts/workspace-service.py`, port 4110) is
-retained for its own use and is not part of this retirement.
-
-Source verification: root `npm run check` now runs `node scripts/check.mjs`. It
-guards the retirement (no `runtime/desk`, `scripts/desk-watch.sh`,
-`runtime/opencode-v2`, `plugins/telepathy`), verifies the retained runtime paths
-(`runtime/worker/`, `runtime/adaptive/`, `runtime/lorenz/`, the retained plugins
-and agent charters, `site/`, `activity/`) and the post-Desk root package shape,
-always runs the pure-Node evaluation test, and runs the Bend-backed checks when a
-Bend binary is available. The earlier `npm run check` = 12 desk tests figure is
-retired with the engine. A native ACP initialize handshake previously returned
-OpenCode 1.18.32/protocol 1. See [the build plan](../runtime/adaptive/HARNESS.md)
-for the remaining live demonstration and learning evaluation.
-
-The following September 8 deployment report and accepted lessons are historical.
-They do not establish that a watcher, provider, relay connection or credential
-boundary is working now. Preserve the observations; do not run their retired
-service recipes (Desk, `npm run setup`/`npm run doctor`, the oc2 node scripts) as
-current setup instructions.
+The 2026-09-22 OpenCode/Buzz baseline and the 2026-09-08 deployment report below
+are historical. They do not establish that the watcher, provider, relay
+connection, or credential boundary is working now. Do not run their retired
+service recipes as current setup instructions.
 
 ## Historical deployment report — 2026-09-08
 
@@ -56,7 +34,7 @@ current setup instructions.
   threads, acceptance, receipts. Also git repos (NIP-34), projects (NIP-MP), issues,
   workflows, DMs.
 - **Desk engine** (`runtime/desk`): local job engine. SQLite ledger (jobs, artifacts,
-  outbox, cursors) at `.local/`. Commands via `npm run desk -- help`.
+  outbox, cursors) at `.local/` in the earlier deployment. Its CLI is retired from this source tree.
 - **Runtimes:** Codex (default worker; sandboxed `codex exec`) and opencode
   (the oc2 fork binary, headless `opencode run` with the authenticated
   `opencode-go` provider; default `opencode-go/deepseek-v4-flash`).
@@ -71,12 +49,12 @@ Proposed -> Ready -> Active -> Waiting -> Review -> Resolved | Cancelled
 Job JSON: `owner`, `repository`, `runtime` (`codex`|`opencode`), `request`, `acceptance`,
 optional `context` (repo-relative paths, sha256-snapshotted).
 
-## Historical status — 2026-09-08 (retired Desk engine)
+## Status reported on 2026-09-08
 
 | Piece | State |
 |---|---|
-| `npm run setup` / `npm run doctor` | Working |
-| Desk accept transition | Working — `npm run desk -- accept ID REVIEWER` completes Review -> Resolved |
+| Desk setup and doctor | Reported working on 2026-09-08; commands retired from this source tree |
+| Desk accept transition | Reported working on 2026-09-08; historical Review -> Resolved flow |
 | Job queue + Codex run | Working — first job 2026-09-06 (HARNESS.md candidate) |
 | opencode runtime | Working — desk jobs run the oc2 fork binary with the authenticated `opencode-go` provider (default `opencode-go/deepseek-v4-flash`); live smoke job `3138987b` resolved 2026-09-08 |
 | Site alpha + registry catalog | Working — builds, 15 tests pass |
@@ -86,7 +64,7 @@ optional `context` (repo-relative paths, sha256-snapshotted).
 | Persistent runner | Running — launchd `com.intuitxn.telepathy-desk-watch` polls every 15s; auto-runs queued jobs; chat `accept` lands them |
 | Autonomous loop | Live — job `5046e555` went Buzz message -> queue -> Codex -> candidate reply -> chat accept -> commit `05afab1` -> pushed origin+buzz -> resolution reply, all unattended |
 
-## Historical open gaps — 2026-09-08
+## Open gaps
 
 1. (resolved) Watch loop runs as a launchd user agent on this Mac; identity comes from the Buzz environment export.
 2. (resolved) Code pushed to the relay repo — `main` at `2780de7`, repo bound to the telepathy channel.
@@ -101,7 +79,7 @@ Lessons are dated, specific, and written only after a human accepts the outcome.
   free zen models fail with `ModelUnavailable` in live jobs. Keep opencode2 for interactive
   planning only.
 - **2026-09-06 (accepted by Shubham)** — The opencode2 session API requires a `provider/model`
-  reference, not a bare model string. Fixed in `runtime/desk/src/jobs.js`.
+  reference, not a bare model string. Fixed in the historical Desk implementation, now absent from this source tree.
 - **2026-09-06 (accepted by Shubham)** — The Job lifecycle was missing its final transition.
   Added `desk accept` (Review -> Resolved) with a named reviewer and timestamp; covered by a test.
 - **2026-09-06 (accepted by Shubham)** — Relay git push works with the official helper from Buzz Desktop

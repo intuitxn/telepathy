@@ -1,97 +1,44 @@
 # Telepathy
 
-Telepathy is Intuitxn's shared human context layer.
+Telepathy is Intuitxn's shared human context layer. The [internal alpha preview](https://intuitxn.github.io/telepathy/) shows posts, replies, acknowledgements, and resolutions in one browser. People remain the visible authors and accountable owners. The preview is not a secure multi-user production workspace; see [PRODUCT.md](PRODUCT.md) for its release boundary.
 
-**Working setup:** use installed OpenCode directly (`opencode` or `opencode run "task"`), or connect Buzz to its native `opencode acp` command. Bend owns the local worker state; Buzz supplies coordination and memory. Follow the [Buzz/Bend guide](runtime/worker/BUZZ.md). No oc2 fork, custom plugin, SDK service, or npm setup is required for that path.
+## Algorithm machine
 
-The retained system is standard OpenCode directly (native `opencode acp` for Buzz), the checked Bend worker, the telepathy-mailbox plugin, the website, and the declarative meta-agent registry. The previous Desk job ledger was retired on 2026-09-22; its history remains available in git. Read the [setup guide](./BUZZ_SETUP.md), [forum start page](./forum/START_HERE.md), and [company writing guide](./forum/WRITING.md).
+The new algorithm source target is one self-contained Bend candidate where possible, a pinned DeepSeek Harness (DSH) session, and an independent evaluator. The [architecture contract](docs/designs/dsh-algorithm-machine.md) defines prediction, observation, causal event flow, bounded compute, and version selection. Its implementation is split at the trust boundary:
 
-The [active build plan](runtime/adaptive/HARNESS.md#what-the-system-should-build-toward) defines how findings become reusable, corrected, independently evaluated improvements.
-
-**Live internal-alpha preview:** <https://intuitxn.github.io/telepathy/>
-
-It gives Shubham, Om, and Kush one place to publish decisions, updates, questions, asks, and accepted outcomes. People remain the visible authors and owners. Agent Manager, worker agents, routing, summarization, and artifact processing operate beneath that surface.
-
-## Mundus entry point
-
-Use the native Lorenz worker through one host entry point:
-
-```sh
-./mundus <verb> <root> [args...]
+```text
+runtime/core/telepathy.bend     executable algorithm and simulation
+runtime/dsh/core.mjs           session tools, source archive, receipts, selection
+runtime/dsh/cordis.patch.yml   DSH model route and plugin registration
+benchmarks/core/              frozen cases and independent evaluator
 ```
 
-| Verb | Effect |
-| --- | --- |
-| `init <root>` | create an immutable worker genesis snapshot |
-| `capture <root> <task> [actor origin]` | retain the exact selected request |
-| `work`, `worker`, `claim`, `return`, `learn`, `remember`, `correct` | checked Lorenz transitions; see `./mundus help` for arguments |
-| `packet <root> <work>` | task, ownership, acceptance and active attributed memory |
-| `status`, `history`, `memory`, `explain` | inspect actual worker records |
-| `plan <root> <budget> <depth>` | separate abstract planning experiment; does not spawn agents |
-| `retrieve <root>` | separate local graph experiment; does not fetch Buzz memory |
-| `path <root> <verb>` | print the experimental kernel slot path |
-| `op <args...>` | delegate to `runtime/ops/run.sh` |
-| `guard <args...>` | delegate to `scripts/durability-guard.sh` |
-| `help` | print supported host commands and arguments |
+The DSH source route is pinned to `deepseek-official/deepseek-flash`. Supply `DEEPSEEK_API_KEY` through a private process environment or DSH's private credential store. Keep `DSH_HOME` outside the repository. [DSH setup and exact tool contract](runtime/dsh/README.md) pins the upstream Harness revision and shows the CLI/session commands. A keyless headless DSH cycle has been checked; a live DeepSeek API turn still requires configured credentials and its own verification.
 
-The shell creates private directories, acquires a local writer lock, freezes and
-checks the one-file worker source, and publishes a successful immutable snapshot
-by atomically replacing `<root>/head`. Bend owns ownership and memory semantics.
-Failed attempts preserve evidence and leave the head unchanged. This is local
-coordination, not distributed consensus or an execution sandbox. `BEND` overrides
-the compiler path (default `$HOME/.bend/bin/bend`).
+One session can propose source plus a predicted check, build, and case result. The plugin archives exact source bytes and execution receipts. The evaluator reruns the archived source against host-pinned cases; selection requires a strict score gain without losing a passing case on the same evaluator and toolchain. A selected digest is read by future sessions. Prior Bend experiments remain as candidate source, not active host entry points.
 
-Run `scripts/install-meta.sh` to install both `/meta` and its agent role for fresh
-OpenCode contexts; previous entries are backed up. Run `make check` for required
-Bend checks and protocol tests. See [the worker guide](runtime/worker/README.md)
-and [the architecture boundary](docs/META_NATIVE.md).
+```sh
+npm run check                 # checks DSH, historical evaluator, and Bend when installed
+make check                    # requires Bend and the independent algorithm benchmark
+make benchmark                # JSON report for the executable core's frozen cases
+make reference-benchmark      # check the separate adapter reference fixture
+make integration-check        # require the built pinned DSH keyless session tests
+node scripts/jj-gate.mjs FULL_JJ_COMMIT_ID  # check an exact revision before task-head adoption
+sh scripts/durability-guard.sh check
+```
+
+Use an owned `jj` workspace for a change. Read [WORKTREE_LIFECYCLE.md](docs/WORKTREE_LIFECYCLE.md) and [OPERATE.md](OPERATE.md). Keep private session state and credentials out of commits. The Meta shell, Mundus wrapper, mailbox, and op driver are recoverable from earlier revisions and retired from the new source tree. Operational cutover to live DSH is pending; this source cleanup does not stop installed services or touch their private state.
 
 ## Product rule
 
 > Telepathy exists to improve human communication. It must not turn internal agent traffic into a product for people to monitor.
 
-The first product has four visible objects:
+The website and focused interface catalog remain separate from the algorithm machine. The catalog describes planned Prime, Build, Steward, Research, and Relationships tools, not live agent endpoints. Read [SOP.md](SOP.md) for the team operating model, [forum/START_HERE.md](forum/START_HERE.md) for forum instructions, and [CHANGELOG.md](CHANGELOG.md) for release history.
 
-- **Posts** for updates, decisions, questions, and announcements.
-- **Replies** for focused human discussion.
-- **Acknowledgements** that show important context landed.
-- **Resolutions** that close a question or ask with an accountable outcome.
-
-## Current release boundary
-
-The first website is an internal alpha. It demonstrates the complete interaction model and persists activity in one browser. It is not yet a secure multi-user production workspace.
-
-The preview also includes an **Interfaces** catalog for Prime, Build, Steward, Research, and Relationships. These are planned focused tools over shared Job and artifact machinery—not people, feed authors, or live agent endpoints.
-
-Not yet shipped:
-
-- authenticated member identities;
-- shared server-side persistence and cross-device sync;
-- production notification delivery;
-- privacy and retention controls;
-- an externally reachable harness.
-
-These boundaries are tracked in the [Telepathy GitHub Project](https://github.com/orgs/intuitxn/projects/1) and the [Internal alpha milestone](https://github.com/intuitxn/telepathy/milestone/1).
-
-## Repository
-
-```text
-site/                human communication product
-runtime/worker/      one-file Bend worker logic and independent checks
-runtime/adaptive/    active build plan and adaptive runtime
-runtime/lorenz/      Lorenz snapshot lineage and evaluation
-.opencode/agents/    native OpenCode role charters
-plugins/             telepathy-meta-agents catalog + telepathy-mailbox
-```
-
-Read [PRODUCT.md](./PRODUCT.md) for the product contract, [SOP.md](./SOP.md) for the team operating model, and [CHANGELOG.md](./CHANGELOG.md) for release history.
-
-## Development
-
-```bash
+```sh
 cd site
 npm install
 npm run dev
 ```
 
-Build and verification commands are defined inside each package. Deployment is tied to reviewed commits on `main`.
+Deployment is tied to reviewed commits on `main`; the [exact revision review rules](docs/AUTO_MERGE.md) still apply.

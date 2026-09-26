@@ -1,13 +1,7 @@
 # Score lane (E1): evaluated quality as evidence
 
-> Design proposal — no runtime changes. Owner review required. Date: 2026-09-18.
+> Historical design proposal — no runtime changes. Date: 2026-09-18. Its multi-file retrieval spike was retired from active runtime; the current one-file DSH kernel and host-side scoped context path are described in `local-main-reconciliation.md`.
 > Extends: `SYSTEM.md` (§4 plan), `agentic-git.md` (§5 note semantics), `nudge-simplify.md` (§2.8 non-goals), `SHARED_PRODUCT.md` (learning loop).
-
-> Status update (2026-09-22): `runtime/desk` was retired 2026-09-22. The
-> `runtime/desk/src/jobs.js` citation in §5 is a historical design reference;
-> retained execution is standard OpenCode + native Buzz ACP + the checked Bend
-> worker (`runtime/adaptive/HARNESS.md`, `runtime/worker/`). The design body is
-> preserved.
 
 ## 0. Why
 
@@ -82,9 +76,9 @@ Two kinds, never collapsed:
 ## 5. First instance — retrieval quality vs the incumbent concat baseline (P3)
 
 - **Cases:** query → gold items at a fixed character budget mirroring the incumbent's concat baseline (`runtime/desk/src/jobs.js` brief expansion, ~120 KB cap).
-- **Metrics:** recall@k / MRR (selection) and downstream acceptance rate per run; `Abstain` scored (`runtime/programs/retrieval/route.bend`).
-- **Harness:** `runtime/programs/retrieval/eval.py` (stdlib) + versioned `cases.json`; emits a ScoreReport; evaluator kind `rule` (deterministic), with human spot-checks recorded as separate reports.
-- **Entry condition:** retrieval `PROOF.bend` green + one failing negative control (P2 work in flight). Deterministic oracle numbers alone are not a quality claim until cases and budget are declared.
+- **Metrics (historical proposal):** recall@k / MRR (selection) and downstream acceptance rate per run; `Abstain` would have been scored by the retired `runtime/programs/retrieval/route.bend` spike (source in jj revision `a19b016847a1a2b5551d75c55a4b18f0e2f222ec`).
+- **Harness (unimplemented proposal):** `runtime/programs/retrieval/eval.py` (stdlib) + versioned `cases.json` would have emitted a ScoreReport; that file never landed.
+- **Historical entry condition:** the retired retrieval `PROOF.bend` would have needed a green check and one failing negative control (P2 work in flight). Deterministic oracle numbers alone are not a quality claim until cases and budget are declared.
 - **Output:** baseline (concat) vs candidate (diffuse + route) side by side, coverage stated, in the report format above.
 
 ## 6. What must not happen

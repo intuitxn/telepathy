@@ -1,11 +1,13 @@
-# Mundus Bend kernel: native Lorenz worker protocol
+# Historical Mundus Bend worker protocol
 
-`system.bend` contains the one-file Lorenz worker plus the integrated Geist
-planning helpers. SHA-256 of this revision:
-`1b8baaf9f8036024561b15d4c4a99df3f96c62e5ccdd5099b47bb14e6068f182`.
+This file describes the retained Lorenz worker source and its earlier tests. It is not the new algorithm entry point and is not selected by the DSH release gate. The current checked candidate is [`runtime/core/telepathy.bend`](../core/telepathy.bend), with task grants and independent settlement in the [DSH host](../dsh/README.md). Operational cutover from any installed legacy worker remains a separate migration step.
+
+`system.bend` packages the other development checkout's one-file Lorenz worker
+implementation without changing it. SHA-256:
+`6e224e26d47c56d3601b26b55ae77497ab4680cacda89846640380a1d9e69d74`.
 It includes the adaptive kernels, memory transitions, worker registration,
 claims, packets, reported results, explicit learning and loopback OpenCode
-delivery. There are 81 named laws. Check them with the actual Bend compiler;
+delivery. There are 78 named laws. Check them with the actual Bend compiler;
 their scope does not include correctness of arbitrary worker answers.
 
 ```sh
@@ -31,30 +33,15 @@ reuse in a subsequent packet read by a fresh Bend process. Parent and child
 model costs are recorded separately. This demonstrates protocol execution;
 it does not measure an independent second LLM improving from that memory.
 
-Use [Buzz native memory and agents](BUZZ.md), [/meta agents](../adaptive/META.md)
-from OpenCode, or follow the same protocol from Codex. No custom JavaScript
-runtime adapter is needed. One coordinator owns each immutable snapshot lineage. Workers perform
-concrete authorized tasks in their host harness and return evidence; the
+The earlier [Buzz memory guide](BUZZ.md) and [`/meta agents` route](../adaptive/META.md) record how this source was used. One coordinator owns each immutable
+snapshot lineage. Workers perform concrete authorized tasks in their host harness and return evidence; the
 coordinator evaluates results before explicitly selecting memories with `learn`.
 The runtime does not itself judge those results or train model weights.
 
-The preferred `./mundus` entry point delegates to `runtime/worker/run.sh`. It
-freezes this one-file source per mutation, checks it, writes a fresh snapshot,
-and atomically publishes a head only after success. A local directory lock
-serializes writers using this wrapper; a killed coordinator requires manual
-inspection before lock recovery. Direct Bend calls still need a single writer
-and do not provide atomic snapshot publication.
-
-Keep snapshots and delivery receipts in a private directory. There are no
-distributed locks, globally exclusive claims across forks,
+Keep snapshots and delivery receipts in a private directory. Writes are not
+atomic; there are no distributed locks, globally exclusive claims across forks,
 authenticated actor labels, or automatic snapshot merge. An HTTP 204 acknowledges
 delivery, not completion. An ambiguous timeout must not trigger blind retry.
-
-`node --test runtime/worker/mundus.test.mjs` checks the host entry point with
-fresh Bend processes: exact task capture, rejected ownership violations,
-explicit learning, later-task retrieval, correction propagation, immutable
-prior snapshots, and failure/lock handling. These tests do not contact Buzz
-or a model, and do not establish a performance gain from memory.
 
 The previous JavaScript registry is retired; its data and historical receipts
 remain preserved. Buzz memory holds selected findings, while native Bend

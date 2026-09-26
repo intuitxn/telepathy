@@ -298,7 +298,7 @@ def drive(state, ev, rounds):
 | Commits, notes refs (`agit-state`/`agit-proof`/`agit-review`), tags, merges | git via shell | durable reviewable record; Bend is stateless |
 | Human identity roster, reviewer ≠ worker check inputs | shell/host | strings cannot prove identity (`cli.py` comment); the host authenticates out-of-band |
 | Lifecycle decision, law evaluation, gate verdict | pure Bend (`PROOF.bend`) | total, deterministic, machine-checkable via `bend check`; same inputs → same verdict, always |
-| SQLite projection, Buzz replies, changelog | desk / steward (existing) | execution cache and human surface; git wins on disagreement (SQLite projection removed 2026-09-22; git is the sole source of truth) |
+| SQLite projection, Buzz replies, changelog | desk / steward (existing) | execution cache and human surface; git wins on disagreement |
 
 The proof gate is a pure function of (candidate bytes, bundle digest, proof
 source). `agit prove` serializes evidence → runs `bend check` + evaluates →

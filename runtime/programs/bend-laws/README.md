@@ -11,9 +11,6 @@ Status: canonical spec, gated on new toolchain 2026-09-18 (`bend 2.0.5`, see `TO
 ## Verifiable gate (2.0.5)
 1. `~/.bend/bin/bend runtime/programs/bend-laws/PROOF.bend` → `All terms check.`, exit 0 (`LAWS.bend` alone correctly fails with `5 TODOs found`).
 2. No `bend check <file>` on 2.0.5 — not a subcommand. Legacy `0.2.38` removed; no fallback.
-3. The former `agit accept` workflow is retired. Bind checker evidence and proof
-   digest to the exact candidate revision, then follow the jj integration and
-   authorized GitHub publication workflow in `../../../docs/WORKTREE_LIFECYCLE.md`.
-   Historical agit notes/tags remain evidence, not an active acceptance service.
+3. `agit accept` re-checks proof digest + exact candidate digest before merge. See `TOOLCHAIN.md` for canonical commands; use absolute paths, never bare `bend` in scripts.
 
 Current gap closed 2026-09-18: `bend 2.0.5` at `/Users/a3fckx/.bend/bin/bend` gates the laws (`bend PROOF.bend` → `All terms check.`). Single-run v1.1 only; `lesson-proposal` keeps reserved inputs `source`/`parentDigest` under the one-release exception in `../v11.py`.

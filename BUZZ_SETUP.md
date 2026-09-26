@@ -1,146 +1,35 @@
-# Set up intuitxn
+# Set up Telepathy
 
-## Start with standard OpenCode, Buzz and Bend
+The new algorithm source uses a self-contained Bend candidate, a pinned DeepSeek Harness (DSH) build, and an independent host evaluator. The production model route is `deepseek-official/deepseek-flash`. Operational cutover is pending: this source guide does not stop an installed older service or move its private state.
 
-Use standard OpenCode directly. Its native ACP interface works with Buzz's
-existing harness; Bend holds the checked worker logic. An oc2 fork, beta build,
-alternative job ledger, workspace service on port 4110, or custom learning
-runtime is not required. Begin with [the native guide](runtime/worker/BUZZ.md) and
-[/meta agents](runtime/adaptive/META.md).
+## Check the source
 
-On this Mac, the explicitly checked binary at `~/.opencode/bin/opencode` is
-1.18.32; Homebrew also has a 1.14.20 installation. PATH selection can differ
-between login shells and services. Use an explicit path for deterministic setup:
+From an owned jj workspace in this repository:
 
 ```sh
-OPENCODE="$HOME/.opencode/bin/opencode"
-"$OPENCODE" --version
-"$OPENCODE" acp --help
-"$OPENCODE"
+npm run check
+make check
+make benchmark
+node scripts/check-operator-docs.mjs
 ```
 
-Use OpenCode's provider connection and model selection with your existing
-account. Checking CLI help does not verify model credentials. Codex is another
-configured worker option and uses its own login (`codex login`).
+`make check` requires Bend. `make integration-check` also requires a built copy of the pinned DSH checkout and its `TELEPATHY_DSH_CLI_BIN` and `TELEPATHY_DSH_LLM_MODULE` entrypoints. See the [DSH setup guide](runtime/dsh/README.md) for the upstream commit, build commands, private roots, tool boundary, and exact-revision release gate. A passing keyless check is not a live DeepSeek turn.
 
-## 1. Connect Buzz with `opencode acp`
-
-In the existing Buzz host configuration, select the absolute OpenCode path as the
-agent command and `acp` as its arguments. Use `/connect` and `/models` in
-OpenCode to choose a provider and model. Keep signing credentials with the
-owner-controlled Buzz host; isolation from workers remains a deployment
-requirement to verify.
-
-Check the Bend source before work:
+Keep `DSH_HOME`, provider credentials, case sets, evaluator bytes, and task state outside model-writable workspaces. The trusted host opens the task and funds its grants. Only after the checked release and private task profile exist can the host use the [resident ingress](runtime/dsh/README.md#funded-research-task-program):
 
 ```sh
-BEND_NO_TELEMETRY=1 "$HOME/.bend/bin/bend" runtime/worker/system.bend --check-only
-BEND_NO_TELEMETRY=1 "$HOME/.bend/bin/bend" runtime/worker/system.bend -- help
-"$HOME/.local/bin/buzz" mem --help
-"$HOME/.local/bin/buzz" workflows --help
+node /path/to/checked/release/runtime/dsh/resident-ingress.mjs --config /private/ingress.json submit < /private/request.json
+node /path/to/checked/release/runtime/dsh/resident-ingress.mjs --config /private/ingress.json status REQUEST_ID
+node /path/to/checked/release/runtime/dsh/resident-ingress.mjs --config /private/ingress.json list
+node /path/to/checked/release/runtime/dsh/resident-ingress.mjs --config /private/ingress.json run-next
 ```
 
-Require successful checker exit and `All terms check.`. Buzz's native memory
-and workflow YAML provide retained findings and coordination. Core-memory
-injection does not imply retrieval of every other memory slug. Draft selected
-findings or posts, have Shubham review the exact content/destination, and send
-through the owner-controlled signer. Existing registry data is not migrated.
+These commands are local host operations, not Buzz relay intake. The request refers to a reviewed profile; the current ingress supports research and analysis. `reported` means the program reached its checkpoint, not that its goal was independently accepted. The DSH guide describes recovery of ambiguous attempts and the separate live migration gates.
 
-Read [Start here](forum/START_HERE.md) and [Writing as intuitxn](forum/WRITING.md).
-No new identity, remote connection, or publishing permission is created by these
-instructions. In an already authorized Buzz signing environment, a read-only
-connectivity check uses the installed CLI directly:
+## Human workspace and Buzz
 
-```sh
-"$HOME/.local/bin/buzz" --relay "https://intuitxn.communities.buzz.xyz" channels list --member
-```
+The [website](https://intuitxn.github.io/telepathy/) is an alpha preview with local browser state; it is not authenticated team discussion or a DSH job console. People remain the visible authors and accountable owners. Read the [product contract](PRODUCT.md), [team SOP](SOP.md), and [forum instructions](forum/START_HERE.md) before preparing company content. The [relay setup record](docs/RELAY_SETUP.md) documents earlier channels and membership; it is not a command to start an old watcher or import relay messages into DSH.
 
-The CLI also accepts `BUZZ_RELAY_URL`; no oc2 shell script is needed. Membership
-and signing identity belong to the existing Buzz configuration. Never paste
-private keys into chat, command arguments, or repository files.
+## Earlier hosts
 
-## 2. Give the team one place to start
-
-Read [Start here](forum/START_HERE.md) and [Writing as intuitxn](forum/WRITING.md). They are ready to copy into forum posts and pin in Buzz. Git holds the editable source; the forum holds the readable team copy.
-
-To prepare a post without publishing it, keep the draft as a Markdown file in the
-repository; it names the exact content, destination and intended audience. After
-reviewing them, send through the existing owner-controlled Buzz signer within its
-grants.
-
-Sending needs the authorized Buzz identity in the owner-controlled signing
-environment. The CLI uses `BUZZ_PRIVATE_KEY`, `BUZZ_RELAY_URL`, and, when
-required by the managed runtime, `BUZZ_AUTH_TAG`. Do not paste keys into chat or
-put them in repository files. The intuitxn relay is
-`https://intuitxn.communities.buzz.xyz`. Do not inject signing credentials into
-OpenCode workers to make sending work; the owner-controlled signer and the
-worker environment stay separate.
-
-A live Buzz connection is not established by installing OpenCode. Membership and
-identity creation remain with Buzz; these instructions do not manufacture them.
-
-## 3. Make company writing
-
-Create a Markdown file directly, or ask your agent to prepare it from selected
-sources. Name the kind — `report`, `announcement`, `blog`, `proposal`, or
-`writing` — and keep it in the repository.
-
-Before publishing, review the exact content and record its digest. Publish to the
-selected website or other destination only when the exact content and destination
-are authorized. Drafting alone publishes nothing.
-
-## 4. Build an application
-
-Work in the owning repository, or in a detached Git worktree at the selected base
-revision. Use standard OpenCode directly; Codex is another configured worker
-option. State a job as one JSON object, using an absolute repository path:
-
-```json
-{
-  "runtime": "opencode",
-  "repository": "/absolute/path/to/application",
-  "owner": "Accountable person",
-  "request": "Build the requested feature using the linked requirements.",
-  "acceptance": "Describe the concrete behavior and checks that must pass.",
-  "context": ["docs/requirements.md"]
-}
-```
-
-Each job starts from committed HEAD in a separate Git worktree. Uncommitted edits
-in the original checkout are not copied. Selected context files are copied into
-the job brief with hashes. New files remain in that worktree; a `changes.patch`
-covers tracked modifications, and the stored Git status lists untracked files.
-Human review follows runtime completion.
-
-OpenCode jobs call the standard `opencode run` CLI directly. Optionally set
-`model` to a `provider/model` string accepted by that CLI, or leave it unset to
-use the configured default. Set `OPENCODE_BIN` to an absolute executable path
-when multiple installations exist. No custom build profile or resident service
-is required. The host's normal permissions apply; a failed or timed-out job is
-left for inspection. The default job timeout is 15 minutes.
-
-Requests arrive as Buzz threads or NIP-34 issues in the home channel and route
-through the declarative meta-agent registry (`.opencode/agents/`). Ordinary
-conversation does not create a job. Human review and acceptance follow runtime
-completion.
-
-## Relay setting
-
-The native Buzz CLI accepts `--relay` or `BUZZ_RELAY_URL` directly, as shown
-above. No oc2 network script is required. Identity configuration is separate;
-preserve the existing owner-managed signing environment and reviewed-send
-boundary. The telepathy-mailbox plugin uses the same authorized relay access for
-agent coordination and is not a durable store.
-
-## Recovery and limits
-
-- Preserve job worktrees and draft folders. After a failure, inspect the saved
-  session and diff before retrying.
-- Never retry a session whose submission or delivery is uncertain without
-  checking the existing runtime state. Inspect the saved result and worktree
-  before taking further action.
-- Local operator commands are trusted. The pilot does not provide multi-user
-  login, role enforcement, or isolation from a malicious repository. Do not
-  expose the runtime through an unauthenticated web endpoint.
-- Git holds accepted revisions; a commit alone is not human acceptance. Record
-  agent verification separately from any actual human acceptance.
+Desk, the OpenCode `/meta` command, the Meta shell, Mundus, and the mailbox plugin are recoverable from earlier revisions. Their setup commands are not supplied by the current root `package.json`. Keep installed processes and private records intact until a deliberate migration with a coherent backup and rollback path. The [local-main reconciliation](docs/designs/local-main-reconciliation.md) records how the retained capabilities map to the DSH machine and which historical behaviors remain outside it.
