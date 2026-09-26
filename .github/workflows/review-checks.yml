@@ -36,6 +36,20 @@ jobs:
         run: jj --version
       - name: Install pinned Bend 2.0.21
         run: sh scripts/install-bend-ci.sh
+      - name: Install Linux native sandbox
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends bubblewrap
+          bwrap --version
+          # Ubuntu's AppArmor user namespace setting can block isolated loopback
+          # setup. This changes only the disposable, secret-free CI runner.
+          if [ "$(sysctl -n kernel.unprivileged_userns_clone 2>/dev/null || true)" = 0 ]; then
+            sudo sysctl -w kernel.unprivileged_userns_clone=1
+          fi
+          if [ "$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || true)" = 1 ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+          bwrap --unshare-all --ro-bind / / -- /bin/true
       - name: Build pinned DeepSeek Harness
         run: |
           dsh_checkout="$RUNNER_TEMP/deepseek-harness"
@@ -48,11 +62,6 @@ jobs:
           printf 'TELEPATHY_DSH_CLI_BIN=%s/apps/cli/lib/bin.js\n' "$dsh_checkout" >> "$GITHUB_ENV"
           printf 'TELEPATHY_DSH_LLM_MODULE=%s/packages/llm/llm/lib/index.js\n' "$dsh_checkout" >> "$GITHUB_ENV"
       - name: Check DSH sessions, Bend core, and independent benchmarks
-        # Ubuntu may not permit unprivileged Bubblewrap. These are only the
-        # reviewed fixture bytes; changed sources must use a working sandbox
-        # or update this allowlist under review.
-        env:
-          TELEPATHY_DSH_TEST_TRUSTED_NATIVE_SHA256: 016d777640abc77b29f45b800a283d06510d6421767b5132dd5601d9888ba1b0,b6784ffd0c4570c4da2b0a13ae402e94d0bb429ac91ce7a5dde307d3c27b5ff4
         run: node scripts/check.mjs --require-dsh
       - name: Check program gate and runtime
         working-directory: runtime/programs
