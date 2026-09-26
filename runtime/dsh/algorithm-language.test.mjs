@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -76,6 +76,44 @@ test('one-file CLI checks, simulates, and emits exact Bend bytes from pseudocode
     assert.equal(compiled.stdout, compileAlgorithmText(source).bend_source);
   } finally {
     await rm(workspaceRoot, { recursive: true, force: true });
+  }
+});
+
+test('one-file CLI runs native Bend against its prediction and retains an exact receipt', async t => {
+  const bend = process.env.BEND ?? path.join(os.homedir(), '.bend/bin/bend');
+  if (!existsSync(bend)) { t.skip('Bend is unavailable'); return; }
+  const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), 'telepathy-algorithm-cli-run-'));
+  const archiveRoot = await mkdtemp(path.join(os.tmpdir(), 'telepathy-algorithm-cli-archive-'));
+  try {
+    const sourcePath = path.join(workspaceRoot, 'service_queue.algo');
+    await writeFile(sourcePath, source);
+    const run = (...args) => spawnSync(process.execPath,
+      [path.resolve('runtime/dsh/algorithm-language.mjs'), 'run', sourcePath, ...args],
+      { encoding: 'utf8', cwd: path.resolve('.'), timeout: 90_000,
+        env: { ...process.env, BEND: bend, TELEPATHY_DSH_ARCHIVE: archiveRoot,
+          TELEPATHY_DSH_TEST_ALLOW_UNSAFE_ARCHIVE: '1' } });
+    assert.equal(run('01').status, 1);
+    const native = run('3');
+    assert.equal(native.status, 0, native.stderr);
+    const output = JSON.parse(native.stdout);
+    const compiled = compileAlgorithmText(source);
+    assert.equal(output.source_sha256, compiled.source_sha256);
+    assert.equal(output.bend_sha256, compiled.bend_sha256);
+    assert.equal(output.steps, 3);
+    assert.equal(output.predicted_stdout, '5\n');
+    assert.equal(output.observed_stdout, '5\n');
+    assert.equal(output.prediction_match, true);
+    assert.equal(output.status, 'executed');
+    const receiptBytes = await readFile(output.receipt_path);
+    assert.equal(output.receipt_sha256, sha256(receiptBytes));
+    const receipt = JSON.parse(receiptBytes);
+    assert.equal(receipt.source_sha256, compiled.bend_sha256);
+    assert.equal(receipt.observation.cases[0].prediction_match, true);
+    assert.equal(await readFile(path.join(archiveRoot, 'candidates', `${compiled.bend_sha256}.bend`), 'utf8'),
+      compiled.bend_source);
+  } finally {
+    await rm(workspaceRoot, { recursive: true, force: true });
+    await rm(archiveRoot, { recursive: true, force: true });
   }
 });
 

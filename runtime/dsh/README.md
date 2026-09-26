@@ -2,6 +2,26 @@
 
 The runtime is pinned to [`deepseek-ai/deepseek-harness` commit `477b4f420553e8a52c2fbccc464d7561b239c443`](https://github.com/deepseek-ai/deepseek-harness/tree/477b4f420553e8a52c2fbccc464d7561b239c443). `core.mjs` defines five tools for the keyless smoke profile; production exposes three: `algorithm_active`, `algorithm_run`, and `algorithm_execute`. Scoring and selection are host-only. The model proposes source and predictions. The host archives exact Bend bytes, checks/builds, runs bounded exploratory cases, and records a receipt. A separate, host-pinned evaluator reruns the archived source against frozen cases. Every selection needs a complete passing score. Later selections also require a strict gain with no lost passing cases on the same evaluator, case set, toolchain, and repeat count.
 
+## Run one executable pseudocode file
+
+`algorithm-language.mjs` is an operator CLI for a small deterministic recurrence language. A file has one `algorithm` declaration, up to eight natural-number `state` fields, one `step` expression for each field, and one `return` field. Expressions use state names, `tick`, literals, `add`, saturating `sub`, and `if_lt`. Each step reads the prior state. The CLI accepts 0..128 canonical steps and at most 16 KiB of UTF-8 source.
+
+```text
+algorithm counter
+state total = 0
+step total = add(total, 1)
+return total
+```
+
+```sh
+node runtime/dsh/algorithm-language.mjs check counter.algo
+node runtime/dsh/algorithm-language.mjs simulate counter.algo 3
+node runtime/dsh/algorithm-language.mjs compile counter.algo > counter.bend
+node runtime/dsh/algorithm-language.mjs run counter.algo 3
+```
+
+`run` compiles exactly one Bend source, predicts stdout with the in-process simulator, checks/builds/runs the generated source with the existing bounded native runner, and prints JSON containing both outputs, prediction agreement, status, digests, and the retained receipt path. Set `BEND` or `BEND_BIN` if Bend is not on `PATH`; the private archive defaults to `~/.local/state/telepathy-dsh/algorithms` and can be set with `TELEPATHY_DSH_ARCHIVE` outside the workspace and temporary directories. The operator CLI does not grant model tool access or establish claim correctness: an independent task oracle must score the archived candidate separately. Arbitrary papers and unrestricted pseudocode are outside this bounded language.
+
 The production route in `cordis.patch.yml` is `deepseek-official/deepseek-flash` (DeepSeek V4.1 Flash). Provide `DEEPSEEK_API_KEY` only in the private host process environment after the model tool boundary has been checked. Do not put a reusable key in a model-readable DSH credential file. No key belongs in this repository. OpenCode Go / Muse Spark is an isolated coding contributor, not the DSH model route. A live DeepSeek API turn has not been run or verified here because no DeepSeek API credential was available. The keyless DSH tests below do not establish live API behavior.
 
 ## Build the pinned upstream DSH checkout

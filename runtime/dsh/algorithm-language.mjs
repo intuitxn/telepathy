@@ -2,10 +2,12 @@
 // Compilation is pure: the caller owns the source file, generated Bend file,
 // and all admission, execution, and scoring decisions.
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { TextDecoder } from 'node:util';
 import { fileURLToPath } from 'node:url';
+import { runCandidate } from './core.mjs';
 
 const sha256 = value => createHash('sha256').update(value).digest('hex');
 const IDENT = '[a-z][a-z0-9_]{0,31}';
@@ -225,9 +227,9 @@ export function simulateAlgorithmText(source, steps) {
 
 async function cli(args) {
   const [command, sourcePath, count, ...extra] = args;
-  if (!['check', 'compile', 'simulate'].includes(command) || !sourcePath || extra.length ||
-      (command === 'simulate' ? count === undefined : count !== undefined)) {
-    process.stderr.write('usage: algorithm-language.mjs check|compile FILE | simulate FILE STEPS\n');
+  if (!['check', 'compile', 'simulate', 'run'].includes(command) || !sourcePath || extra.length ||
+      (command === 'simulate' || command === 'run' ? count === undefined : count !== undefined)) {
+    process.stderr.write('usage: algorithm-language.mjs check|compile FILE | simulate|run FILE STEPS\n');
     process.exitCode = 2;
     return;
   }
@@ -235,11 +237,37 @@ async function cli(args) {
     const bytes = await readFile(sourcePath);
     if (bytes.length > MAX_BYTES) throw new Error(`source exceeds ${MAX_BYTES} bytes`);
     const source = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
-    if (command === 'simulate') {
+    if (command === 'simulate' || command === 'run') {
       const steps = /^(0|[1-9][0-9]*)$/.test(count) ? Number(count) : NaN;
       const result = simulateAlgorithmText(source, steps);
-      if (result.ok) process.stdout.write(result.stdout);
-      else { process.stderr.write(`${JSON.stringify(result.diagnostics)}\n`); process.exitCode = 1; }
+      if (!result.ok) {
+        process.stderr.write(`${JSON.stringify(result.diagnostics)}\n`);
+        process.exitCode = 1;
+        return;
+      }
+      if (command === 'simulate') {
+        process.stdout.write(result.stdout);
+        return;
+      }
+      const compiled = compileAlgorithmText(source);
+      const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), 'telepathy-algorithm-run-'));
+      try {
+        const generated = 'algorithm.bend';
+        await writeFile(path.join(workspaceRoot, generated), compiled.bend_source, { flag: 'wx', mode: 0o600 });
+        const receipt = await runCandidate({ source: generated, source_sha256: compiled.bend_sha256,
+          predict_check_pass: true, predict_build_pass: true,
+          cases: [{ name: 'simulation', args: [count], predicted_stdout: result.stdout }],
+        }, { workspaceRoot, timeoutMs: 60_000, bendBin: process.env.BEND ?? process.env.BEND_BIN });
+        const observed = receipt.observation?.cases?.[0];
+        process.stdout.write(`${JSON.stringify({ source_sha256: compiled.source_sha256,
+          bend_sha256: compiled.bend_sha256, steps, predicted_stdout: result.stdout,
+          observed_stdout: observed?.observed?.stdout ?? null,
+          prediction_match: observed?.prediction_match ?? false, status: receipt.status,
+          receipt_sha256: receipt.receipt_sha256, receipt_path: receipt.receipt_path })}\n`);
+        if (receipt.status !== 'executed' || !observed?.prediction_match) process.exitCode = 1;
+      } finally {
+        await rm(workspaceRoot, { recursive: true, force: true });
+      }
       return;
     }
     const result = compileAlgorithmText(source);
