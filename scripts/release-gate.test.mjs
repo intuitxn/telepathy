@@ -145,7 +145,7 @@ test('normal installer independently rejects a changed checker even after a clai
     return [relative, sha256(fs.readFileSync(fs.existsSync(override)
       ? override : path.join(sourceRoot, relative)))];
   }));
-  const releases = fs.mkdtempSync(path.join(os.homedir(), '.telepathy-release-test-'));
+  const releases = fs.mkdtempSync(path.join(os.userInfo().homedir, '.telepathy-release-test-'));
   t.after(() => fs.rmSync(releases, { recursive: true, force: true }));
   const receipt = {
     ok: true, commit_id: candidateCommit, trusted_release_commit_id: oldCommit,
