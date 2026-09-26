@@ -11,6 +11,7 @@ const MAX_HEADER = 8 * 1024;
 const MAX_DOCUMENTS = 32;
 const COMPLETIONS = [
   ['algorithm', 'algorithm name', 'Name this one-file program.'],
+  ['model', 'model deepseek-flash', 'Request a host-indexed model after the algorithm declaration.'],
   ['state', 'state name = 0', 'Declare a natural-number state.'],
   ['step', 'step name = add(name, 1)', 'Define the next value from the previous state.'],
   ['return', 'return name', 'Select the output state.'],

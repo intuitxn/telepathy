@@ -8,10 +8,26 @@ The runtime is pinned to [`deepseek-ai/deepseek-harness` commit `477b4f420553e8a
 
 ```text
 algorithm counter
+model deepseek-flash
 state total = 0
 step total = add(total, 1)
 return total
 ```
+
+`model NAME` is optional and must appear between `algorithm` and the first
+`state`. It is a request to the trusted host, not part of the numerical
+transition. The same source simulates with or without the declaration.
+`model auto` asks the host to choose an available route by measured passing
+cases per compute unit. The
+`selectModelRoute` function takes a host-owned index whose measurements bind
+to one evaluation generation and retain receipt digests. The host must verify
+that index and its receipts before use, and derive availability from credential,
+provider capacity, and grant budget. An unmeasured route can be requested
+by name for an initial pilot but cannot win `auto`. Credentials stay in the
+private host environment and are never a DSL or index field. The current
+production DSH toolchain and task grants still pin
+`deepseek-official/deepseek-flash`; this
+syntax and selector do not authorize another live provider.
 
 ```sh
 node runtime/dsh/algorithm-language.mjs check counter.algo

@@ -53,6 +53,7 @@ test('editor messages use the compiler diagnostics and track current document ve
     input.write(wire({ id: 3, method: 'textDocument/completion', params: {
       textDocument: { uri }, position: { line: 2, character: 0 } } }));
     assert(messages[4].result.some(item => item.label === 'if_lt'));
+    assert(messages[4].result.some(item => item.label === 'model'));
     input.write(wire({ method: 'textDocument/didClose', params: { textDocument: { uri } } }));
     assert.deepEqual(messages[5].params.diagnostics, []);
     input.write(wire({ id: 4, method: 'shutdown' }));

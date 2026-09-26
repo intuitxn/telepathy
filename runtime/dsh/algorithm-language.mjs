@@ -11,7 +11,9 @@ import { fileURLToPath } from 'node:url';
 
 const sha256 = value => createHash('sha256').update(value).digest('hex');
 const IDENT = '[a-z][a-z0-9_]{0,31}';
-const RESERVED = new Set(['algorithm', 'state', 'step', 'return', 'tick', 'add', 'sub', 'if_lt']);
+const RESERVED = new Set(['algorithm', 'model', 'state', 'step', 'return', 'tick', 'add', 'sub', 'if_lt']);
+const MODEL = /^[a-z][a-z0-9-]{0,63}$/;
+const SHA = /^[a-f0-9]{64}$/;
 const MAX_BYTES = 16 * 1024;
 const MAX_STATES = 8;
 const MAX_STEPS = 128;
@@ -105,6 +107,7 @@ function parseProgram(source) {
   const states = new Map();
   const steps = new Map();
   let algorithm = null;
+  let model = null;
   let output = null;
   let stage = 0;
   for (const [lineNumber, raw] of lines.entries()) {
@@ -119,12 +122,15 @@ function parseProgram(source) {
       continue;
     }
     const header = new RegExp(`^algorithm (${IDENT})$`).exec(content);
+    const route = /^model ([a-z][a-z0-9-]{0,63})$/.exec(content);
     const state = new RegExp(`^state (${IDENT}) = (0|[1-9][0-9]*)$`).exec(content);
     const step = new RegExp(`^step (${IDENT}) = (.+)$`).exec(content);
     const result = new RegExp(`^return (${IDENT})$`).exec(content);
     if (header && stage === 0) {
       algorithm = header[1];
       stage = 1;
+    } else if (route && stage === 1 && states.size === 0 && model === null) {
+      model = route[1];
     } else if (state && stage === 1) {
       if (RESERVED.has(state[1]) || states.has(state[1])) at('duplicate-name', 'State names must be unique and nonreserved.');
       else if (states.size >= MAX_STATES) at('state-limit', `At most ${MAX_STATES} state fields are allowed.`);
@@ -144,7 +150,7 @@ function parseProgram(source) {
       stage = 3;
       if (!states.has(output)) at('unknown-output', `Unknown return state "${output}".`);
     } else {
-      at('statement-order', 'Expected algorithm, state declarations, one step per state, then return.');
+      at('statement-order', 'Expected algorithm, optional model, state declarations, one step per state, then return.');
     }
     if (diagnostics.length >= 16) break;
   }
@@ -155,7 +161,7 @@ function parseProgram(source) {
     if (!steps.has(name)) diagnostics.push(diagnostic(endLine, 0, 1, 'missing-step', `Missing step for state "${name}".`));
   }
   if (!output) diagnostics.push(diagnostic(endLine, 0, 1, 'missing-return', 'Missing return field.'));
-  return { program: diagnostics.length ? null : { algorithm, states, steps, output },
+  return { program: diagnostics.length ? null : { algorithm, model, states, steps, output },
     diagnostics: diagnostics.slice(0, 16), sourceSha256 };
 }
 
@@ -205,6 +211,7 @@ export function compileAlgorithmText(source) {
   if (!parsed.program) return { ok: false, source_sha256: parsed.sourceSha256, diagnostics: parsed.diagnostics };
   const bendSource = bendProgram(parsed.program, parsed.sourceSha256);
   return { ok: true, source_sha256: parsed.sourceSha256, bend_sha256: sha256(bendSource),
+    model_request: parsed.program.model,
     bend_source: bendSource, interface: { argv_types: ['nat'], stdout_type: 'nat_line', max_steps: MAX_STEPS },
     diagnostics: [] };
 }
@@ -236,7 +243,64 @@ export function prepareAlgorithmText(source) {
     return { ok: true, source_sha256: parsed.sourceSha256, steps,
       stdout: `${state.get(parsed.program.output)}\n` };
   };
-  return { ok: true, source_sha256: parsed.sourceSha256, simulate };
+  return { ok: true, source_sha256: parsed.sourceSha256,
+    model_request: parsed.program.model, simulate };
+}
+
+/** Choose from a host-owned index. A DSL model name never carries credentials. */
+export function selectModelRoute(request, index) {
+  const invalid = message => { throw new Error(`model route: ${message}`); };
+  const plain = (value, keys, label) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value) ||
+        Object.getPrototypeOf(value) !== Object.prototype ||
+        Object.keys(value).some(key => !keys.includes(key))) invalid(`${label} is invalid`);
+  };
+  if (typeof request !== 'string' || !MODEL.test(request)) invalid('request is invalid');
+  plain(index, ['generation_sha256', 'routes'], 'index');
+  if (index.generation_sha256 !== null && !SHA.test(index.generation_sha256 ?? ''))
+    invalid('generation digest is invalid');
+  if (!Array.isArray(index.routes) || index.routes.length < 1 || index.routes.length > 32)
+    invalid('routes must contain 1..32 entries');
+  const seen = new Set();
+  const routes = index.routes.map(row => {
+    plain(row, ['name', 'provider', 'model', 'available', 'measurement'], 'route');
+    if (![row.name, row.provider, row.model].every(value =>
+      typeof value === 'string' && MODEL.test(value)) || row.name === 'auto' ||
+        typeof row.available !== 'boolean' || seen.has(row.name)) invalid('route is invalid');
+    seen.add(row.name);
+    if (row.measurement !== null) {
+      plain(row.measurement, ['passed', 'cases', 'compute_units', 'receipt_sha256'], 'measurement');
+      const { passed, cases, compute_units: compute, receipt_sha256: receipt } = row.measurement;
+      if (!SHA.test(index.generation_sha256 ?? '') || !SHA.test(receipt ?? '') ||
+          !Number.isSafeInteger(passed) || !Number.isSafeInteger(cases) ||
+          !Number.isSafeInteger(compute) || passed < 0 || cases < 1 ||
+          passed > cases || compute < 1 || compute > 1_000_000_000)
+        invalid('measurement is invalid');
+    }
+    return row;
+  });
+  const measured = routes.filter(row => row.measurement !== null);
+  if (measured.some(row => row.measurement.cases !== measured[0].measurement.cases))
+    invalid('measured routes must use the same case count');
+  const eligible = routes.filter(row => row.available &&
+    (request === 'auto' ? row.measurement !== null : row.name === request));
+  if (!eligible.length) invalid(request === 'auto' ?
+    'no available measured route' : `requested model ${request} is unavailable`);
+  eligible.sort((left, right) => {
+    if (request === 'auto') {
+      const l = left.measurement;
+      const r = right.measurement;
+      const gain = BigInt(l.passed) * BigInt(r.compute_units) -
+        BigInt(r.passed) * BigInt(l.compute_units);
+      if (gain !== 0n) return gain > 0n ? -1 : 1;
+      if (l.passed !== r.passed) return r.passed - l.passed;
+    }
+    return left.name.localeCompare(right.name);
+  });
+  const selected = eligible[0];
+  return { name: selected.name, provider: selected.provider, model: selected.model,
+    generation_sha256: index.generation_sha256,
+    measurement: selected.measurement };
 }
 
 /** Fast in-process transition simulation; differential aid, not a task oracle. */
