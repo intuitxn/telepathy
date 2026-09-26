@@ -6,7 +6,8 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { createFundedTaskProgram, createResearchTaskProgramHost, createSingleTaskHost,
-  researchProgramForecast, validatedDeepSeekEnv } from './task-host.mjs';
+  createTwoScopeResearchSynthesisHost, researchProgramForecast,
+  twoScopeResearchSynthesisForecast, validatedDeepSeekEnv } from './task-host.mjs';
 
 const hash = value => createHash('sha256').update(value).digest('hex');
 const workerWorkspaces = async root => (await readdir(root)).filter(name => /^worker-[a-f0-9]{40}$/.test(name));
@@ -1205,4 +1206,243 @@ test('research forecast reports exact lower-bound shortfall without grants', asy
   workerBudget: data.settings.workerBudget });
   assert.equal(shortage.shortfall.branches, 1);
   assert.equal(shortage.shortfall.evaluations, 1);
+});
+
+async function twoScopeFixture(t, name, rejectedScope = null) {
+  const root = await realpath(await mkdtemp(path.join(os.tmpdir(), `telepathy-two-scope-${name}-`)));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const firstWorkspace = path.join(root, 'alpha-workspace');
+  execFileSync('jj', ['git', 'init', '--no-colocate', firstWorkspace], { encoding: 'utf8' });
+  const base = execFileSync('jj', ['--ignore-working-copy', 'log', '-r', '@-',
+    '--no-graph', '-T', 'commit_id'], { cwd: firstWorkspace, encoding: 'utf8' }).trim();
+  const secondWorkspace = path.join(root, 'beta-workspace');
+  const synthesisWorkspace = path.join(root, 'synthesis-workspace');
+  for (const [name, location] of [['beta', secondWorkspace], ['synthesis', synthesisWorkspace]])
+    execFileSync('jj', ['workspace', 'add', '--name', name, '-r', base, location],
+      { cwd: firstWorkspace, encoding: 'utf8' });
+  const verifierFile = path.join(root, 'verifier.mjs');
+  const caseSetFile = path.join(root, 'cases.json');
+  await writeFile(verifierFile, verifierSource, { mode: 0o600 });
+  await writeFile(caseSetFile, 'fixture-cases', { mode: 0o600 });
+  const oracleRoot = path.join(root, 'oracle');
+  await mkdir(oracleRoot, { mode: 0o700 });
+  const oracleSource = `
+import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import path from 'node:path';
+const sha = bytes => createHash('sha256').update(bytes).digest('hex');
+export async function verifySynthesis(input) {
+  const { spec, plan, grant, result, citations, artifactRoot, ...binding } = input;
+  const proposalBytes = await readFile(path.join(artifactRoot, 'artifacts', input.artifact_sha256 + '.txt'));
+  const evidenceBytes = await readFile(path.join(artifactRoot, 'evidence', input.evidence_receipt_sha256 + '.json'));
+  const proposal = JSON.parse(proposalBytes.toString('utf8'));
+  let ok = sha(proposalBytes) === input.artifact_sha256 &&
+    sha(evidenceBytes) === input.evidence_receipt_sha256 &&
+    proposal.schema === 'telepathy.synthesis-proposal/v1' &&
+    proposal.source_cut === input.source_cut &&
+    JSON.stringify(proposal.source_refs) === JSON.stringify(plan.source_refs) &&
+    proposal.prediction === 'joint result can be tested' &&
+    new Set(citations.map(row => row.scope)).size === 2;
+  for (const row of citations) {
+    const source = await readFile(path.join(artifactRoot, 'artifacts', row.artifact_sha256 + '.txt'));
+    const evidence = await readFile(path.join(artifactRoot, 'evidence', row.evidence_receipt_sha256 + '.json'));
+    ok &&= sha(source) === row.artifact_sha256 && sha(evidence) === row.evidence_receipt_sha256;
+  }
+  return { ...binding, ok, receipt_sha256: sha('oracle:' + input.result_event + ':' + ok),
+    ...ok ? {} : { reason: 'frozen synthesis evidence failed' } };
+}`;
+  const synthesisOracleFile = path.join(oracleRoot, 'oracle.mjs');
+  await writeFile(synthesisOracleFile, oracleSource, { mode: 0o600 });
+  const plannerBudget = { tokens: 1000, fuel: 2, children: 0,
+    integrations: 0, evaluations: 0 };
+  const workerBudget = { tokens: 4000, fuel: 5, children: 0,
+    integrations: 0, evaluations: 1 };
+  const synthesisBudget = { tokens: 6000, fuel: 5, children: 0,
+    integrations: 0, evaluations: 1 };
+  const spec = { goal: 'Find a checked relation across alpha and beta',
+    acceptance: 'Each source and the joint prediction pass independent checks',
+    scopes: ['alpha', 'beta'], integration_owner: 'host', initial_head: base,
+    pinned_versions: { evaluator_sha256: hash(verifierSource),
+      case_set_sha256: hash('fixture-cases'), synthesis_oracle_sha256: hash(oracleSource),
+      toolchain: 'fixture' },
+    limits: { max_tasks: 6, max_branches: 5, max_active_grants: 1, max_depth: 0,
+      tokens: 40_000, fuel: 100, integrations: 1, evaluations: 3 },
+    policy_version: 'two-scope-host-test-v1' };
+  const calls = { planner: [], worker: [], synthesis: 0 };
+  const settings = { spec, prompt: 'Measure each field, then test one joint claim.',
+    programId: `two-scope-${name}`, plannerBudget, workerBudget, synthesisBudget,
+    plannerWorkspaces: [firstWorkspace, secondWorkspace], synthesisWorkspace,
+    workerWorkspaceRoot: path.join(root, 'workers'), verifierFile, caseSetFile,
+    stateRoot: path.join(root, 'programs'), taskStateRoot: path.join(root, 'tasks'),
+    archiveRoot: path.join(root, 'archive'), synthesisOracleTrustedRoot: oracleRoot,
+    synthesisOracleFile, synthesisDeliverable: 'Form a falsifiable joint claim',
+    synthesisAcceptance: 'Pinned oracle checks both sources and a prediction',
+    synthesisModelTokenLimit: 2048, allowUnsafeRootsForTest: true,
+    allowMockRunnerForTest: true,
+    runPlannerSessionForTest: async ({ scope, session_id }) => {
+      calls.planner.push(scope);
+      return { sessionId: session_id, finalResponse: JSON.stringify({
+        tasks: [{ id: `claim-${scope}`, kind: 'research', scope,
+          deliverable: `Measure ${scope}`, acceptance: 'Provide measured evidence',
+          source_refs: [], oracle_sha256: spec.pinned_versions.evaluator_sha256,
+          budget: workerBudget, depends_on: [], parent_plan_ref: null }],
+        next_cursor: null, done: true }), events: [] };
+    },
+    runWorkerSessionForTest: async ({ scope, task_ref, grant, dispatch_id, controller }) => {
+      calls.worker.push(scope);
+      await bindRoot(controller, task_ref, grant, dispatch_id, grant.location);
+      return { sessionId: dispatch_id,
+        finalResponse: researchResponse(grant.last_event,
+          scope === rejectedScope ? 'unsupported claim' : 'evidence: measured'),
+        events: [] };
+    },
+    runSynthesisSessionForTest: async ({ task_ref, grant, plan, dispatch_id, controller }) => {
+      calls.synthesis++;
+      await bindRoot(controller, task_ref, grant, dispatch_id, synthesisWorkspace);
+      return { sessionId: dispatch_id, finalResponse: JSON.stringify({
+        schema: 'telepathy.synthesis-proposal/v1', source_refs: plan.source_refs,
+        source_cut: plan.expected_log_head,
+        proposition: 'The two measurements imply a testable relation',
+        method: 'Compare independently measured fields',
+        uncertainty: 'Synthetic fixture only', prediction: 'joint result can be tested' }),
+      events: [] };
+    } };
+  return { settings, calls };
+}
+
+test('two funded scopes feed one independently checked synthesis and replay once', async t => {
+  const data = await twoScopeFixture(t, 'accepted');
+  const forecast = twoScopeResearchSynthesisForecast(data.settings);
+  assert.deepEqual(forecast.shortfall, { tasks: 0, branches: 0, tokens: 0,
+    fuel: 0, evaluations: 0 });
+  const host = await createTwoScopeResearchSynthesisHost(data.settings);
+  const beforeForeign = await host.controller.replay(host.task_ref);
+  await host.controller.plan(host.task_ref, { id: 'foreign-beta', kind: 'research',
+    scope: 'beta', deliverable: 'Measure an unrelated beta claim',
+    acceptance: 'Separate independent result', source_refs: [],
+    oracle_sha256: data.settings.spec.pinned_versions.evaluator_sha256,
+    budget: data.settings.workerBudget, depends_on: [], parent_plan_ref: null,
+    expected_log_head: beforeForeign.log_head });
+  const result = await host.run();
+  assert.equal(result.phase, 'synthesis');
+  assert.equal(result.status, 'accepted');
+  assert.equal(result.task_accepted, false);
+  assert.deepEqual(data.calls.planner, ['alpha', 'beta']);
+  assert.deepEqual(data.calls.worker, ['alpha', 'beta']);
+  assert.equal(data.calls.synthesis, 1);
+  const state = await host.controller.replay(host.task_ref);
+  assert.equal(state.results.filter(row => row.status === 'accepted').length, 3);
+  assert.equal(state.plans.find(row => row.id === 'foreign-beta').status, 'planned');
+  assert.equal(state.grants.some(row => row.plan_ref ===
+    state.plans.find(plan => plan.id === 'foreign-beta').ref), false);
+  assert.equal(state.plans.find(row => row.kind === 'synthesis').citations.length, 2);
+  const restarted = await createTwoScopeResearchSynthesisHost(data.settings);
+  assert.equal((await restarted.run()).status, 'accepted');
+  assert.equal(data.calls.synthesis, 1);
+  assert.deepEqual(data.calls.worker, ['alpha', 'beta']);
+});
+
+test('a constructed composition keeps its archived contract after caller mutation', async t => {
+  const data = await twoScopeFixture(t, 'frozen-object');
+  const originalPlanner = data.settings.runPlannerSessionForTest;
+  const prompts = [];
+  data.settings.runPlannerSessionForTest = async input => {
+    prompts.push(input.prompt);
+    return originalPlanner(input);
+  };
+  const host = await createTwoScopeResearchSynthesisHost(data.settings);
+  data.settings.prompt = 'Changed request after construction';
+  data.settings.spec.goal = 'Different goal after construction';
+  data.settings.spec.scopes[1] = 'gamma';
+  data.settings.synthesisDeliverable = 'Different joint output';
+  data.settings.synthesisAcceptance = 'Different joint criterion';
+  data.settings.synthesisBudget.tokens = 7000;
+  data.settings.runSynthesisSessionForTest = async () => {
+    throw new Error('changed callback must not run');
+  };
+  assert.equal((await host.run()).status, 'accepted');
+  assert.equal(prompts.length, 2);
+  assert.ok(prompts.every(value => value.includes('Measure each field, then test one joint claim.')));
+  assert.ok(prompts.every(value => !value.includes('Changed request after construction')));
+  const state = await host.controller.replay(host.task_ref);
+  const synthesis = state.plans.find(row => row.kind === 'synthesis');
+  assert.equal(synthesis.deliverable, 'Form a falsifiable joint claim');
+  assert.equal(synthesis.acceptance, 'Pinned oracle checks both sources and a prediction');
+  assert.equal(synthesis.budget.tokens, 6000);
+  assert.equal(data.calls.synthesis, 1);
+});
+
+test('rejected second scope never funds synthesis', async t => {
+  const data = await twoScopeFixture(t, 'rejected', 'beta');
+  const host = await createTwoScopeResearchSynthesisHost(data.settings);
+  const result = await host.run();
+  assert.equal(result.phase, 'beta');
+  assert.equal(result.status, 'source-rejected');
+  assert.equal(data.calls.synthesis, 0);
+  const state = await host.controller.replay(host.task_ref);
+  assert.equal(state.plans.some(row => row.kind === 'synthesis'), false);
+});
+
+test('uncertain second-scope dispatch remains unknown across a cold restart', async t => {
+  const data = await twoScopeFixture(t, 'uncertain');
+  const original = data.settings.runWorkerSessionForTest;
+  let uncertainCalls = 0;
+  data.settings.runWorkerSessionForTest = async input => {
+    if (input.scope !== 'beta') return original(input);
+    uncertainCalls++;
+    await bindRoot(input.controller, input.task_ref, input.grant,
+      input.dispatch_id, input.grant.location);
+    throw new Error('second scope lost its provider response');
+  };
+  const first = await createTwoScopeResearchSynthesisHost(data.settings);
+  await assert.rejects(first.run(), /second scope lost its provider response/);
+  await assert.rejects(createTwoScopeResearchSynthesisHost({ ...data.settings,
+    synthesisAcceptance: 'A different synthesis criterion after field work' }),
+  /immutable artifact conflicts/);
+  assert.equal(uncertainCalls, 1);
+  assert.equal(data.calls.synthesis, 0);
+  for (const id of ['later-foreign-one', 'later-foreign-two']) {
+    const state = await first.controller.replay(first.task_ref);
+    await first.controller.plan(first.task_ref, { id, kind: 'research',
+      scope: 'alpha', deliverable: id, acceptance: 'Separate result',
+      source_refs: [], oracle_sha256: data.settings.spec.pinned_versions.evaluator_sha256,
+      budget: data.settings.workerBudget, depends_on: [], parent_plan_ref: null,
+      expected_log_head: state.log_head });
+  }
+  const restarted = await createTwoScopeResearchSynthesisHost(data.settings);
+  const result = await restarted.run();
+  assert.equal(result.phase, 'beta');
+  assert.equal(result.status, 'dispatch-audit-required');
+  assert.equal(uncertainCalls, 1);
+  assert.equal(data.calls.synthesis, 0);
+  const state = await restarted.controller.replay(restarted.task_ref);
+  assert.equal(state.plans.some(row => row.kind === 'synthesis'), false);
+});
+
+test('cross-field compute and oracle preflight fail before a model turn', async t => {
+  const data = await twoScopeFixture(t, 'preflight');
+  const short = { ...data.settings, spec: { ...data.settings.spec,
+    limits: { ...data.settings.spec.limits, evaluations: 2 } } };
+  assert.equal(twoScopeResearchSynthesisForecast(short).shortfall.evaluations, 1);
+  await assert.rejects(createTwoScopeResearchSynthesisHost(short), /cross-field compute shortfall/);
+  await writeFile(data.settings.synthesisOracleFile, 'export const verifySynthesis = null;');
+  await assert.rejects(createTwoScopeResearchSynthesisHost(data.settings),
+    /synthesis oracle differs from frozen pin/);
+  assert.deepEqual(data.calls, { planner: [], worker: [], synthesis: 0 });
+});
+
+test('shared-task spending is checked before a fresh cross-field model turn', async t => {
+  const data = await twoScopeFixture(t, 'spent');
+  const host = await createTwoScopeResearchSynthesisHost(data.settings);
+  for (const id of ['foreign-one', 'foreign-two']) {
+    const state = await host.controller.replay(host.task_ref);
+    await host.controller.plan(host.task_ref, { id, kind: 'research',
+      scope: 'beta', deliverable: `Unrelated ${id}`,
+      acceptance: 'Independent answer', source_refs: [],
+      oracle_sha256: data.settings.spec.pinned_versions.evaluator_sha256,
+      budget: data.settings.workerBudget, depends_on: [], parent_plan_ref: null,
+      expected_log_head: state.log_head });
+  }
+  await assert.rejects(host.run(), /live cross-field compute shortfall/);
+  assert.deepEqual(data.calls, { planner: [], worker: [], synthesis: 0 });
 });

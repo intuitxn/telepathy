@@ -14,7 +14,7 @@ const D = character => character.repeat(64);
 const budget = { tokens: 6000, fuel: 5, children: 0, integrations: 0, evaluations: 1 };
 const sourceBudget = { tokens: 2000, fuel: 3, children: 0, integrations: 0, evaluations: 1 };
 
-async function fixture(t, sourcePadding = 0) {
+async function fixture(t, sourcePadding = 0, paddingCharacter = 'x') {
   const root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'telepathy-synthesis-host-')));
   t.after(() => rm(root, { recursive: true, force: true }));
   const workspace = path.join(root, 'workspace');
@@ -91,7 +91,7 @@ export async function verifySynthesis(input) {
         task_commit: base, causal_event: state.log_head }, budget: sourceBudget,
       location: path.join(root, `source-${scope}`), parent_grant_ref: null });
     const artifact = Buffer.from(JSON.stringify({ field: scope,
-      observation: `${scope} measured${'x'.repeat(sourcePadding)}` }));
+      observation: `${scope} measured${paddingCharacter.repeat(sourcePadding)}` }));
     const evidence = Buffer.from(JSON.stringify({ field: scope, instrument: 'keyless fixture' }));
     await writeFile(path.join(archiveRoot, 'artifacts', `${sha(artifact)}.txt`), artifact);
     await writeFile(path.join(archiveRoot, 'evidence', `${sha(evidence)}.json`), evidence);
@@ -158,12 +158,49 @@ test('funded synthesis archives its turn, uses the pinned oracle, and replays wi
   assert.equal(calls, 1);
 });
 
-test('source excerpts exceeding funded context stop before dispatch or intent', async t => {
+test('large accepted sources fit the funded prompt while the oracle checks full artifacts', async t => {
+  // Backslashes expand once in the source JSON and again in the model prompt.
+  const data = await fixture(t, 4000, '\\');
+  let calls = 0;
+  let sentPrompt;
+  const host = await createSynthesisHost({ ...data,
+    runSessionForTest: async ({ grant, plan, dispatch_id, prompt }) => {
+      calls++;
+      sentPrompt = prompt;
+      assert.ok(Buffer.byteLength(prompt) <= budget.tokens - data.modelTokenLimit - 1024);
+      assert.match(prompt, /alpha measured/);
+      assert.match(prompt, /beta measured/);
+      assert.equal((prompt.match(/"truncated":true/g) ?? []).length, 2);
+      await data.bind(grant, dispatch_id);
+      return { sessionId: dispatch_id, finalResponse: data.proposal(plan), events: [] };
+    } });
+  assert.equal((await host.run()).status, 'accepted');
+  assert.equal(calls, 1);
+  const state = await data.controller.replay(data.taskRef);
+  const citations = state.plans.find(row => row.kind === 'synthesis').citations;
+  for (const citation of citations) {
+    const bytes = await readFile(path.join(data.archiveRoot, 'artifacts',
+      `${citation.artifact_sha256}.txt`));
+    assert.ok(bytes.length > 4000);
+    assert.equal(sha(bytes), citation.artifact_sha256);
+  }
+  const intent = JSON.parse(await readFile(path.join(data.archiveRoot, 'intents',
+    `${host.dispatchId}.json`)));
+  assert.equal((await readFile(path.join(data.archiveRoot, 'prompts',
+    `${intent.prompt_sha256}.txt`), 'utf8')), sentPrompt);
+  const restarted = await createSynthesisHost({ ...data,
+    runSessionForTest: async () => { calls++; throw Error('duplicate provider call'); } });
+  assert.equal((await restarted.run()).status, 'accepted');
+  assert.equal(calls, 1);
+});
+
+test('an unfunded fixed source manifest stops before dispatch or intent', async t => {
   const data = await fixture(t, 4000);
   let calls = 0;
   const host = await createSynthesisHost({ ...data,
+    budget: { ...budget, tokens: data.modelTokenLimit + 1024 },
     runSessionForTest: async () => { calls++; throw Error('unfunded provider call'); } });
-  await assert.rejects(host.run(), /synthesis prompt exceeds funded context bound/);
+  await assert.rejects(host.run(), /synthesis source manifest exceeds funded context bound/);
   assert.equal(calls, 0);
   assert.deepEqual(await readdir(path.join(data.archiveRoot, 'intents')), []);
 });

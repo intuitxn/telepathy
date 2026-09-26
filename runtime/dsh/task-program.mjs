@@ -238,7 +238,8 @@ function validatePageTasks(tasks, taskRef, spec, snapshot) {
   }
 }
 
-function normalizePage(raw, cursor, remainingTasks, taskRef, spec, snapshot) {
+function normalizePage(raw, cursor, remainingTasks, taskRef, spec, snapshot,
+  planIdPrefix = null) {
   plain(raw, 'planner page', ['tasks', 'next_cursor', 'done']);
   // The caller may be a model-backed planner or a cold-session auditor. Bound
   // the entire reply before inspecting fields, including fields later ignored
@@ -246,6 +247,9 @@ function normalizePage(raw, cursor, remainingTasks, taskRef, spec, snapshot) {
   bounded(raw, 1024 * 1024, 'planner page');
   if (!Array.isArray(raw.tasks) || raw.tasks.length > 64 || (raw.tasks.length === 0 && raw.done !== true))
     fail('planner page must contain 1..64 tasks, or finish');
+  if (planIdPrefix && raw.tasks.some(task => typeof task?.id !== 'string' ||
+      !task.id.startsWith(planIdPrefix)))
+    fail('planner page includes a plan outside this program namespace');
   if (typeof raw.done !== 'boolean') fail('planner page done flag is required');
   if (raw.tasks.length > remainingTasks) fail('planner page exceeds the frozen logical task limit');
   const nextCursor = raw.done ? null : bounded(raw.next_cursor, 4096, 'planner cursor');
@@ -362,7 +366,8 @@ export function createTaskProgram(settings) {
   plain(settings, 'settings', ['controller', 'spec', 'prompt', 'programId', 'stateRoot',
     'workspaceRoot', 'allowUnsafeStateRootForTest', 'maxLiveWorkers', 'planner',
     'grantForPlan', 'worker', 'reconcileDispatch', 'reconcilePlanner',
-    'feedbackPlanning', 'plannerGrantRef', 'delegationEvidence']);
+    'feedbackPlanning', 'plannerGrantRef', 'delegationEvidence', 'planIdPrefix',
+    'beforeFreshInvocation']);
   const { controller, spec, planner, grantForPlan, worker, reconcileDispatch, reconcilePlanner } = settings;
   for (const method of ['open', 'plan', 'grant', 'checkpoint', 'replay'])
     if (typeof controller?.[method] !== 'function') fail(`controller.${method} is required`);
@@ -370,7 +375,16 @@ export function createTaskProgram(settings) {
     if (typeof callback !== 'function') fail(`${name} callback is required`);
   if (reconcileDispatch !== undefined && typeof reconcileDispatch !== 'function') fail('reconcileDispatch must be a callback');
   if (reconcilePlanner !== undefined && typeof reconcilePlanner !== 'function') fail('reconcilePlanner must be a callback');
+  const beforeFreshInvocation = settings.beforeFreshInvocation;
+  if (beforeFreshInvocation !== undefined && typeof beforeFreshInvocation !== 'function')
+    fail('beforeFreshInvocation must be a host callback');
   const programId = id(settings.programId, 'programId');
+  const planIdPrefix = settings.planIdPrefix === undefined ? null :
+    settings.planIdPrefix;
+  if (planIdPrefix !== null && (typeof planIdPrefix !== 'string' ||
+      planIdPrefix.length > 64 || !ID.test(`${planIdPrefix}x`)))
+    fail('planIdPrefix must be a bounded ID prefix');
+  const ownsPlan = row => planIdPrefix === null || row.id.startsWith(planIdPrefix);
   const prompt = settings.prompt;
   if (typeof prompt !== 'string' || !prompt || Buffer.byteLength(prompt) > 16 * 1024) fail('prompt must be 1..16384 UTF-8 bytes');
   const frozenSpec = bounded(spec, 16 * 1024, 'task specification');
@@ -392,6 +406,8 @@ export function createTaskProgram(settings) {
   const stateRoot = path.resolve(settings.stateRoot ?? process.env.TELEPATHY_TASK_PROGRAM_STATE ??
     path.join(os.homedir(), '.local', 'state', 'telepathy-dsh', 'programs'));
   const signature = hash(canonical({ programId, prompt, spec: frozenSpec, maxLiveWorkers,
+    ...(planIdPrefix ? { planIdPrefix } : {}),
+    ...(beforeFreshInvocation ? { preflightInvocation: true } : {}),
     ...(delegationEvidence ? { adaptiveDelegation: true } : {}),
     ...(feedbackPlanning ? { feedbackPlanning, plannerGrantRef } : {}) }));
   const fileName = `${hash(programId)}.sqlite`;
@@ -422,7 +438,7 @@ export function createTaskProgram(settings) {
     const active = snapshot.grants.filter(row =>
       (row.status === 'active' || row.status === 'ready') && row.ref !== plannerGrantRef);
     const byRef = new Map(snapshot.plans.map(row => [row.ref, row]));
-    const eligible = snapshot.plans.filter(row => row.status === 'planned' &&
+    const eligible = snapshot.plans.filter(row => ownsPlan(row) && row.status === 'planned' &&
       row.depends_on.every(ref => byRef.get(ref)?.status === 'accepted'));
     const visible = eligible.slice(0, 64);
     // This callback runs in the host, never in a worker or planner session. It
@@ -551,7 +567,7 @@ export function createTaskProgram(settings) {
         let page;
         try {
           page = normalizePage(rawPage, input.cursor, input.remaining.tasks,
-            taskRef, frozenSpec, snapshot);
+            taskRef, frozenSpec, snapshot, planIdPrefix);
         } catch (error) {
           if (!String(error?.message).startsWith('task program:')) throw error;
           save({ ...state, intent: null, rejected_page: {
@@ -566,6 +582,8 @@ export function createTaskProgram(settings) {
 
       if (state.intent?.phase === 'planner-prepared') {
         const input = plannerIntent(state.intent, taskRef, prompt, frozenSpec, state);
+        if (beforeFreshInvocation) await beforeFreshInvocation({ task_ref: taskRef,
+          kind: 'planner', controller });
         save({ ...state, intent: { ...state.intent, phase: 'planner-invoking' } });
         const rawPage = await planner({ ...clone(input),
           attempt_id: state.intent.attempt_id, input_sha256: state.intent.input_sha256,
@@ -573,7 +591,7 @@ export function createTaskProgram(settings) {
         snapshot = await controller.replay(taskRef);
         head = snapshot.log_head;
         const page = normalizePage(rawPage, input.cursor, input.remaining.tasks,
-          taskRef, frozenSpec, snapshot);
+          taskRef, frozenSpec, snapshot, planIdPrefix);
         save({ ...record.state, intent: null, page });
         continue;
       }
@@ -646,6 +664,8 @@ export function createTaskProgram(settings) {
             break;
           }
         }
+        if (beforeFreshInvocation) await beforeFreshInvocation({ task_ref: taskRef,
+          kind: 'worker', controller });
         // Persist before entering arbitrary host code. A crash at this boundary
         // is uncertain and will not issue a duplicate worker without an audit.
         const dispatchId = randomUUID();
@@ -742,12 +762,12 @@ export function createTaskProgram(settings) {
         break;
       }
       const byRef = new Map(snapshot.plans.map(row => [row.ref, row]));
-      const eligiblePlans = snapshot.plans.filter(row => row.status === 'planned' &&
+      const eligiblePlans = snapshot.plans.filter(row => ownsPlan(row) && row.status === 'planned' &&
         row.depends_on.every(ref => byRef.get(ref)?.status === 'accepted'));
       if (!active.length && !eligiblePlans.length) {
         status = snapshot.pending_evaluations.length ? 'evaluation-audit-required' :
           feedbackPlanning && record.state.feedback_barrier ? 'waiting-feedback' :
-          snapshot.plans.some(row => row.status === 'planned') ? 'blocked-dependencies' :
+          snapshot.plans.some(row => ownsPlan(row) && row.status === 'planned') ? 'blocked-dependencies' :
           'no-eligible-work';
         break;
       }
@@ -766,7 +786,7 @@ export function createTaskProgram(settings) {
           snapshot.pending_evaluations.length ? 'evaluation-audit-required' :
             active.some(row => row.status === 'ready') ? 'needs-integration' :
             feedbackPlanning && record.state.feedback_barrier ? 'waiting-feedback' :
-              snapshot.plans.some(row => row.status === 'planned') ? 'blocked-dependencies' :
+              snapshot.plans.some(row => ownsPlan(row) && row.status === 'planned') ? 'blocked-dependencies' :
                 active.length ? 'waiting-workers' : 'no-eligible-work';
         break;
       }

@@ -179,12 +179,14 @@ separate operating-system account or sandbox.
 The first model pass turns the authorized prompt into a proposed task graph:
 each node names an output, parent evidence, a concrete acceptance method,
 authority scope, compute estimate, and dependencies. The controller validates
-the proposal against the original goal and available budget, admits nodes as
+the proposal against frozen scope, oracle, dependencies, and budget, admits nodes as
 **logical tasks**, and grants only a bounded active set to DSH sessions. An
 admitted task does not consume a live model session while it waits. This is
 how 10,000 potential agents fit on one machine: a durable graph and small
-active worker pool, with integration and evaluation capacity reserved before
-the pool grows. `task-program.mjs` persists planner invocation intents,
+active worker pool, with integration and evaluation capacity forecast before
+the pool grows. A pinned evaluator judges each proposed result; a separate
+goal-level assessment is still required before calling the whole task complete.
+`task-program.mjs` persists planner invocation intents,
 pages, and dispatch intents, and pauses for an exact host audit after either
 an uncertain planner call or worker invocation. The funded research host now
 interleaves pages with worker verdicts: a nonfinal page forms a durable barrier,
