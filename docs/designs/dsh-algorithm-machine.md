@@ -413,18 +413,22 @@ to `algorithm_run`. Checker and prediction receipts are executable evidence;
 semantic correctness remains unscored until the independent oracle.
 The bounded `algorithm-language.mjs` compiler now turns a small natural-number
 recurrence syntax into one deterministic Bend file, with immediate simulation
-and editor-shaped diagnostics. It is a fast executable pseudocode subset, not
-an automatic translation of an arbitrary paper or an independent evaluator.
+and editor-shaped diagnostics. Its operator `run` command compares the simulated
+prediction with native Bend and retains the exact receipt. A funded DSH agent
+can call `algorithm_compile`, write the returned Bend bytes with a scoped file
+tool, then call `algorithm_run` with the returned digest. It is a fast executable
+pseudocode subset, not an automatic translation of an arbitrary paper or an
+independent evaluator.
 
 An LSP would expose Bend diagnostics, symbol navigation, completion for the
 small algorithm contract, and source-to-receipt links. It is a developer aid,
 not a new runtime. The first milestone is fast checker diagnostics on one
-candidate file and a counterexample at the current cursor. A custom DSL can
-wait until repeated programs reveal a smaller stable syntax than Bend itself.
+candidate file and a counterexample at the current cursor. The current small
+syntax is bounded to recurrences; broader syntax should follow measured needs.
 
 ## Measured migration gates
 
-The implementation contains `runtime/core/telepathy.bend`, a three-tool funded DSH
+The implementation contains `runtime/core/telepathy.bend`, a four-tool funded DSH
 plugin and patch under `runtime/dsh/`, the task controller and task program,
 the provider-usage ledger, guarded file tools, and the independent benchmark under
 `benchmarks/core/`. The keyless suite exercises DSH sessions for run, score,

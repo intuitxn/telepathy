@@ -178,7 +178,7 @@ test('algorithm calls spend durable worst-case fuel only for their bound session
     inspectWorkspace: async row => row.location,
   });
   const funded = await grant(controller, opened, { id: 'algorithm-grant', branch: 'algorithm',
-    owner: 'integrator', scope: 'alpha', budget: budget({ fuel: 121 }) });
+    owner: 'integrator', scope: 'alpha', budget: budget({ fuel: 122 }) });
   const session = { id: 'root-algorithm-session', header: {
     origin: 'user', cwd: '/tmp/telepathy-algorithm',
   } };
@@ -202,7 +202,11 @@ test('algorithm calls spend durable worst-case fuel only for their bound session
   const restarted = createTaskControl({ storeRoot, allowUnsafeStoreRootForTest: true,
     inspectWorkspace: async row => row.location });
   const state = await restarted.replay(opened.task_ref);
-  assert.equal(state.grants.find(row => row.ref === funded.grant_ref).left.fuel, 61);
+  assert.equal(state.grants.find(row => row.ref === funded.grant_ref).left.fuel, 62);
+  const compile = await restarted.reserveAlgorithmCall(opened.task_ref,
+    call('compile', 'algorithm_compile'));
+  assert.deepEqual(compile.charged, { fuel: 1 });
+  assert.equal(compile.max_wall_ms, 0);
   await restarted.reserveAlgorithmCall(opened.task_ref, call('execute', 'algorithm_execute'));
   await restarted.reserveAlgorithmCall(opened.task_ref, call('active', 'algorithm_active'));
   await assert.rejects(restarted.reserveAlgorithmCall(opened.task_ref,

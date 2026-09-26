@@ -24,13 +24,19 @@ const prediction = {
   cases: [{ name: 'batch-one', args: ['batch', '1'], predicted_stdout: 'clock=1;value=3\n' }],
 };
 
-test('registers the five raw-schema tools in the isolated keyless smoke profile', () => {
+test('registers the six raw-schema tools in the isolated keyless smoke profile', async () => {
   const registrations = [];
   apply({ tools: { register: tool => { registrations.push(tool); } } }, { mode: 'headless-smoke' });
   assert.deepEqual(registrations.map(tool => tool.name),
-    ['algorithm_run', 'algorithm_score', 'algorithm_select', 'algorithm_active', 'algorithm_execute']);
+    ['algorithm_run', 'algorithm_score', 'algorithm_select', 'algorithm_compile', 'algorithm_active', 'algorithm_execute']);
   assert.deepEqual(registrations[0].parameters.required,
     ['source', 'source_sha256', 'predict_check_pass', 'predict_build_pass', 'cases']);
+  const compiled = await registrations[3].execute({ source_text:
+    'algorithm counter\nstate total = 0\nstep total = add(total, 1)\nreturn total\n' });
+  assert.equal(compiled.ok, true);
+  assert.match(compiled.bend_source, /def algorithm_step\(/);
+  assert.match(compiled.bend_sha256, /^[a-f0-9]{64}$/);
+  assert.equal((await registrations[3].execute({ source_text: 'bad' })).ok, false);
 });
 
 test('funded profile requires control services and hides scoring and global selection', async () => {
@@ -48,7 +54,7 @@ test('funded profile requires control services and hides scoring and global sele
       : name === 'telepathyToolBoundary' ? { bindChildWorkspace() {} } : null },
   { mode: 'funded', taskRef });
   assert.deepEqual(registrations.map(tool => tool.name),
-    ['algorithm_run', 'algorithm_active', 'algorithm_execute']);
+    ['algorithm_run', 'algorithm_compile', 'algorithm_active', 'algorithm_execute']);
   await assert.rejects(registrations[0].execute({}, { agent: { session: { id: 'session' } },
     callId: 'call-1' }), /no bound grant/);
   assert.equal(reservations.length, 1);
@@ -57,6 +63,19 @@ test('funded profile requires control services and hides scoring and global sele
   await assert.rejects(registrations[0].execute({}, { agent: { session: { id: 'session' } } }),
     /requires a DSH session and call ID/);
   assert.equal(reservations.length, 1);
+
+  const accepted = [];
+  const fundedTools = [];
+  apply({ tools: { register: tool => fundedTools.push(tool) },
+    get: name => name === 'telepathyTaskControl' ? { reserveAlgorithmCall: async (_ref, call) => accepted.push(call) }
+      : name === 'telepathyToolBoundary' ? { bindChildWorkspace() {} } : null },
+  { mode: 'funded', taskRef });
+  const compiled = await fundedTools[1].execute({ source_text:
+    'algorithm counter\nstate total = 0\nstep total = add(total, 1)\nreturn total\n' },
+  { agent: { session: { id: 'session' } }, callId: 'compile-1' });
+  assert.equal(compiled.ok, true);
+  assert.equal(accepted[0].tool, 'algorithm_compile');
+  assert.match(accepted[0].input_sha256, /^[a-f0-9]{64}$/);
 });
 
 test('checked production patch mounts only the funded algorithm catalog', async () => {

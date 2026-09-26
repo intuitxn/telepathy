@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { compileAlgorithmText } from './algorithm-language.mjs';
 import { activeCandidate } from './core.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -17,6 +18,27 @@ function execute(file, args, options) {
     timeout: 120_000 }, (error, stdout, stderr) => error ? reject(new Error(`${error.message}\n${stderr}\n${stdout}`))
       : resolve({ stdout, stderr })));
 }
+
+test('keyless DSH session invokes the bounded pseudocode compiler', async t => {
+  const cli = process.env.TELEPATHY_DSH_CLI_BIN;
+  const llmModule = process.env.TELEPATHY_DSH_LLM_MODULE;
+  if (!cli || !llmModule) return t.skip('set pinned DSH CLI and LLM module paths');
+  const home = await mkdtemp(path.join(os.tmpdir(), 'telepathy-dsh-compile-'));
+  t.after(() => rm(home, { recursive: true, force: true }));
+  const source = 'algorithm counter\nstate total = 0\nstep total = add(total, 1)\nreturn total\n';
+  const { stdout } = await execute(process.execPath,
+    [cli, '--profile', 'headless', '--patch', 'runtime/dsh/headless-smoke.patch.yml', '--json',
+      'Compile the bounded pseudocode.'],
+    { cwd: repo, env: { PATH: process.env.PATH ?? '/usr/bin:/bin', HOME: process.env.HOME ?? home,
+      DSH_HOME: home, TELEPATHY_DSH_ARCHIVE: path.join(home, 'algorithms'),
+      TELEPATHY_DSH_TEST_ALLOW_UNSAFE_ARCHIVE: '1', TELEPATHY_DSH_LLM_MODULE: llmModule,
+      TELEPATHY_DSH_MOCK_COMPILE_SOURCE: source, TELEPATHY_DSH_WORKSPACE: repo } });
+  const events = stdout.trim().split('\n').map(line => JSON.parse(line));
+  const tool = events.find(row => row.type === 'tool_result' && row.callId === 'algorithm-compile-smoke');
+  assert.equal(tool?.status, 'completed');
+  assert.deepEqual(JSON.parse(tool.result), compileAlgorithmText(source));
+  assert.equal(events.at(-1)?.type, 'final');
+});
 
 test('keyless DSH session runs, scores, selects and pins a new session', async t => {
   const cli = process.env.TELEPATHY_DSH_CLI_BIN;

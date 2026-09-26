@@ -9,7 +9,7 @@ const DIGEST = /^[a-f0-9]{64}$/;
 const FILE_TOOLS = new Set(['read', 'read_image', 'write', 'edit']);
 const ALLOWED_TOOLS = new Set([
   ...FILE_TOOLS,
-  'algorithm_active', 'algorithm_run',
+  'algorithm_active', 'algorithm_run', 'algorithm_compile',
   'algorithm_execute', 'task_plan',
 ]);
 const CONTROL_SEGMENTS = new Set([

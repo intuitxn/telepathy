@@ -657,6 +657,21 @@ export function createTool(settings) {
   };
 }
 
+export function createCompileTool() {
+  return {
+    name: 'algorithm_compile',
+    description: 'Compile one bounded recurrence pseudocode text into deterministic one-file Bend. Return exact source and digests or source-position diagnostics. This does not execute or score the algorithm.',
+    parameters: { type: 'object', additionalProperties: false, required: ['source_text'],
+      properties: { source_text: { type: 'string', maxLength: 16 * 1024 } } },
+    output: { schema: { type: 'object', additionalProperties: true },
+      render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
+    execute: async args => {
+      const { compileAlgorithmText } = await import('./algorithm-language.mjs');
+      return compileAlgorithmText(args?.source_text);
+    },
+  };
+}
+
 export function createScoreTool(settings) {
   return {
     name: 'algorithm_score',
@@ -722,7 +737,7 @@ export const name = 'telepathy-algorithm-core';
 export const inject = ['tools'];
 export function apply(ctx, config = {}) {
   archiveLocation({});
-  const tools = [createTool(), createActiveTool(), createExecuteTool()];
+  const tools = [createTool(), createCompileTool(), createActiveTool(), createExecuteTool()];
   if (config.mode === 'headless-smoke') {
     // The separate keyless smoke patch deliberately has no task grants. This
     // mode must never be configured by the production release patch.

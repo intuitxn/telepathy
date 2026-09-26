@@ -25,6 +25,7 @@ const MAX_VIEW_ITEMS = 64;
 // are tied to task-control evaluation/integration reservations.
 const ALGORITHM_CALLS = Object.freeze({
   algorithm_run: Object.freeze({ fuel: 60, max_wall_ms: 60_000 }),
+  algorithm_compile: Object.freeze({ fuel: 1, max_wall_ms: 0 }),
   algorithm_execute: Object.freeze({ fuel: 60, max_wall_ms: 60_000 }),
   algorithm_active: Object.freeze({ fuel: 1, max_wall_ms: 0 }),
 });

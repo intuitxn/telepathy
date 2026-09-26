@@ -7,7 +7,6 @@ import os from 'node:os';
 import path from 'node:path';
 import { TextDecoder } from 'node:util';
 import { fileURLToPath } from 'node:url';
-import { runCandidate } from './core.mjs';
 
 const sha256 = value => createHash('sha256').update(value).digest('hex');
 const IDENT = '[a-z][a-z0-9_]{0,31}';
@@ -254,6 +253,7 @@ async function cli(args) {
       try {
         const generated = 'algorithm.bend';
         await writeFile(path.join(workspaceRoot, generated), compiled.bend_source, { flag: 'wx', mode: 0o600 });
+        const { runCandidate } = await import('./core.mjs');
         const receipt = await runCandidate({ source: generated, source_sha256: compiled.bend_sha256,
           predict_check_pass: true, predict_build_pass: true,
           cases: [{ name: 'simulation', args: [count], predicted_stdout: result.stdout }],

@@ -19,14 +19,24 @@ admits multiple interpretations, preserve alternatives as separate candidates.
 Do not turn an author claim or retrieved memory into an acceptance criterion.
 Keep one candidate in one self-contained `.bend` file when possible.
 
+For a recurrence with at most eight natural-number state fields and 128 steps,
+write one bounded algorithm text using `algorithm`, `state`, `step`, and
+`return`. Expressions admit literals, prior state fields, `tick`, `add`,
+saturating `sub`, and `if_lt`. Call the funded `algorithm_compile` tool with
+the exact text. Resolve any returned diagnostics, then write its exact
+`bend_source` to a `.bend` file with the scoped file tool. Use its
+`bend_sha256` for `algorithm_run`. This translation is executable syntax,
+not evidence that the algorithm's claim is correct. For other algorithms,
+write the one-file Bend source directly.
+
 Implement pure `init`, `step`, `fold`, or `run` definitions as needed.
 Use `main -> IO(Unit)` for a bounded command-line batch driver. The hot loop
 belongs in the compiled Bend binary; do not call a model for every simulated
 step. A logical event sequence or fuel is simulation time; wall time, tokens,
 CPU, and money are distinct costs.
 
-Read the installed `bend guide` and check `bend version`; this repository's
-verified compiler is Bend 2.0.21. The file precedes flags:
+In an operator shell, read the installed `bend guide` and check `bend version`;
+this repository's verified compiler is Bend 2.0.21. The file precedes flags:
 
 ```sh
 BEND_NO_TELEMETRY=1 bend path/to/candidate.bend --check-only
@@ -34,7 +44,8 @@ BEND_NO_TELEMETRY=1 bend path/to/candidate.bend -o /tmp/candidate-binary
 ```
 
 Require exit zero and `All terms check.`, then run independently specified
-cases. Named laws prove only their written statements. In Bend, passing both
+cases. Funded DSH agents use `algorithm_run` for this check and native run;
+their shell tool is disabled. Named laws prove only their written statements. In Bend, passing both
 recursive branches to `Bool.pick` can duplicate the traversal; bind the
 recursive tail once and measure longer inputs. A budget should limit work,
 not merely truncate an already computed output.

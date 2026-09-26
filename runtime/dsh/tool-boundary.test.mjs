@@ -46,6 +46,7 @@ test('model file tools are confined to canonical source paths and all other tool
   assert.equal(boundary.guard(call(root, 'edit', 'runtime/core/kernel.bend')), undefined);
   assert.equal(boundary.guard(call(root, 'read_image', 'runtime/core/kernel.bend')), undefined);
   assert.equal(boundary.guard(call(root, 'algorithm_run', 'runtime/core/kernel.bend')), undefined);
+  assert.equal(boundary.guard(call(root, 'algorithm_compile', 'runtime/core/kernel.bend')), undefined);
   for (const name of ['bash', 'run_code', 'glob', 'grep', 'web_fetch', 'web_search',
     'workflow', 'subagent', 'subagent_fork', 'job_output', 'load_skill',
     'algorithm_score', 'algorithm_select', 'unknown']) {

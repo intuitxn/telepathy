@@ -17,11 +17,16 @@ class AlgorithmMockAdapter extends LlmAdapter {
     let call;
     let answer;
     if (!toolText) {
-      call = { name: 'algorithm_active', id: 'algorithm-active-smoke', args: {} };
+      call = process.env.TELEPATHY_DSH_MOCK_COMPILE_SOURCE
+        ? { name: 'algorithm_compile', id: 'algorithm-compile-smoke',
+          args: { source_text: process.env.TELEPATHY_DSH_MOCK_COMPILE_SOURCE } }
+        : { name: 'algorithm_active', id: 'algorithm-active-smoke', args: {} };
     } else {
       let result;
       try { result = JSON.parse(toolText); } catch { result = {}; }
-      if (result.session_id && Object.hasOwn(result, 'active')) {
+      if (process.env.TELEPATHY_DSH_MOCK_COMPILE_SOURCE && Object.hasOwn(result, 'ok')) {
+        answer = `Algorithm compilation complete: ${result.bend_sha256 ?? 'diagnostics'}`;
+      } else if (result.session_id && Object.hasOwn(result, 'active')) {
         let args;
         try { args = JSON.parse(process.env.TELEPATHY_DSH_MOCK_CASE_ARGS ?? '["batch","1"]'); } catch { args = ['batch', '1']; }
         if (process.env.TELEPATHY_DSH_MOCK_EXECUTE === '1') {
