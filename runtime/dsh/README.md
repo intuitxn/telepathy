@@ -28,6 +28,8 @@ node runtime/dsh/algorithm-language.mjs score RECEIPT_ID RECEIPT_SHA256
 
 In a funded DSH algorithm session, `algorithm_compile` accepts the same bounded text and up to 16 distinct step counts. It returns deterministic Bend source, both source digests, diagnostics, and in-process simulation outputs after one source parse. The agent can write those exact Bend bytes with its scoped file tool, then call `algorithm_run` with the returned Bend digest and an explicit prediction. Compilation and batched simulation consume one grant fuel unit. They do not run native Bend or score correctness.
 
+For editor feedback on `.algo` files, run `node runtime/dsh/algorithm-lsp.mjs` as a stdio language server. It uses the same bounded compiler diagnostics and supports full-document changes, completion, keyword hover, and state definitions. It does not execute or score candidate code.
+
 `node benchmarks/algorithm-language/run.mjs 10000 128` measures compile throughput, simulation with a fresh parse, and repeated simulation of a prepared program on the current machine. It verifies identical outputs and reports elapsed time without a machine-specific pass threshold.
 
 The production route in `cordis.patch.yml` is `deepseek-official/deepseek-flash` (DeepSeek V4.1 Flash). Provide `DEEPSEEK_API_KEY` only in the private host process environment after the model tool boundary has been checked. Do not put a reusable key in a model-readable DSH credential file. No key belongs in this repository. OpenCode Go / Muse Spark is an isolated coding contributor, not the DSH model route. A live DeepSeek API turn has not been run or verified here because no DeepSeek API credential was available. The keyless DSH tests below do not establish live API behavior.
