@@ -2,7 +2,8 @@
 // Compilation is pure: the caller owns the source file, generated Bend file,
 // and all admission, execution, and scoring decisions.
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { TextDecoder } from 'node:util';
@@ -16,6 +17,17 @@ const MAX_STATES = 8;
 const MAX_STEPS = 128;
 const MAX_NODES = 64;
 const MAX_DEPTH = 8;
+
+function sourceWorkspaceRoot(sourceFile) {
+  const sourceDirectory = path.dirname(sourceFile);
+  let current = sourceDirectory;
+  for (;;) {
+    if (existsSync(path.join(current, '.jj'))) return current;
+    const parent = path.dirname(current);
+    if (parent === current) return sourceDirectory;
+    current = parent;
+  }
+}
 
 function diagnostic(line, start, end, code, message) {
   return { range: { start: { line, character: start }, end: { line, character: Math.max(start + 1, end) } },
@@ -242,7 +254,8 @@ async function cli(args) {
     return;
   }
   try {
-    const bytes = await readFile(sourcePath);
+    const exactSourcePath = await realpath(sourcePath);
+    const bytes = await readFile(exactSourcePath);
     if (bytes.length > MAX_BYTES) throw new Error(`source exceeds ${MAX_BYTES} bytes`);
     const source = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
     if (command === 'simulate' || command === 'run') {
@@ -266,7 +279,10 @@ async function cli(args) {
         const receipt = await runCandidate({ source: generated, source_sha256: compiled.bend_sha256,
           predict_check_pass: true, predict_build_pass: true,
           cases: [{ name: 'simulation', args: [count], predicted_stdout: result.stdout }],
-        }, { workspaceRoot, timeoutMs: 60_000, bendBin: process.env.BEND ?? process.env.BEND_BIN });
+        }, { workspaceRoot, archiveGuardRoots: [process.cwd(), path.dirname(exactSourcePath),
+          sourceWorkspaceRoot(exactSourcePath),
+          ...(process.env.TELEPATHY_DSH_WORKSPACE ? [process.env.TELEPATHY_DSH_WORKSPACE] : [])],
+        timeoutMs: 60_000, bendBin: process.env.BEND ?? process.env.BEND_BIN });
         const observed = receipt.observation?.cases?.[0];
         process.stdout.write(`${JSON.stringify({ source_sha256: compiled.source_sha256,
           bend_sha256: compiled.bend_sha256, steps, predicted_stdout: result.stdout,

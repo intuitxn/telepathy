@@ -64,9 +64,15 @@ function archiveLocation(settings) {
     ?? path.join(process.env.DSH_HOME ?? path.join(os.homedir(), '.local', 'state', 'telepathy-dsh'), 'algorithms'));
   if (process.env.TELEPATHY_DSH_TEST_ALLOW_UNSAFE_ARCHIVE !== '1') {
     const archive = canonicalLocation(location);
-    const workspace = canonicalLocation(settings.workspaceRoot ?? process.env.TELEPATHY_DSH_WORKSPACE ?? process.cwd());
+    const extraRoots = settings.archiveGuardRoots ?? [];
+    if (!Array.isArray(extraRoots) || extraRoots.length > 8 ||
+        extraRoots.some(root => typeof root !== 'string' || !path.isAbsolute(root))) {
+      throw new Error('archive guard roots must be up to eight absolute paths');
+    }
+    const workspaces = [settings.workspaceRoot ?? process.env.TELEPATHY_DSH_WORKSPACE ?? process.cwd(),
+      ...extraRoots].map(canonicalLocation);
     const temporaryRoots = [os.tmpdir(), '/tmp', '/var/tmp'].map(canonicalLocation);
-    if ([workspace, ...temporaryRoots].some(root => contained(root, archive))) {
+    if ([...workspaces, ...temporaryRoots].some(root => contained(root, archive))) {
       throw new Error('algorithm archive must be outside the workspace and sandbox-writable temporary roots');
     }
   }

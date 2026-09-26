@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -119,6 +119,24 @@ test('one-file CLI runs native Bend against its prediction and retains an exact 
     await rm(workspaceRoot, { recursive: true, force: true });
     await rm(archiveRoot, { recursive: true, force: true });
   }
+});
+
+test('operator CLI rejects an archive inside the original pseudocode workspace', async t => {
+  const workspaceRoot = await mkdtemp(path.join(os.homedir(), '.telepathy-algorithm-archive-guard-'));
+  t.after(() => rm(workspaceRoot, { recursive: true, force: true }));
+  await mkdir(path.join(workspaceRoot, '.jj'));
+  await mkdir(path.join(workspaceRoot, 'nested'));
+  const sourcePath = path.join(workspaceRoot, 'nested', 'service_queue.algo');
+  const archiveRoot = path.join(workspaceRoot, 'archive');
+  await writeFile(sourcePath, source);
+  const env = { ...process.env, TELEPATHY_DSH_ARCHIVE: archiveRoot };
+  delete env.TELEPATHY_DSH_TEST_ALLOW_UNSAFE_ARCHIVE;
+  const run = spawnSync(process.execPath,
+    [path.resolve('runtime/dsh/algorithm-language.mjs'), 'run', sourcePath, '3'],
+    { encoding: 'utf8', cwd: path.resolve('.'), env });
+  assert.equal(run.status, 1);
+  assert.match(run.stderr, /archive must be outside the workspace/);
+  assert.equal(existsSync(archiveRoot), false);
 });
 
 test('generated one-file Bend is checked and executed by the existing pinned receipt path', async t => {
