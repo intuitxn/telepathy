@@ -41,8 +41,7 @@ Turn a job's checkable claims into Bend definitions, laws, and proofs over data.
 
 ## Workflow
 
-1. Confirm the job is accepted (owner, reviewer, acceptance criteria). No
-   accepted job → no proof work.
+1. Confirm the request is authorized and has a checkable claim, scope, and acceptance criteria.
 2. Draft `PROOF.bend` from the kernel template (`docs/designs/agit-in-bend.md`
    §1–§6); add job-specific laws only for claims reducible to bytes/bits.
    Anything requiring judgment stays a human check, stated as such.
@@ -78,20 +77,6 @@ under test. Parallel jobs each get their own forge agent and their own
 proof file; never share a `PROOF.bend` across jobs. `bend-forge` agents
 never spawn acceptors, mergers, or publishers.
 
-## The harness today
+## Current source boundary
 
-Use the host's configured model; these charters do not pin a provider.
-The native path is standard OpenCode, Buzz and Bend:
-
-- **Optional Desk engine** (`runtime/desk`): `npm run desk -- help`. SQLite ledger for jobs,
-  artifacts, outbox, cursors.
-- **Execution:** standard OpenCode directly, including native ACP for Buzz;
-  no oc2 fork or workspace service is required to check or run Bend locally.
-- **Bend invocation:** always `BEND_NO_TELEMETRY=1
-  /Users/a3fckx/.bend/bin/bend` (absolute path, telemetry off). Reference
-  kernel: `docs/designs/agit-in-bend.md` (§1–§6).
-- **Job lifecycle:** `Proposed -> Ready -> Active -> Waiting -> Review -> Resolved | Cancelled`.
-  A job needs owner, repository, runtime, request, acceptance; optional context
-  files are snapshotted with sha256.
-- **Boundary:** agents draft, humans accept. No agent accepts its own artifact,
-  resolves a job, publishes, or sends externally.
+This retained OpenCode charter can help author or review Bend candidates. The current executable candidate is [`runtime/core/telepathy.bend`](../../runtime/core/telepathy.bend); the [DSH host](../../runtime/dsh/README.md) owns grants, source archives, independent evaluation, and exact-revision adoption. Use `make check` for the current one-file core and benchmark, and record the full jj commit. The historical `PROOF.bend` conventions above apply only when a task explicitly targets that proof artifact; they do not install a Desk job or select an algorithm revision. Follow [AUTONOMY.md](../../runtime/AUTONOMY.md) and keep human acceptance distinct from a passing checker.

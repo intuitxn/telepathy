@@ -5,15 +5,8 @@
   "engines": {
     "node": ">=22.13.0"
   },
-  "workspaces": [
-    "runtime/desk"
-  ],
   "scripts": {
-    "setup": "node runtime/desk/src/setup.js",
-    "doctor": "node runtime/desk/src/cli.js doctor",
-    "desk": "node runtime/desk/src/cli.js",
-    "opencode": "node runtime/desk/src/cli.js opencode",
-    "test": "node --test runtime/desk/test/*.test.js",
-    "check": "npm test"
+    "test": "node scripts/check.mjs",
+    "check": "node scripts/check.mjs"
   }
 }

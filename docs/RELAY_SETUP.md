@@ -1,8 +1,8 @@
-# Buzz relay setup
+# Buzz relay setup record
 
-Setup verified on 2026-09-06, as recorded in the supplied relay setup report.
+This is a historical record of the relay setup verified on 2026-09-06. It does not establish current membership, channel health, a running watcher, or DSH intake. Inspect the relay through an authorized owner-controlled Buzz host before acting on these identifiers.
 
-## Channels and members
+## Channels and members observed
 
 | Channel | UUID |
 | --- | --- |
@@ -10,42 +10,13 @@ Setup verified on 2026-09-06, as recorded in the supplied relay setup report.
 | sansara | `ecf97ed6-34d5-439a-967b-abe9bdd37e41` |
 | iktara | `78fedf61-f8e2-43df-9413-37d98d6a430a` |
 | intuitxn-general | `e81a4ea1-af2f-4488-83c6-eb66ce7ea5df` |
-| changelog | `f739c450-3461-46cc-88a1-f70ac5cfcaa0` (recreated 2026-09-08 after the relay lost the original) |
+| changelog | `f739c450-3461-46cc-88a1-f70ac5cfcaa0` (recreated 2026-09-08) |
 | shared-files | `174fceae-85e5-4bd4-8959-71a8ce8a2c8e` |
 
-Shubham, Om, Kush, and the telepathy bot are members of all six channels.
-Channel canvases are set on telepathy, changelog, and shared-files.
+The report recorded Shubham, Om, Kush, and the telepathy bot as members of all six channels, with canvases on telepathy, changelog, and shared-files. It also recorded three NIP-MP projects, one JTBD workflow, and seven shared-file notes. These are observations from that date, not current verification or an instruction to redeploy the workflow.
 
-## Projects, workflow, and knowledge base
+## Retired intake
 
-- NIP-MP projects: telepathy, sansara, iktara.
-- JTBD workflow: `db7464aa-b895-4985-bed4-1f9821aa25a4`, on the telepathy channel.
-- Seven shared-file notes in the knowledge base: product, sop, changelog,
-  agent-map, harness-state, meta-agent-registry, program-telepathy.
+The earlier Desk watcher read `.local/config.json`, polled channels, and admitted `/intuitxn` JSON requests into its own ledger. That source path and its root npm commands are retired. An installed old service may still have private state; preserve it during migration. A Buzz thread does not automatically become a DSH task or accepted knowledge.
 
-## Desk intake
-
-The local desk reads the channel UUIDs in `.local/config.json` under `channels`;
-configure all six above for this setup. `authorizedPubkeys` controls whose
-requests can be imported. `npm run desk -- poll` reads each configured channel
-once; `npm run desk -- watch` repeats at the configured `pollSeconds` interval.
-Intake starts at `since`, then uses per-channel cursors with a one-second overlap
-and deduplicates by channel and source event ID.
-
-A request starts with `/intuitxn ` followed by JSON, for example:
-
-```text
-/intuitxn {"request":"Update the onboarding guide","acceptance":"Guide covers all six channels and links resolve","repository":0,"runtime":"codex"}
-```
-
-`request` and `acceptance` are required. `repository` selects a zero-based entry
-in the configured repository list (default 0); optional `runtime` selects
-`codex` or `opencode`, otherwise the desk default applies. Ordinary conversation
-does not create jobs. Polling queues requests for an operator to run; it does
-not execute jobs or publish replies automatically. Candidates and checks still
-need human review and acceptance.
-
-## Repository context
-
-See the [README](../README.md), [product contract](../PRODUCT.md),
-[project model](PROJECTS.md), and [system index](INDEX.md).
+The current [DSH resident ingress](../runtime/dsh/README.md#funded-research-task-program) accepts local, host-submitted research or analysis requests against reviewed profiles. It does not poll Buzz. See [Telepathy setup](../BUZZ_SETUP.md), the [product contract](../PRODUCT.md), and the [system index](INDEX.md) for the current boundaries.

@@ -1,15 +1,15 @@
 # Retained findings and next experiments
 
-This is agent-authored project memory, not a training update or a proof receipt.
-Read it before proposing changes; recheck claims against the current source.
+This is historical agent-authored project memory, not a training update or a
+proof receipt. Recheck its claims against the current source before reuse. The
+active algorithm path is the [DSH machine](../dsh/README.md).
 
-## Current direction: Buzz native, Bend executable logic
+## Historical direction: Buzz native, Bend executable logic
 
-The user chose Buzz's existing memory, ACP agent harness and ordinary workflow
-DSL instead of an additional JavaScript runtime. The custom registry, lifecycle,
-sync, maintenance and delegation code is now retired. Use
-[BUZZ.md](../worker/BUZZ.md) and direct Bend commands. Offline test/scoring tools
-remain available; this is not a rewrite of Buzz itself into Bend.
+The earlier build used Buzz memory, ACP agent harness, and ordinary workflow
+DSL with direct Bend commands. Its source and findings remain useful historical
+evidence. New task grants, evaluation, and learning use the DSH host contract;
+[BUZZ.md](../worker/BUZZ.md) records the retired route.
 
 The installed Buzz 0.5.23 exposes `mem ls/get/set/hash/patch/rm`; its ACP harness
 injects core memory by default. Other slugs require explicit retrieval. Bend

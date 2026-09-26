@@ -1,16 +1,14 @@
-# One-file adaptive Bend system
+# Historical one-file adaptive Bend experiment
 
-`system.bend` is the single executable Bend core. It contains algorithms,
+This is a retained experiment, not the active Telepathy algorithm or a DSH task entry point. The checked current candidate is [`runtime/core/telepathy.bend`](../core/telepathy.bend); use the [DSH guide](../dsh/README.md) for the funded host path. The commands below examine this historical file locally and do not install or select it.
+
+`system.bend` was the standalone executable Bend experiment. It contains algorithms,
 problem representations, proofs, surprise/intervention experiments, revision
 evidence, compatible-block lookup, native file persistence, and reporting.
 Bend 2.0.21 and its Base library are runtime dependencies; Git is an external
 recording tool. There is no Python host.
 
-For cross-harness worker coordination, use the packaged
-[one-file Lorenz worker](../worker/README.md) through [/meta agents](META.md).
-[Buzz's native memory and agent harness](../worker/BUZZ.md) provide the host
-facilities. The custom JavaScript runtime stack is retired; see
-[HARNESS.md](HARNESS.md) for the historical implementation and preserved state.
+The earlier [Lorenz worker](../worker/README.md) and [`/meta agents` route](META.md) are historical. The custom JavaScript runtime stack was retired; see [HARNESS.md](HARNESS.md) for its implementation record and preserved state.
 
 ## Run and reuse after restart
 
@@ -58,8 +56,8 @@ and the Bend toolchain; the local link does not distribute files or evidence.
 This is an instruction workflow, not an enforced hook or a network service.
 
 This adaptive example and the separate [memory-only core](../lorenz/README.md)
-remain available for reproducing prior experiments. The current worker path
-uses direct Bend commands and Buzz native memory, without a Node service.
+remain available for reproducing prior experiments. Their direct Bend and Buzz
+workflow is historical; current funded tasks use the [DSH host](../dsh/README.md).
 The [transfer experiment](../evaluation/README.md) measures reuse on new inputs
 with no-memory and always-exact controls; it does not establish LLM learning.
 

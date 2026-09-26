@@ -1,6 +1,7 @@
 #!/bin/sh
 # Set up the Intuitxn programs on the Buzz relay: channels, NIP-MP projects, members,
-# canvases, shared-file notes, and the JTBD workflow.
+# canvases, and shared-file notes. This optional relay setup is outside the
+# local DSH task machine and does not create an agent intake or approval gate.
 #
 # The repo's programs/*.md and scripts/* are the source of truth; this script creates the
 # relay objects they describe. Idempotent: existing channels/projects are left alone,
@@ -40,13 +41,13 @@ channel_uuid() { # channel_uuid <name>
 ensure_channel() { # ensure_channel <name> <type>
   uuid="$(channel_uuid "$1")"
   if [ -n "$uuid" ]; then
-    echo "channel $1 exists: $uuid"
+    echo "channel $1 exists: $uuid" >&2
   else
-    echo "creating channel $1 ($2)..."
+    echo "creating channel $1 ($2)..." >&2
     "$buzz_bin" channels create --name "$1" --type "$2" --visibility open >/dev/null
     uuid="$(channel_uuid "$1")"
     if [ -z "$uuid" ]; then echo "failed to create channel $1" >&2; exit 1; fi
-    echo "created channel $1: $uuid"
+    echo "created channel $1: $uuid" >&2
   fi
   echo "$uuid"
 }
@@ -121,23 +122,15 @@ while IFS='|' read -r name title tag path; do
   publish_note "$name" "$title" "$tag" "$path"
 done < "$script_dir/shared-files.list"
 
-# JTBD workflow on the telepathy channel (non-fatal: schema may need a first tweak)
-if [ -f "$script_dir/jtbd-workflow.yaml" ]; then
-  if "$buzz_bin" workflows create --channel "$t_channel" --yaml "$(cat "$script_dir/jtbd-workflow.yaml")" >/dev/null 2>&1; then
-    echo ""
-    echo "workflow jtbd created on channel telepathy"
-  else
-    echo "workflow create failed (check schema) — continuing; channels and projects are unaffected" >&2
-  fi
-fi
+# The historical JTBD workflow used request_approval, which the inspected
+# upstream engine returned as approval_not_supported. It is not deployed here.
 
 echo ""
 echo "Publish the telepathy code to the relay (run once, then push over NIP-98):"
 echo "  $buzz_bin repos create --id telepathy --clone <relay>/git/<your-pubkey>/telepathy"
-echo "  git -C '$repo_dir' remote add buzz <relay>/git/<your-pubkey>/telepathy"
-echo "  git -C '$repo_dir' push -u buzz main"
+echo "  jj -R '$repo_dir' git remote add buzz <relay>/git/<your-pubkey>/telepathy"
+echo "  jj -R '$repo_dir' git push --remote buzz --bookmark main"
 
 echo ""
-echo "Copy these into $repo_dir/.local/config.json (desk intake = program channels only):"
-echo "  \"channels\": [\"$t_channel\", \"$s_channel\", \"$i_channel\"],"
-echo "  \"authorizedPubkeys\": [\"$owner_pubkey\"$([ $# -gt 0 ] && printf ', \"%s\"' "$@")],"
+echo "Desk intake and .local/config.json are retired. DSH ingress uses reviewed"
+echo "task profiles and private state; see runtime/dsh/README.md."

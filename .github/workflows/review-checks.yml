@@ -1,0 +1,74 @@
+name: Review checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: review-checks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Repository checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install workspace dependencies
+        run: npm ci --ignore-scripts
+      - name: Install pinned jj 0.45.1
+        run: sh scripts/install-jj-ci.sh
+      - name: Check jj installation
+        run: jj --version
+      - name: Install pinned Bend 2.0.21
+        run: sh scripts/install-bend-ci.sh
+      - name: Install Linux native sandbox
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends bubblewrap
+          bwrap --version
+          # Ubuntu's AppArmor user namespace setting can block isolated loopback
+          # setup. This changes only the disposable, secret-free CI runner.
+          if [ "$(sysctl -n kernel.unprivileged_userns_clone 2>/dev/null || true)" = 0 ]; then
+            sudo sysctl -w kernel.unprivileged_userns_clone=1
+          fi
+          if [ "$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || true)" = 1 ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+          bwrap --unshare-all --ro-bind / / -- /bin/true
+      - name: Build pinned DeepSeek Harness
+        run: |
+          dsh_checkout="$RUNNER_TEMP/deepseek-harness"
+          git clone https://github.com/deepseek-ai/deepseek-harness.git "$dsh_checkout"
+          git -C "$dsh_checkout" checkout --detach 477b4f420553e8a52c2fbccc464d7561b239c443
+          test "$(git -C "$dsh_checkout" rev-parse HEAD)" = 477b4f420553e8a52c2fbccc464d7561b239c443
+          npx -y pnpm@11.7.0 --dir "$dsh_checkout" install --frozen-lockfile
+          npx -y pnpm@11.7.0 --dir "$dsh_checkout" run build:lib:host
+          npx -y pnpm@11.7.0 --dir "$dsh_checkout" run build:native-system
+          printf 'TELEPATHY_DSH_CLI_BIN=%s/apps/cli/lib/bin.js\n' "$dsh_checkout" >> "$GITHUB_ENV"
+          printf 'TELEPATHY_DSH_LLM_MODULE=%s/packages/llm/llm/lib/index.js\n' "$dsh_checkout" >> "$GITHUB_ENV"
+      - name: Check DSH sessions, Bend core, and independent benchmarks
+        run: node scripts/check.mjs --require-dsh
+      - name: Check program gate and runtime
+        working-directory: runtime/programs
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 -m unittest test_programs test_v11
+      - name: Install site dependencies
+        run: npm --prefix site ci
+      - name: Check site
+        run: npm --prefix site run check

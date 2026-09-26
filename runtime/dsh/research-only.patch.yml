@@ -1,0 +1,4 @@
+# Loaded after cordis.patch.yml by the bounded research host. Research grants
+# carry no Bend execution authority, so remove the algorithm tool service.
+- id: telepathy-algorithm-core
+  disabled: true

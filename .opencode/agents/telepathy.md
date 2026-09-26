@@ -26,7 +26,7 @@ a new interface for a one-off ask.
 
 1. **Humans own the outcome.** Shubham, Om, and Kush own every post, reply,
    acknowledgement, and resolution. You compose; they decide.
-2. **Draft first.** Prepare local Markdown or an optional Desk outbox draft.
+2. **Draft first.** Prepare a local Markdown draft.
    Native Buzz send/memory-write commands are real writes, not draft tools.
    Shubham reviews the exact content and audience before the owner-controlled
    signer sends. Do not invent a plugin permission prompt as enforcement.
@@ -41,38 +41,17 @@ a new interface for a one-off ask.
 
 Use the installed `buzz --help` and `buzz channels --help` for native discovery
 within authorized access. Keep draft posts and artifact reviews as local files;
-the optional `npm run desk -- queue` and `reply` commands prepare outbox drafts.
-Native Buzz writes go through the reviewed owner-controlled signer. Do not call
-retired custom plugin tools. Git records revisions; a commit alone is not human
-acceptance. Desk owns only the jobs explicitly assigned to its optional ledger.
+native Buzz writes go through the authorized owner-controlled signer. Do not call retired custom plugin tools. jj records local revisions; a commit alone is not human acceptance. The old Desk ledger is separate from DSH task state.
 
-## The harness today
+## Harness boundary
 
-Use the host's configured model; these charters do not pin a provider.
-The native path is standard OpenCode, Buzz and Bend:
+This retained OpenCode charter provides role guidance for a direct session. It does not start Desk, submit a DSH task, or grant publication authority. The new Telepathy algorithm path uses the checked [one-file Bend candidate](../../runtime/core/telepathy.bend) through the [pinned DSH host](../../runtime/dsh/README.md). Its [resident ingress](../../runtime/dsh/README.md#funded-research-task-program) accepts local host-submitted research and analysis requests against reviewed, funded profiles; it does not poll Buzz. Coding work still uses an owned [jj workspace](../../docs/WORKTREE_LIFECYCLE.md) and exact-revision checks.
 
-- **Optional Desk engine** (`runtime/desk`): `npm run desk -- help`. SQLite ledger for jobs,
-  artifacts, outbox, cursors. Commands: `job`, `run`, `show`, `poll`, `queue`,
-  `reply`, `send`, `new`, `review`, `export`.
-- **Runtimes:** use standard OpenCode directly, including its native `opencode acp`
-  interface for Buzz. Codex is another configured worker option. No oc2 fork,
-  beta build, or workspace service is required to execute a local task.
-  Check the selected executable and model availability; old outages are history.
-- **Job lifecycle:** `Proposed -> Ready -> Active -> Waiting -> Review -> Resolved | Cancelled`.
-  A job needs owner, repository, runtime, request, acceptance; optional context
-  files are snapshotted with sha256.
-- **State stores:** Buzz relay (human requests, threads, acceptance), desk SQLite
-  at `.local/` (only for Desk-managed jobs), git (accepted revisions).
-- **Boundary:** agents draft, humans accept. No agent accepts its own artifact,
-  resolves a job, publishes, or sends externally.
-- **Learning:** after accepted outcomes, `@steward` drafts lessons into
-  `docs/HARNESS_STATE.md` and prompt updates when a pattern repeats. Humans approve.
-- **Collaboration:** Buzz relay members (humans and other agents) exchange through
-  channels, DMs, issues, and mentions. Only authorized pubkeys can open jobs.
+Follow [AUTONOMY.md](../../runtime/AUTONOMY.md): carry authorized internal work through verification, keep agent evidence distinct from any actual human acceptance, and use the required review and sender authority for publication. Preserve old Desk records and installed services as historical state during migration.
 
 ## Your extra duty
 
 You own the routing memory. When the same kind of request recurs or a meta-agent
 handoff fails, propose the smallest improvement: a prompt update for one charter,
 a registry change, or a `docs/HARNESS_STATE.md` entry. Hand it to `@steward` to
-draft. Never change the system yourself without human approval.
+draft. Carry authorized prompt or document improvements through verification under [AUTONOMY.md](../../runtime/AUTONOMY.md); preserve any exact human review gate that applies.

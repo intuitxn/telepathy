@@ -1,4 +1,6 @@
-# Mundus Bend kernel: native Lorenz worker protocol
+# Historical Mundus Bend worker protocol
+
+This file describes the retained Lorenz worker source and its earlier tests. It is not the new algorithm entry point and is not selected by the DSH release gate. The current checked candidate is [`runtime/core/telepathy.bend`](../core/telepathy.bend), with task grants and independent settlement in the [DSH host](../dsh/README.md). Operational cutover from any installed legacy worker remains a separate migration step.
 
 `system.bend` packages the other development checkout's one-file Lorenz worker
 implementation without changing it. SHA-256:
@@ -31,10 +33,8 @@ reuse in a subsequent packet read by a fresh Bend process. Parent and child
 model costs are recorded separately. This demonstrates protocol execution;
 it does not measure an independent second LLM improving from that memory.
 
-Use [Buzz native memory and agents](BUZZ.md), [/meta agents](../adaptive/META.md)
-from OpenCode, or follow the same protocol from Codex. No custom JavaScript
-runtime adapter is needed. One coordinator owns each immutable snapshot lineage. Workers perform
-concrete authorized tasks in their host harness and return evidence; the
+The earlier [Buzz memory guide](BUZZ.md) and [`/meta agents` route](../adaptive/META.md) record how this source was used. One coordinator owns each immutable
+snapshot lineage. Workers perform concrete authorized tasks in their host harness and return evidence; the
 coordinator evaluates results before explicitly selecting memories with `learn`.
 The runtime does not itself judge those results or train model weights.
 

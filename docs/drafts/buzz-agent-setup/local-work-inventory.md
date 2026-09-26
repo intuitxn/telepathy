@@ -2,6 +2,10 @@
 
 Status: engineering inventory, 22 September 2026. Intended for maintainers reviewing
 which local changes to integrate; not a company announcement or proof of deployment.
+The `runtime/programs/retrieval/` paths below are historical observations from
+that checkout. The multi-file spike was later retired from active runtime;
+its exact source is preserved in jj revision
+`a19b016847a1a2b5551d75c55a4b18f0e2f222ec`.
 
 The original checkout is `/Users/a3fckx/Desktop/Attri/telepathy`. It contains other
 agents' uncommitted work. The release checkout is

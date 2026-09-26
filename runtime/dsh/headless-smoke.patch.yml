@@ -1,0 +1,22 @@
+# Keyless integration proof over the pinned DSH headless profile.
+# The mock adapter is never loaded by cordis.patch.yml.
+- id: agent-default-model
+  config:
+    provider: telepathy-mock
+    model: telepathy-mock
+
+- id: agent-loop
+  config:
+    agents:
+      - id: main
+        provider: telepathy-mock
+        model: telepathy-mock
+        cwd: !!js process.cwd()
+
+- insert:
+    - id: telepathy-algorithm-core
+      name: ./core.mjs
+      config:
+        mode: headless-smoke
+    - id: telepathy-algorithm-mock-llm
+      name: ./mock-llm.mjs

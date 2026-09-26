@@ -1,39 +1,16 @@
 # Telepathy harness
 
-## 1. What the harness is
+The harness executes algorithm candidates and keeps evidence beneath Telepathy's human product surface. People see useful context and accountable outcomes, as described in [PRODUCT.md](PRODUCT.md). The new source route is the pinned [DeepSeek Harness integration](runtime/dsh/README.md) with model `deepseek-official/deepseek-flash`. Operational cutover is pending a live credentialed run and the remaining migration gates.
 
-The harness is the job and artifact machinery below Telepathy's human product surface. It organizes execution, prepares candidate artifacts, and keeps review evidence. People see useful context and accountable outcomes, as described in the [product contract](PRODUCT.md).
+A candidate is normally one self-contained Bend file. [`runtime/core/telepathy.bend`](runtime/core/telepathy.bend) is the executable core; DSH provides sessions, scoped tools, source archives, bounded execution, and receipts. [`benchmarks/core/`](benchmarks/core/README.md) owns independent expected results and scoring. The model proposes and predicts; observation and evaluation decide what survives. A selected version affects future sessions while existing sessions keep their pin. [The algorithm harness guide](runtime/adaptive/HARNESS.md) defines the closed loop and its measurement limits.
 
-## 2. Job lifecycle
+Human Jobs still follow the [project lifecycle](docs/PROJECTS.md): `Proposed -> Ready -> Active -> Waiting -> Review -> Resolved | Cancelled`. An agent finishing a turn or passing a benchmark does not resolve a human Job. Buzz holds human requests and acceptance; private `DSH_HOME` holds algorithm sessions and receipts; jj/Git holds code revisions. Private credentials and raw transcripts do not belong in public artifacts. The website, forum, workspace service, programs, and reviewer stay separate from the local algorithm engine.
 
-Jobs follow the lifecycle in [the project model](docs/PROJECTS.md):
-
-```text
-Proposed -> Ready -> Active -> Waiting -> Review -> Resolved | Cancelled
+```sh
+npm run check       # DSH and evaluator checks, Bend when installed
+make check          # requires Bend and both benchmark suites
+make benchmark      # executable core against frozen core cases
+make integration-check # pinned DSH keyless sessions plus Bend checks
 ```
 
-An agent stopping does not mean a job is resolved. Review and human acceptance are explicit steps.
-
-## 3. Where state lives
-
-- **Buzz relay** holds human requests and acceptance.
-- **Desk SQLite in `.local/`** holds job, artifact, and outbox state.
-- **Git** holds accepted revisions.
-
-These stores keep human decisions, execution state, and accepted work traceable.
-
-## 4. Human boundary
-
-Humans remain the visible authors and accountable owners. Agents draft; humans accept. No agent may accept its own artifact, resolve a job, or send externally. The [team SOP](SOP.md) describes human review and explicit resolution.
-
-## 5. Run the harness
-
-From the repository root:
-
-```bash
-npm run setup
-npm run doctor
-npm run desk -- help
-```
-
-Use setup to prepare the local environment, doctor to check it, and Desk help to see the available commands. See the [README](README.md) for repository setup context.
+Use [OPERATE.md](OPERATE.md) for private DSH configuration, [WORKTREE_LIFECYCLE.md](docs/WORKTREE_LIFECYCLE.md) for jj recovery, and [AUTO_MERGE.md](docs/AUTO_MERGE.md) for exact revision review. A keyless DSH headless cycle is checked; a live DeepSeek API turn requires its own credential and verification.

@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "cases": [
+    { "id": "step-0", "category": "edge", "args": ["0"], "items": 1,
+      "expect": { "exit": 0, "stdout": "0\n", "stderr": "" } },
+    { "id": "step-1", "category": "behavior", "args": ["1"], "items": 1,
+      "expect": { "exit": 0, "stdout": "2\n", "stderr": "" } },
+    { "id": "step-2", "category": "behavior", "args": ["2"], "items": 1,
+      "expect": { "exit": 0, "stdout": "4\n", "stderr": "" } },
+    { "id": "step-3", "category": "saturation", "args": ["3"], "items": 1,
+      "expect": { "exit": 0, "stdout": "5\n", "stderr": "" } },
+    { "id": "step-4", "category": "saturation", "args": ["4"], "items": 1,
+      "expect": { "exit": 0, "stdout": "5\n", "stderr": "" } },
+    { "id": "step-128", "category": "boundary", "args": ["128"], "items": 1,
+      "expect": { "exit": 0, "stdout": "5\n", "stderr": "" } }
+  ]
+}

@@ -1,137 +1,28 @@
 # Agent map — Intuitxn
 
-How people, Buzz agents, Telepathy meta-agents, and execution runtimes connect,
-and how a Job To Be Done (JTBD) moves through them.
+People own Telepathy's posts, replies, decisions, and external sends. The five focused interfaces in [`plugins/telepathy-meta-agents/registry.json`](../plugins/telepathy-meta-agents/registry.json) are a product catalog, not deployed DSH agents or authenticated Buzz identities. The retained [OpenCode charters](../.opencode/agents) describe roles for direct OpenCode use; they do not start Desk or submit a DSH task.
 
-Authoritative sources: `.opencode/agents/` (charters), `plugins/telepathy-meta-agents/registry.json`
-(declarative catalog), `runtime/desk/` (job engine), `docs/PROJECTS.md` (job lifecycle).
+## Names and roles
 
-Full inventory of canonical agents, session kinds, and the numbered
-information-flow map: [`AGENT_DIRECTORY.md`](AGENT_DIRECTORY.md).
+| Name | Earlier alias | Role |
+| --- | --- | --- |
+| `@telepathy` | — | route intent |
+| `@prime` | `@atlas` | scope a request |
+| `@build` | `@forge` | implement and verify |
+| `@steward` | `@ledger` | record supported outcomes and lessons |
+| `@research` | `@scout` | prepare source-backed research |
+| `@relationships` | `@diplomat` | prepare external messages |
+| `@bend-forge` | — | write and check Bend candidates |
+| `@relay-keeper` | — | inspect host and relay health |
 
-## Canonical agent names
+Shubham sets priorities and direction; Om is an active member; Kush's onboarding was pending in the earlier roster. Buzz Desktop personas Pollen, Fizz, and Honey had proposed pairings to these roles, but no pairing is authenticated by this catalog. Check the current Buzz roster before attributing an action or message.
 
-The charters in `.opencode/agents/` are the single source of truth for agent names,
-while `plugins/telepathy-meta-agents/registry.json` catalogs five product interfaces.
-It does not register every charter or deploy a Buzz identity. Earlier aliases remain
-in historical documents; use the canonical names for new work.
+## Current machine boundary
 
-| Canonical (use this) | Retired name | JTBD |
-|---|---|---|
-| `@telepathy` | — | route |
-| `@prime` | `@atlas` | propose, scope |
-| `@build` | `@forge` | implement, verify |
-| `@steward` | `@ledger` | resolve, project, learn |
-| `@research` | `@scout` | research |
-| `@relationships` | `@diplomat` | draft-external |
-| `@bend-forge` | — | prove (Bend) |
-| `@relay-keeper` | — | infra health |
+A trusted host freezes a task, its authority and acceptance, exact jj source head, finite compute, and independent evaluator. For funded research or analysis, the [resident ingress](../runtime/dsh/README.md#funded-research-task-program) accepts a local request naming a reviewed profile and records durable status. It does not poll Buzz or run the old Desk ledger. DSH sessions propose and execute within grants; host task control admits source-linked results only after independent settlement. Bend holds the one-file algorithm computation. The integration owner combines jj changes and checks the exact resulting revision. See the [algorithm design](designs/dsh-algorithm-machine.md) and [workspace lifecycle](WORKTREE_LIFECYCLE.md).
 
-## People — visible authors, accountable owners
+The website, forum, Buzz channels, and product role catalog are separate from that task state. A thread or agent message is context, not an automatic grant or accepted finding. Existing authorization for routine internal work is governed by [`runtime/AUTONOMY.md`](../runtime/AUTONOMY.md); publication still follows its actual destination and sender authority.
 
-| Person | Role |
-|---|---|
-| Shubham | Priorities, accepted direction, owner gate |
-| Om | Active member |
-| Kush | Onboarding (invite pending) |
+## Historical Job flow
 
-People own every post, reply, acknowledgement, and resolution. Agents compose; humans decide.
-
-## Programs — Buzz projects (NIP-MP)
-
-One Buzz project per code repository, each bound to its home channel:
-
-| Program | Repository | Home channel | Owns |
-|---|---|---|---|
-| `telepathy` | telepathy | `telepathy` (stream) | Human context layer + focused interfaces |
-| `sansara` | sansara | `sansara` (stream) | Agent portal / world runtime |
-| `iktara` | iktara | `iktara` (stream) | Personal reflection app |
-| — | — | `intuitxn-general` (forum) | Cross-program communication |
-| — | — | `changelog` (stream) | Ledger posts one dated changelog entry per change (draft -> human approve) |
-| — | — | `shared-files` (stream) | Canonical shared files mirrored from the repo; canvas is the index; NIP-23 notes per file |
-
-Program details live in [`programs/*.md`](../programs/). Create the relay objects with
-`scripts/setup-programs.sh` (needs `BUZZ_PRIVATE_KEY` in the environment).
-
-## Agent activity model
-
-All agent activity happens as threads inside the program channels. One desk runtime
-handles intake, execution, and projection. Agent updates are thread replies, not new
-channels or personas. Pollen, Fizz, and Honey are optional Desktop helpers; they are
-not required for the loop. Humans accept a candidate by replying `accept` in the job
-thread.
-
-## Telepathy agents — JTBD interfaces
-
-| Agent | JTBD stage | May | Must not | Runtime |
-|---|---|---|---|---|
-| `@telepathy` (primary) | route | Route intent to the narrowest agent | Publish without approval; invent interfaces | opencode / desk |
-| `@prime` | propose, scope | Draft a job proposal (owner, reviewer, acceptance) | Execute, activate, publish, accept, resolve | desk |
-| `@build` | implement, verify | Implement in worktree, record verification evidence, draft artifact review | Accept own work, merge, resolve, publish | desk (codex or opencode) |
-| `@steward` | resolve, project, learn | Draft resolutions, changelog, activity projections, lesson entries | Author posts, change accepted history, send | desk |
-| `@research` | research | Retrieve sources, draft dossiers with source maps | Assert unverified claims, publish | desk |
-| `@relationships` | draft-external | Draft external messages from approved context | Send, record sent without delivery evidence | desk |
-| `@bend-forge` | prove | Draft `PROOF.bend` defs, laws, proofs; gate with `bend` | Self-accept, merge, resolve, publish | local Bend |
-| `@relay-keeper` | infra | Read-only health checks; draft infra proposals; restart only within explicit operational authorization | Publish, accept, touch credentials, rewire network | local |
-
-Required boundary (charters are instructions, not an isolation guarantee): **tools prepare, humans accept.**
-No interface may activate its own Job, accept its own artifact, resolve a Job, or speak as a person.
-
-## Buzz agents — the Nest front desk
-
-Names as registered in the Buzz Nest (`~/.buzz/AGENTS.md`). Personas are owned in Buzz Desktop.
-
-| Buzz agent | Proposed pairing | Notes |
-|---|---|---|
-| Pollen | `@prime` + `@research` | Gather context, scope proposals, research |
-| Fizz | `@build` | Execution energy, candidate production |
-| Honey | `@steward` | Consolidation, receipts, projections |
-| (no persona) | `@telepathy`, `@relationships`, `@bend-forge`, `@relay-keeper` | Route, external drafts, proofs, infra — no named Desktop persona |
-
-This pairing is a proposal, not yet authoritative — confirm each agent's persona in Buzz Desktop,
-then either keep this table or replace it with the real split.
-
-## Runtimes
-
-| Runtime | What it runs | Where |
-|---|---|---|
-| `runtime/desk` | The job engine: SQLite jobs/artifacts/outbox/cursors, Buzz poll + ingest, worktrees, dispatch | `telepathy/runtime/desk` |
-| opencode | Standard OpenCode — native `opencode run` with the user-configured provider/model, and `opencode acp` for Buzz. No fork or beta build is required. | local install (`runtime/desk/src/runtime.js`) |
-| codex CLI | Sandboxed execution worker (`codex exec --json`) | local install |
-
-The active baseline runs roles through native OpenCode/Buzz; the Desk flow below
-is an optional implementation, not another required orchestrator.
-
-## JTBD lifecycle
-
-```text
-Proposed -> Ready -> Active -> Waiting -> Review -> Resolved | Cancelled
-```
-
-Buzz is the human surface; optional Desk owns its own jobs; Git holds accepted revisions.
-
-| Stage | Buzz surface | Desk ledger |
-|---|---|---|
-| Proposed / Ready | Issue created on the program repo, or `/intuitxn {json}` message in the home channel | job `queued` |
-| Active | Issue assigned; thread updated | job `running`, worktree created |
-| Waiting / Review | Candidate + evidence posted to the thread | artifact drafted |
-| Resolved | Human accepts; issue `resolved`; outcome reply in thread | artifact accepted, outbox `sent` |
-| Cancelled | Issue `closed` | job `cancelled` |
-
-## The loop — working from Buzz on a JTBD
-
-1. **Human asks** in the program's home channel: either an issue on the program repo, or a message starting with `/intuitxn ` followed by JSON (`repository`, `request`, `acceptance`, optional `runtime`).
-2. **desk polls** the configured channels, deduplicates by source event id, and creates a job.
-3. **Runtime executes** in a git worktree at the accepted base revision (codex or opencode per job).
-4. **Candidate + evidence** returns: changed files, verification results, unresolved issues, exact revision.
-5. **Human reviews and accepts** in the Buzz thread — acceptance is a named human at an exact revision.
-6. **Ledger projects** the outcome: resolution, changelog, activity; the outbox replies to the original thread.
-
-## Where state lives
-
-| State | Store |
-|---|---|
-| Human requests, acceptance, receipts | Buzz relay |
-| Job state, outbox, cursors | desk SQLite (`.local/desk.sqlite`) |
-| Instructions, source, accepted revisions | git |
-| Secrets (BUZZ_PRIVATE_KEY, provider keys) | runtime env only — never in git, never in Buzz posts |
+The earlier Desk engine polled `/intuitxn` messages, created jobs in its SQLite ledger, used Git worktrees, and projected replies through an outbox. Its source and root npm commands are retired from this tree. The [relay setup record](RELAY_SETUP.md) and [harness state](HARNESS_STATE.md) preserve dated observations. An installed legacy service may still have private state; preserve it through the [migration gates](designs/local-main-reconciliation.md#migration-gates). Do not treat a historical Desk job as a DSH task or an independently accepted result.

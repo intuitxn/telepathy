@@ -40,7 +40,8 @@ they do not prove credential isolation or enforce every tool permission.
 | `@research` | retrieve sources, draft a dossier | assert unverified claims, publish |
 | `@relationships` | draft external messages from approved context | send, record unverified delivery |
 
-Buzz holds shared discussion and selected memory. Bend snapshots hold local
-worker transitions; Git holds source revisions. Standard OpenCode executes the
-roles. Desk is optional for its existing local ledger. The old custom Telepathy
-plugin is retired from the active configuration.
+Buzz discussion and the role catalog do not grant DSH tasks. The checked DSH
+host owns local task grants and evidence; Bend computes one-file algorithm
+candidates; jj keeps the exact source revisions. The earlier Desk ledger is
+historical installed state to preserve during migration, not an optional
+runtime in this source tree.
