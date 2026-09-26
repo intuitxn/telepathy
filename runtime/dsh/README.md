@@ -18,9 +18,13 @@ node runtime/dsh/algorithm-language.mjs check counter.algo
 node runtime/dsh/algorithm-language.mjs simulate counter.algo 3
 node runtime/dsh/algorithm-language.mjs compile counter.algo > counter.bend
 node runtime/dsh/algorithm-language.mjs run counter.algo 3
+# After the host pins an evaluator and case set, use the run output's receipt values:
+node runtime/dsh/algorithm-language.mjs score RECEIPT_ID RECEIPT_SHA256
 ```
 
 `run` compiles exactly one Bend source, predicts stdout with the in-process simulator, checks/builds/runs the generated source with the existing bounded native runner, and prints JSON containing both outputs, prediction agreement, status, digests, and the retained receipt path. Set `BEND` or `BEND_BIN` if Bend is not on `PATH`; the private archive defaults to `~/.local/state/telepathy-dsh/algorithms` and can be set with `TELEPATHY_DSH_ARCHIVE` outside the current workspace, the source file's containing jj workspace or directory, the configured DSH workspace, and temporary directories. The operator CLI does not establish claim correctness: an independent task oracle must score the archived candidate separately. Arbitrary papers and unrestricted pseudocode are outside this bounded language.
+
+`score` consumes only the run receipt ID and digest. The host process must set `TELEPATHY_DSH_EVALUATOR`, `TELEPATHY_DSH_EVALUATOR_SHA256`, `TELEPATHY_DSH_CASE_SET`, and `TELEPATHY_DSH_CASE_SET_SHA256` to approved bytes outside the candidate workspace. It replays the archived Bend source against every frozen case, archives the score, and exits nonzero on a failed case. `benchmarks/algorithm-language/cases.json` is a public six-case service-queue fixture for local reproduction; it is not a hidden task oracle or evidence of general correctness. Scoring does not select a global active candidate.
 
 In a funded DSH algorithm session, `algorithm_compile` accepts the same bounded text and up to 16 distinct step counts. It returns deterministic Bend source, both source digests, diagnostics, and in-process simulation outputs after one source parse. The agent can write those exact Bend bytes with its scoped file tool, then call `algorithm_run` with the returned Bend digest and an explicit prediction. Compilation and batched simulation consume one grant fuel unit. They do not run native Bend or score correctness.
 

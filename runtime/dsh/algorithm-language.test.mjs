@@ -111,10 +111,51 @@ test('one-file CLI runs native Bend against its prediction and retains an exact 
     const receiptBytes = await readFile(output.receipt_path);
     assert.equal(output.receipt_sha256, sha256(receiptBytes));
     const receipt = JSON.parse(receiptBytes);
+    assert.equal(output.receipt_id, receipt.receipt_id);
     assert.equal(receipt.source_sha256, compiled.bend_sha256);
     assert.equal(receipt.observation.cases[0].prediction_match, true);
+    assert.equal(receipt.observation.cases[0].name, 'step-3');
     assert.equal(await readFile(path.join(archiveRoot, 'candidates', `${compiled.bend_sha256}.bend`), 'utf8'),
       compiled.bend_source);
+
+    const evaluatorPath = path.resolve('benchmarks/core/run.mjs');
+    const caseSetPath = path.resolve('benchmarks/algorithm-language/cases.json');
+    const score = spawnSync(process.execPath,
+      [path.resolve('runtime/dsh/algorithm-language.mjs'), 'score',
+        receipt.receipt_id, output.receipt_sha256],
+      { encoding: 'utf8', cwd: path.resolve('.'), timeout: 90_000,
+        env: { ...process.env, BEND: bend, TELEPATHY_DSH_ARCHIVE: archiveRoot,
+          TELEPATHY_DSH_TEST_ALLOW_UNSAFE_ARCHIVE: '1',
+          TELEPATHY_DSH_EVALUATOR: evaluatorPath,
+          TELEPATHY_DSH_EVALUATOR_SHA256: sha256(await readFile(evaluatorPath)),
+          TELEPATHY_DSH_CASE_SET: caseSetPath,
+          TELEPATHY_DSH_CASE_SET_SHA256: sha256(await readFile(caseSetPath)) } });
+    assert.equal(score.status, 0, score.stderr);
+    const scored = JSON.parse(score.stdout);
+    assert.equal(scored.passed, true);
+    assert.deepEqual(scored.coverage, { total: 6, observed: 6, passed: 6, failed: 0 });
+    assert.equal(JSON.parse(await readFile(scored.score_path)).report.receipt_case_overlap, 1);
+
+    const changedCases = JSON.parse(await readFile(caseSetPath, 'utf8'));
+    changedCases.cases[3].expect.stdout = '6\n';
+    const changedCasePath = path.join(archiveRoot, 'changed-cases.json');
+    const changedCaseBytes = `${JSON.stringify(changedCases)}\n`;
+    await writeFile(changedCasePath, changedCaseBytes);
+    const rejected = spawnSync(process.execPath,
+      [path.resolve('runtime/dsh/algorithm-language.mjs'), 'score',
+        receipt.receipt_id, output.receipt_sha256],
+      { encoding: 'utf8', cwd: path.resolve('.'), timeout: 90_000,
+        env: { ...process.env, BEND: bend, TELEPATHY_DSH_ARCHIVE: archiveRoot,
+          TELEPATHY_DSH_TEST_ALLOW_UNSAFE_ARCHIVE: '1',
+          TELEPATHY_DSH_EVALUATOR: evaluatorPath,
+          TELEPATHY_DSH_EVALUATOR_SHA256: sha256(await readFile(evaluatorPath)),
+          TELEPATHY_DSH_CASE_SET: changedCasePath,
+          TELEPATHY_DSH_CASE_SET_SHA256: sha256(changedCaseBytes) } });
+    assert.equal(rejected.status, 1, rejected.stderr);
+    const failedScore = JSON.parse(rejected.stdout);
+    assert.equal(failedScore.passed, false);
+    assert.deepEqual(failedScore.coverage, { total: 6, observed: 6, passed: 5, failed: 1 });
+    assert.equal(failedScore.cases.find(item => item.id === 'step-3').pass, false);
   } finally {
     await rm(workspaceRoot, { recursive: true, force: true });
     await rm(archiveRoot, { recursive: true, force: true });

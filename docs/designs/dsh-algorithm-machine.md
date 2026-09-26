@@ -420,6 +420,10 @@ bytes with a scoped file tool, then call `algorithm_run` with the returned diges
 The batched simulation parses the text once. It is a fast executable
 pseudocode subset, not an automatic translation of an arbitrary paper or an
 independent evaluator.
+The operator `score` command takes an exact run receipt and replays its archived
+Bend source against a host-pinned evaluator and case set. Its public fixture is
+for reproduction; production cases and oracle authority remain outside the
+candidate workspace.
 
 An LSP would expose Bend diagnostics, symbol navigation, completion for the
 small algorithm contract, and source-to-receipt links. It is a developer aid,

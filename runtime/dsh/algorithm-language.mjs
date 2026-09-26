@@ -247,13 +247,25 @@ export function simulateAlgorithmText(source, steps) {
 
 async function cli(args) {
   const [command, sourcePath, count, ...extra] = args;
-  if (!['check', 'compile', 'simulate', 'run'].includes(command) || !sourcePath || extra.length ||
-      (command === 'simulate' || command === 'run' ? count === undefined : count !== undefined)) {
-    process.stderr.write('usage: algorithm-language.mjs check|compile FILE | simulate|run FILE STEPS\n');
+  if (!['check', 'compile', 'simulate', 'run', 'score'].includes(command) || !sourcePath || extra.length ||
+      (['simulate', 'run', 'score'].includes(command) ? count === undefined : count !== undefined)) {
+    process.stderr.write('usage: algorithm-language.mjs check|compile FILE | simulate|run FILE STEPS | score RECEIPT_ID RECEIPT_SHA256\n');
     process.exitCode = 2;
     return;
   }
   try {
+    if (command === 'score') {
+      for (const name of ['TELEPATHY_DSH_EVALUATOR', 'TELEPATHY_DSH_EVALUATOR_SHA256',
+        'TELEPATHY_DSH_CASE_SET', 'TELEPATHY_DSH_CASE_SET_SHA256']) {
+        if (!process.env[name]) throw new Error(`score requires host-pinned ${name}`);
+      }
+      const { scoreCandidate } = await import('./core.mjs');
+      const scored = await scoreCandidate({ receipt_id: sourcePath, receipt_sha256: count },
+        { bendBin: process.env.BEND ?? process.env.BEND_BIN });
+      process.stdout.write(`${JSON.stringify(scored)}\n`);
+      if (!scored.passed) process.exitCode = 1;
+      return;
+    }
     const exactSourcePath = await realpath(sourcePath);
     const bytes = await readFile(exactSourcePath);
     if (bytes.length > MAX_BYTES) throw new Error(`source exceeds ${MAX_BYTES} bytes`);
@@ -278,7 +290,7 @@ async function cli(args) {
         const { runCandidate } = await import('./core.mjs');
         const receipt = await runCandidate({ source: generated, source_sha256: compiled.bend_sha256,
           predict_check_pass: true, predict_build_pass: true,
-          cases: [{ name: 'simulation', args: [count], predicted_stdout: result.stdout }],
+          cases: [{ name: `step-${count}`, args: [count], predicted_stdout: result.stdout }],
         }, { workspaceRoot, archiveGuardRoots: [process.cwd(), path.dirname(exactSourcePath),
           sourceWorkspaceRoot(exactSourcePath),
           ...(process.env.TELEPATHY_DSH_WORKSPACE ? [process.env.TELEPATHY_DSH_WORKSPACE] : [])],
@@ -288,7 +300,8 @@ async function cli(args) {
           bend_sha256: compiled.bend_sha256, steps, predicted_stdout: result.stdout,
           observed_stdout: observed?.observed?.stdout ?? null,
           prediction_match: observed?.prediction_match ?? false, status: receipt.status,
-          receipt_sha256: receipt.receipt_sha256, receipt_path: receipt.receipt_path })}\n`);
+          receipt_id: receipt.receipt_id, receipt_sha256: receipt.receipt_sha256,
+          receipt_path: receipt.receipt_path })}\n`);
         if (receipt.status !== 'executed' || !observed?.prediction_match) process.exitCode = 1;
       } finally {
         await rm(workspaceRoot, { recursive: true, force: true });
