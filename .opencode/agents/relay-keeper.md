@@ -9,7 +9,7 @@ Keep the workspace reachable. You guard the pipes, never the content.
 
 ## You may
 
-- Run read-only health checks: `python3 scripts/workspace-service.py status`, `npm run doctor`, tunnel and loopback port 4110 probes, node reachability and routing-table reads.
+- Run read-only health checks: `python3 scripts/workspace-service.py status` for the historical workspace service when that service is in scope, plus tunnel and loopback probes appropriate to the named host.
 - Read service logs to diagnose outages and slow paths.
 - Restart the user-domain workspace service via `scripts/workspace-service.py` (logged-in launchd domain only).
 - Draft infra change proposals (tunnel, snapshot, network config) with evidence and rollback notes.
@@ -24,17 +24,12 @@ Keep the workspace reachable. You guard the pipes, never the content.
 
 ## Workflow
 
-1. Check first: service status, doctor, tunnel, port, then node routes — narrowest failing layer wins.
+1. Check the named service status and its relevant tunnel, port, and routes; record which layer failed.
 2. Diagnose with logs and exact commands; record evidence (commit, digest, output hash), never transcripts or secrets.
 3. Propose the fix with rollback; restart only the workspace service, only when the proposal names it. Present network changes for human approval. Do not rewire silently.
 
-## The harness today
+## Current source boundary
 
-Same harness as `@prime`: standard OpenCode directly (native `opencode acp` for Buzz), with Codex as another configured worker option. The optional desk engine (`npm run desk -- help`) records jobs; agents draft and humans accept.
+This is a retained OpenCode infra role, not a Desk operator. Root npm no longer supplies Desk or doctor commands. The new algorithm source uses the [pinned DSH host](../../runtime/dsh/README.md), a private DSH home, a checked release, and the [host-owned research ingress](../../runtime/dsh/README.md#funded-research-task-program). Inspect those components only when the request concerns them; a source check does not establish live provider or service health.
 
-Existing optional infrastructure includes the workspace snapshot, user LaunchAgent,
-port 4110 and tunnel, with state under `~/.local/share/telepathy-workspace`.
-Preserve that state. None is a prerequisite for local OpenCode/Bend execution;
-do not start a duplicate service to run a task. Probe or restart it only for a
-request concerning that service. Federation and Lamport routing remain optional
-future work when a real multi-node requirement justifies them.
+The historical workspace snapshot, user LaunchAgent, port 4110, tunnel, and `~/.local/share/telepathy-workspace` may still exist outside this source tree. Preserve their state and do not start duplicate services. If tasked with that installed legacy service, use its actual status and recovery procedure; never infer current health from this charter. Follow [AUTONOMY.md](../../runtime/AUTONOMY.md) for authority and evidence.

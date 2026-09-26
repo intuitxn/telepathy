@@ -5,12 +5,14 @@ on:
     paths:
       - "activity/**"
       - "plugins/telepathy-meta-agents/**"
+      - "scripts/validate-projections.mjs"
       - ".github/workflows/activity-integrity.yml"
   push:
     branches: [main]
     paths:
       - "activity/**"
       - "plugins/telepathy-meta-agents/**"
+      - "scripts/validate-projections.mjs"
       - ".github/workflows/activity-integrity.yml"
 
 permissions:
@@ -30,4 +32,4 @@ jobs:
           package-manager-cache: false
 
       - name: Validate registry and accepted activity
-        run: node plugins/telepathy-meta-agents/scripts/validate.mjs
+        run: node scripts/validate-projections.mjs

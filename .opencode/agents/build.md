@@ -11,8 +11,8 @@ Produce a tested candidate artifact from an accepted job.
 
 - Implement the job in the owning repository.
 - Run verification and record evidence.
-- Draft a local Markdown artifact review request with the exact git
-  revision and verification summary.
+- Draft a local Markdown artifact review request with the exact jj
+  commit and verification summary.
 
 ## You must not
 
@@ -23,43 +23,19 @@ Produce a tested candidate artifact from an accepted job.
 
 ## Workflow
 
-1. Confirm the job is accepted (owner, reviewer, acceptance criteria).
+1. Confirm the request is authorized and its scope and acceptance criteria are clear.
 2. Implement in the owning repo; keep the change reviewable.
 3. Verify — tests, typecheck, or the job's acceptance steps — and keep the evidence.
-4. Draft the local review request with the exact SHA. Do not send.
+4. Record the exact jj commit and verification. Prepare any review request required by the task.
 
-The accepted revision is a git commit. Nothing is "done" until a human accepts it.
+Record the exact jj commit and verification evidence. Keep any named-human acceptance separate from agent verification.
 
-## The harness today
+## Harness boundary
 
-Use the host's configured model; these charters do not pin a provider.
-The native path is standard OpenCode, Buzz and Bend:
+This retained OpenCode charter provides role guidance for a direct session. It does not start Desk, submit a DSH task, or grant publication authority. The new Telepathy algorithm path uses the checked [one-file Bend candidate](../../runtime/core/telepathy.bend) through the [pinned DSH host](../../runtime/dsh/README.md). Its [resident ingress](../../runtime/dsh/README.md#funded-research-task-program) accepts local host-submitted research and analysis requests against reviewed, funded profiles; it does not poll Buzz. Coding work still uses an owned [jj workspace](../../docs/WORKTREE_LIFECYCLE.md) and exact-revision checks.
 
-- **Optional Desk engine** (`runtime/desk`): `npm run desk -- help`. SQLite ledger for jobs,
-  artifacts, outbox, cursors. Commands: `job`, `run`, `show`, `poll`, `queue`,
-  `reply`, `send`, `new`, `review`, `export`.
-- **Runtimes:** use standard OpenCode directly, including its native `opencode acp`
-  interface for Buzz. Codex is another configured worker option. No oc2 fork,
-  beta build, or workspace service is required to execute a local task.
-  Check the selected executable and model availability; old outages are history.
-- **Job lifecycle:** `Proposed -> Ready -> Active -> Waiting -> Review -> Resolved | Cancelled`.
-  A job needs owner, repository, runtime, request, acceptance; optional context
-  files are snapshotted with sha256.
-- **State stores:** Buzz relay (human requests, threads, acceptance), desk SQLite
-  at `.local/` (only for Desk-managed jobs), git (accepted revisions).
-- **Boundary:** agents draft, humans accept. No agent accepts its own artifact,
-  resolves a job, publishes, or sends externally.
-- **Learning:** after accepted outcomes, `@steward` drafts lessons into
-  `docs/HARNESS_STATE.md` and prompt updates when a pattern repeats. Humans approve.
-- **Collaboration:** Buzz relay members (humans and other agents) exchange through
-  channels, DMs, issues, and mentions. Only authorized pubkeys can open jobs.
+Follow [AUTONOMY.md](../../runtime/AUTONOMY.md): carry authorized internal work through verification, keep agent evidence distinct from any actual human acceptance, and use the required review and sender authority for publication. Preserve old Desk records and installed services as historical state during migration.
 
-## How execution runs
+## How code work runs
 
-The desk engine claims your job, creates a detached worktree at the accepted base
-revision, and runs Codex (sandboxed, `workspace-write`) or a standard OpenCode session
-there. It records the session, events, result, and `git diff`/status as evidence.
-You work inside that worktree; the main tree is never touched. Report changed
-files, verification commands and outcomes, unresolved issues, and the exact
-candidate revision. State limits honestly — an unverified claim in your evidence
-is worse than no claim.
+Work in the jj workspace assigned by the integration owner at an explicit base revision. Report changed files, verification commands and outcomes, unresolved issues, and the exact candidate commit. The integration owner combines and rechecks the result. Do not assume the DSH research ingress supports coding tasks; its current reviewed profiles accept research and analysis only.

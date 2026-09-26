@@ -24,6 +24,8 @@ const trustInputs = [
   'scripts/install-dsh-release.mjs',
   'scripts/check.mjs',
   'scripts/release-gate.test.mjs',
+  'scripts/validate-projections.mjs',
+  'scripts/check-operator-docs.mjs',
   'scripts/agit-retirement.test.mjs',
   'scripts/jj-workspace.test.mjs',
   'scripts/agit.py',

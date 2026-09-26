@@ -74,6 +74,8 @@ const RETIRED = [
   'scripts/ops-driver.test.mjs',
   'scripts/install-meta.sh',
   'plugins/telepathy-mailbox',
+  'runtime/programs/retrieval',
+  'scripts/jtbd-workflow.yaml',
   'scripts/telepathy-discover.mjs',
   'scripts/telepathy-discover.test.mjs',
   '.opencode/commands/meta.md',
@@ -156,6 +158,8 @@ const REQUIRED = [
   'scripts/jj-gate.mjs',
   'scripts/install-dsh-release.mjs',
   'scripts/release-gate.test.mjs',
+  'scripts/validate-projections.mjs',
+  'scripts/check-operator-docs.mjs',
 ];
 const missing = REQUIRED.filter((rel) => !fs.existsSync(path.join(root, rel)));
 if (missing.length > 0) {
@@ -203,6 +207,15 @@ function describe(result) {
   const combined = `${result.stderr || ''}${result.stdout || ''}`.trim();
   const tail = combined.split('\n').slice(-6).join(' | ').slice(-800);
   return `exit ${result.status}${tail ? `: ${tail}` : ''}`;
+}
+
+for (const [name, file] of [
+  ['registry and accepted activity', 'scripts/validate-projections.mjs'],
+  ['operator docs', 'scripts/check-operator-docs.mjs'],
+]) {
+  const checked = runNode([file]);
+  record(checked.status === 0 ? 'PASS' : 'FAIL', name,
+    checked.status === 0 ? 'exit 0' : describe(checked));
 }
 
 // (e) ALWAYS run the pure-Node evaluation test (no Bend required).
