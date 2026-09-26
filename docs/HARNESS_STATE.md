@@ -12,9 +12,9 @@ source archives, independent settlement, and a local resident ingress for
 research and analysis. The intended provider route is
 `deepseek-official/deepseek-flash`. The exact source and keyless checks are
 specified in the [DSH guide](../runtime/dsh/README.md); the operator sequence
-is in [OPERATE.md](../OPERATE.md). A live DeepSeek turn and migration from the
-old resident service still need their separate gates. Keep the old private
-ledger, sessions, and reviewable workspaces during that transition.
+is in [OPERATE.md](../OPERATE.md). One live funded DeepSeek algorithm task
+passed; migration from the old resident service still needs its separate gate.
+Keep the old private ledger, sessions, and reviewable workspaces during that transition.
 
 The root `npm run check` checks source with optional local Bend; `make check`
 requires Bend; `make integration-check` additionally requires a built pinned

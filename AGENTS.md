@@ -17,8 +17,8 @@ review requirements still apply. Preserve candidate revisions and ignored files
 before retiring a workspace.
 
 The new algorithm source targets the pinned DeepSeek Harness route
-`deepseek-official/deepseek-flash` and plugin in `runtime/dsh/`; operational
-cutover is pending the live and migration gates. Read
+`deepseek-official/deepseek-flash` and plugin in `runtime/dsh/`; one live
+algorithm task passed, while broad operational cutover remains pending. Read
 runtime/adaptive/HARNESS.md, runtime/dsh/README.md, and the executable Bend
 candidate in `runtime/core/telepathy.bend`. The root `npm run check` verifies
 the DSH plugin, historical evaluator, and Bend core/benchmark when Bend is

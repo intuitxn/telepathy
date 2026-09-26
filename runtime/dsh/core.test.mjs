@@ -31,6 +31,8 @@ test('registers the six raw-schema tools in the isolated keyless smoke profile',
     ['algorithm_run', 'algorithm_score', 'algorithm_select', 'algorithm_compile', 'algorithm_active', 'algorithm_execute']);
   assert.deepEqual(registrations[0].parameters.required,
     ['source', 'source_sha256', 'predict_check_pass', 'predict_build_pass', 'cases']);
+  assert.equal(registrations[0].parameters.properties.cases.items.properties.name.pattern,
+    '^[a-zA-Z0-9_-]{1,64}$');
   const compiled = await registrations[3].execute({ source_text:
     'algorithm counter\nstate total = 0\nstep total = add(total, 1)\nreturn total\n',
   steps: [0, 3, 128] });
@@ -60,14 +62,31 @@ test('funded profile requires control services and hides scoring and global sele
   { mode: 'funded', taskRef });
   assert.deepEqual(registrations.map(tool => tool.name),
     ['algorithm_run', 'algorithm_compile', 'algorithm_active', 'algorithm_execute']);
-  await assert.rejects(registrations[0].execute({}, { agent: { session: { id: 'session' } },
-    callId: 'call-1' }), /no bound grant/);
+  assert.equal(registrations[3].parameters.properties.args.maxItems, 16);
+  assert.equal(registrations[3].parameters.properties.args.items.maxLength, 256);
+  const execution = callId => ({ agent: { session: { id: 'session' } }, callId });
+  const runRequest = { source: 'candidate.bend', source_sha256: 'a'.repeat(64),
+    predict_check_pass: true, predict_build_pass: true,
+    cases: [{ name: 'step0', args: ['0'], predicted_stdout: '0\n' }] };
+  await assert.rejects(registrations[0].execute({ ...runRequest,
+    cases: [{ ...runRequest.cases[0], name: 'step 0' }] }, execution('malformed')),
+  /case names must be unique short identifiers/);
+  assert.equal(reservations.length, 0, 'malformed call must not spend native-run fuel');
+  await assert.rejects(registrations[0].execute(runRequest, execution('call-1')),
+    /no bound grant/);
   assert.equal(reservations.length, 1);
+  await assert.rejects(registrations[3].execute({ args: ['bad\0arg'] }, execution('malformed-execute')),
+    /args must contain at most 16 short strings/);
+  assert.equal(reservations.length, 1, 'malformed execute must not spend native-run fuel');
+  await assert.rejects(registrations[3].execute({ args: ['0'] }, execution('execute-1')),
+    /no bound grant/);
+  assert.equal(reservations.length, 2);
+  assert.equal(reservations[1].tool, 'algorithm_execute');
   assert.equal(reservations[0].tool, 'algorithm_run');
   assert.match(reservations[0].input_sha256, /^[a-f0-9]{64}$/);
-  await assert.rejects(registrations[0].execute({}, { agent: { session: { id: 'session' } } }),
+  await assert.rejects(registrations[0].execute(runRequest, { agent: { session: { id: 'session' } } }),
     /requires a DSH session and call ID/);
-  assert.equal(reservations.length, 1);
+  assert.equal(reservations.length, 2);
 
   const accepted = [];
   const fundedTools = [];
@@ -85,6 +104,7 @@ test('funded profile requires control services and hides scoring and global sele
 
 test('checked production patch mounts only the funded algorithm catalog', async () => {
   const patch = await readFile(path.join(repo, 'runtime/dsh/cordis.patch.yml'), 'utf8');
+  assert.match(patch, /- id: tool-skill\n  disabled: true/);
   const block = patch.split('    - id: telepathy-algorithm-core\n')[1]?.split('\n    - id:')[0];
   assert.ok(block, 'production algorithm plugin is missing');
   assert.match(block, /inject: \[telepathyTaskControl, telepathyToolBoundary\]/);

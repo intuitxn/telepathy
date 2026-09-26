@@ -1,6 +1,6 @@
 # Telepathy algorithm harness
 
-The new source harness is the [pinned DeepSeek Harness integration](../dsh/README.md), with `deepseek-official/deepseek-flash` as its intended model route. Its keyless session and algorithm tools are tested; operational cutover remains pending a live credentialed run and the migration gates. [The algorithm machine contract](../../docs/designs/dsh-algorithm-machine.md) defines the wider target. One Bend source file is the executable candidate; the DSH plugin owns bounded execution and receipts; the independent benchmark owns expected results and selection evidence. The former Mundus, Meta shell, OpenCode `/meta`, and mailbox host paths are historical source, not the active build plan.
+The new source harness is the [pinned DeepSeek Harness integration](../dsh/README.md), with `deepseek-official/deepseek-flash` as its model route. Its keyless session and algorithm tools are tested. One live funded DeepSeek task produced a source-bound Bend receipt and passed independent hidden cases; this establishes that route for one task, not reliable autonomous operation. [The algorithm machine contract](../../docs/designs/dsh-algorithm-machine.md) defines the wider target. One Bend source file is the executable candidate; the DSH plugin owns bounded execution and receipts; the independent benchmark owns expected results and selection evidence. The former Mundus, Meta shell, OpenCode `/meta`, and mailbox host paths are historical source, not the active build plan.
 
 ## Closed loop
 
@@ -15,7 +15,7 @@ The new source harness is the [pinned DeepSeek Harness integration](../dsh/READM
 
 The frontier is a finite, budget-admissible set of candidate actions or versions. Record `birth`, `refine`, `fork`, `falsify`, `suspend`, and `select` events by causal parent and session sequence. Simulation fuel is event-relative duration; wall time, check/build/runtime time, model calls, and money are separate costs. A candidate's prediction error can reveal uncertainty but cannot substitute for task quality. Retrieval must be compared with a no-retrieval baseline and must abstain on incompatible evidence.
 
-For self-improvement, evaluate an agent or plugin descendant against an unchanged clone on fresh tasks before selection. Pin the grader, cases, runtime, and budget for that comparison. Store only source-bound, supported findings for later retrieval; a session transcript or claimed insight is not admitted knowledge by itself. The current keyless DSH headless test exercises proposal, check/build, independent score, selection, and old/new session pins. Live DeepSeek API behavior and general self-improvement remain unverified until measured.
+For self-improvement, evaluate an agent or plugin descendant against an unchanged clone on fresh tasks before selection. Pin the grader, cases, runtime, and budget for that comparison. Store only source-bound, supported findings for later retrieval; a session transcript or claimed insight is not admitted knowledge by itself. The current keyless DSH headless test exercises proposal, check/build, independent score, selection, and old/new session pins. The live DeepSeek run exercised one algorithm task; general self-improvement remains unverified until a fresh-task comparison is measured.
 
 ## Local checks and authority
 

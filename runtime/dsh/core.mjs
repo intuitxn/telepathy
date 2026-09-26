@@ -570,12 +570,16 @@ export async function activeCandidate(settings = {}, execution = {}) {
 }
 
 /** Execute the exact binary selected and pinned for this DSH session. */
-export async function executeCandidate(input, settings = {}, execution = {}) {
+function validateExecuteArgs(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input) ||
     Object.keys(input).some(key => key !== 'args') || !Array.isArray(input.args) ||
     input.args.length > ARG_LIMIT || input.args.some(arg => typeof arg !== 'string' || arg.length > 256 || arg.includes('\0'))) {
     throw new Error('args must contain at most 16 short strings');
   }
+}
+
+export async function executeCandidate(input, settings = {}, execution = {}) {
+  validateExecuteArgs(input);
   const pin = await activeCandidate(settings, execution);
   const active = pin.active;
   if (!active) throw new Error('this session has no selected algorithm');
@@ -628,7 +632,7 @@ export async function executeCandidate(input, settings = {}, execution = {}) {
 export function createTool(settings) {
   return {
     name: 'algorithm_run',
-    description: 'Freeze a one-file Bend candidate at an exact SHA-256, check and build it once, run up to 16 bounded cases, and return a durable prediction/observation receipt. This measures execution, not task correctness.',
+    description: 'Freeze a one-file Bend candidate at an exact SHA-256, check and build it once, run up to 16 bounded cases, and return a durable prediction/observation receipt. Case names are unique 1..64 character identifiers using letters, digits, underscore or hyphen. This measures execution, not task correctness.',
     parameters: {
       type: 'object', additionalProperties: false,
       required: ['source', 'source_sha256', 'predict_check_pass', 'predict_build_pass', 'cases'],
@@ -636,9 +640,11 @@ export function createTool(settings) {
         source: { type: 'string', description: 'Relative .bend path in the workspace' },
         source_sha256: { type: 'string', description: 'Exact lowercase SHA-256 of the source bytes before the call' },
         predict_check_pass: { type: 'boolean' }, predict_build_pass: { type: 'boolean' },
-        cases: { type: 'array', items: { type: 'object', additionalProperties: false,
+        cases: { type: 'array', minItems: 1, maxItems: 16,
+          items: { type: 'object', additionalProperties: false,
           required: ['name', 'args', 'predicted_stdout'], properties: {
-            name: { type: 'string' }, args: { type: 'array', items: { type: 'string' } },
+            name: { type: 'string', pattern: '^[a-zA-Z0-9_-]{1,64}$' },
+            args: { type: 'array', items: { type: 'string' } },
             predicted_stdout: { type: 'string' },
           } } },
       },
@@ -739,9 +745,10 @@ export function createActiveTool(settings) {
 export function createExecuteTool(settings) {
   return {
     name: 'algorithm_execute',
-    description: 'Run bounded arguments against this session’s selected, archived Bend binary. The source and binary digests come from the session pin, not the model.',
+    description: 'Run up to 16 short string arguments against this session’s selected, archived Bend binary. The source and binary digests come from the session pin, not the model.',
     parameters: { type: 'object', additionalProperties: false, required: ['args'],
-      properties: { args: { type: 'array', items: { type: 'string' } } } },
+      properties: { args: { type: 'array', maxItems: ARG_LIMIT,
+        items: { type: 'string', maxLength: 256 } } } },
     output: { schema: { type: 'object', additionalProperties: true },
       render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
     execute: (args, exec) => executeCandidate(args, settings, {
@@ -775,6 +782,10 @@ export function apply(ctx, config = {}) {
       const callId = exec?.callId;
       if (typeof sessionId !== 'string' || !sessionId || typeof callId !== 'string' || !callId)
         throw new Error('funded algorithm call requires a DSH session and call ID');
+      // Reject malformed requests before spending the native-run reservation.
+      // The provider turn still consumes its separately metered model tokens.
+      if (tool.name === 'algorithm_run') validateRequest(args);
+      if (tool.name === 'algorithm_execute') validateExecuteArgs(args);
       await controller.reserveAlgorithmCall(taskRef, { session_id: sessionId,
         call_id: callId, tool: tool.name, input_sha256: sha256(JSON.stringify(args)) });
       return tool.execute(args, exec);
